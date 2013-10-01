@@ -12,7 +12,7 @@
 ############
 n_CPU=8
 reference_version=hg19
-ANNOTATION=/data/neurogen/commonData/
+ANNOTATION=/data/neurogen/commonData/gencode.v14.annotation.bed15
 BOWTIE_INDEXES=/pub/genome_references/UCSC/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex
 BIN=$HOME/projects/PD/src
 
@@ -26,7 +26,7 @@ adaptor_file=adaptor.fa
 #phred
 bowtie="--phred33-quals"; bowtie2="--phred33"; tophat=""; far="fastq-sanger"; fastqmcf="33"; trimmomatic="-phred33"
 #Pair-end option
-PE="--mate-inner-dist 50"
+PE="--mate-inner-dist 250 --mate-std-dev 60"
 #strand
 strandoption="--library-type fr-unstranded"
 
@@ -41,7 +41,7 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *.R1.fastq.gz;
+for i in *.R1.fastq;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -64,29 +64,34 @@ do
     fi
 done
 
+
 ############
-## 2. identify differentially expressed genes (cuffdiff and DEseq)
+## 2. TODO: Outlier analysis (clustering, visualization) -- by Bin
+############
+bsub outlier.sh 
+
+############
+## 3. factor analysis to identify the hidden covariates (PEER)
+############
+bsub Rscript _factor_analysis.R
+
+############
+## 4. identify differentially expressed genes (cuffdiff and DEseq), incoperating the hidden covariates from PEER
 ############
 [ -d $output_dir/DE_cuffdiff ] || mkdir $output_dir/DE_cuffdiff
 cd $output_dir/DE_cuffdiff
 
 bsub _DE_cuffdiff.lsf $gtflist $samlist $labels
-bsub Rscript _DE_DEseq.R $output_dir PD Ct $ANNOTATION/gencode.v14.annotation.bed15
+bsub Rscript _DE_DEseq.R $output_dir PD Ct $ANNOTATION
 
-############
-## 3. pathway analysis (SPIA)
-############
-bsub Rscript _pathway_analysis.R
-
-############
-## 4. factor analysis (PEER)
-############
-bsub Rscript _factor_analysis.R
 
 ############
 ## 5. eQTL (PEER)
 ############
-## pre-requirisition: call SNP/variation ahead
+## pre-requirisition: call SNP/variation ahead  -- by Shuilin
 bsub Rscript _eQTL.R
 
-
+############
+## 6. pathway analysis (SPIA)
+############
+bsub Rscript _pathway_analysis.R

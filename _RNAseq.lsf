@@ -57,8 +57,11 @@ echo "################ 3. QC"
 fastqc --outdir $outputdir/$samplename --extract -t 2 $R1 $R2
 rm $outputdir/$samplename/*fastqc.zip
 
+## TOADD: RNA-seqc  (by Bin)
+## 
+
 ############################################
-################ 4. mapping to the genome
+echo "############### 4. mapping to the genome"
 ############################################
 ## TOCHANGE: genome_offrate3
 ## tophat (output accepted_hits.sam, allow up to 100 multiple hits)
@@ -90,6 +93,7 @@ cufflinks -q --no-update-check $strandoption -o ./denovo_cufflinks -p $cpu -g $A
 #echo "## run trinity to do de-novo discovery"
 Trinity.pl --output denovo_trinity --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
 echo "## run STAR to do de-novo discovery"
+## TODO: STAR 
 
 
 #echo "## run htseq for reads count"
