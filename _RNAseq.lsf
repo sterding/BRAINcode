@@ -1,0 +1,129 @@
+###########################################
+## bash script for running paired-end RNAseq on LSF cluster
+###########################################
+#!/bin/sh
+#$ -V
+#$ -pe openmpi 12
+#$ -cwd
+#$ -o $HOME/sge_jobs_output/sge_job.$JOB_ID.out -j y
+#$ -S /bin/bash
+#$ -l mem_free=6G
+
+###########################################
+############## 1. Configuring
+###########################################
+
+R1=$1  # full path of R1 
+R2=$2  # full path of R2 (for paired-end reads)
+
+samplename=${R1/.R1*/}
+cpu=12
+index=hg19
+adaptorfile=adaptor.fa
+ANNOTATION=/pub/genome_references/UCSC/Homo_sapiens/UCSC/hg19/Annotation/Genes
+BOWTIE_INDEXES=/pub/genome_references/UCSC/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex
+
+#============= mapping options
+#phred
+bowtie="--phred33-quals"; bowtie2="--phred33"; tophat=""; far="fastq-sanger"; fastqmcf="33"; trimmomatic="-phred33"
+#mismatch
+mm=2
+#PE option
+PE_option="--mate-inner-dist 250 --mate-std-dev 60"
+#strand
+strand_option="--library-type fr-unstranded"
+
+##TOCHANGE
+ln -sf $HOME/sge_jobs_output/sge_job.$JOB_ID.out $outputdir/$samplename/sge.log
+
+inputdir=$PWD
+outputdir=$inputdir/../run_output
+[ -d $outputdir ] || mkdir $outputdir
+
+###########################################
+echo "###############  2. quality filter: adaptor removal/clip"
+###########################################
+
+##### adaptor removal
+[ -d ../filtered ] || mkdir ../filtered
+fastq-mcf -o ../filtered/$R1 -o ../filtered/$R2 -l 16 -q 15 -w 4 -x 10 -u -P $fastqmcf $adaptorfile $R1 $R2
+
+cd ../filtered
+
+#############################################
+echo "################ 3. QC"
+############################################
+
+fastqc --outdir $outputdir/$samplename --extract -t 2 $R1 $R2
+rm $outputdir/$samplename/*fastqc.zip
+
+############################################
+################ 4. mapping to the genome
+############################################
+## TOCHANGE: genome_offrate3
+## tophat (output accepted_hits.sam, allow up to 100 multiple hits)
+tophat -o $outputdir/$samplename --no-convert-bam -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --min-anchor-length 8 --min-intron-length 30 --max-intron-length 50000 --splice-mismatches 1 --max-multihits 100 --no-coverage-search genome_offrate3 $R1 $R2
+
+###########################################
+echo "############### 5. post-processing, format converting"
+###########################################
+
+cd $outputdir/$samplename
+
+## sam -> bam -> sorted -> index
+samtools view -Sbut $BOWTIE_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted
+mv accepted_hits.sorted.bam accepted_hits.bam
+samtools index accepted_hits.bam
+
+
+###########################################
+echo "################# 6. assembly and quantification"
+###########################################
+
+cd $outputdir/$samplename
+
+echo "## run cufflinks to get FPKM"
+cufflinks -q --no-update-check $strandoption -o ./ -p $cpu -G $ANNOTATION/gencode.v14.annotation.gtf -M $ANNOTATION/chrM.rRNA.tRNA.gtf -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
+
+echo "## run cufflinks to do de-novo discovery"
+cufflinks -q --no-update-check $strandoption -o ./denovo_cufflinks -p $cpu -g $ANNOTATION/gencode.v14.annotation.gtf -M $ANNOTATION/chrM.rRNA.tRNA.gtf -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
+#echo "## run trinity to do de-novo discovery"
+Trinity.pl --output denovo_trinity --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
+echo "## run STAR to do de-novo discovery"
+
+
+#echo "## run htseq for reads count"
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION/gencode.v14.annotation.gtf > $samplename.hgseqcount.by.gene.tab 2> $samplename.hgseqcount.by.gene.tab.stderr
+#echo "## run bedtools for reads count"
+#bedtools multicov -D -split -bams accepted_hits.bam -bed $ANNOTATION/gencode.v14.annotation.bed15 > $samplename.bedtools.by.trans.tab
+
+############################################
+echo "############### 7. prepare for tracks files to display on UCSC / IGV"
+############################################
+#
+[ -d $inputdir/../for_display ] || mkdir $inputdir/../for_display
+cd $inputdir/../for_display
+
+## make index for the (sorted) BAM
+ln -s $outputdir/$samplename/accepted_hits.bam $samplename.accepted_hits.bam
+ln -s $outputdir/$samplename/accepted_hits.bam.bai $samplename.accepted_hits.bam.bai
+
+## QC
+#mv $outputdir/$samplename/*_fastqc ./
+
+# bigwig for UCSC
+echo "## generating bigwig files for UCSC display"
+bamToBed -i $samplename.accepted_hits.bam -split > $samplename.accepted_hits.bed
+sort -k1,1 $samplename.accepted_hits.bed | bedItemOverlapCount mm9 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > $samplename.accepted_hits.bedGraph
+bedGraphToBigWig $samplename.accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt $samplename.accepted_hits.bw
+rm $samplename.accepted_hits.bed $samplename.accepted_hits.bedGraph
+
+ln -s $outputdir/$samplename/isoforms.fpkm_tracking $samplename.isoforms.fpkm_tracking
+ln -s $outputdir/$samplename/genes.fpkm_tracking $samplename.genes.fpkm_tracking
+
+# gtf of assembly
+echo "track name=$samplename description=$samplename visibility=pack colorByStrand='200,100,0 0,100,200'" > $samplename.transcripts.gtf
+cat $outputdir/$samplename/transcripts.gtf >> $samplename.transcripts.gtf
+gzip -f $samplename.transcripts.gtf
+
+echo "!! RNAseq.lsf job for sample $samplename is done !!"
