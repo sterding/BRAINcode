@@ -4,7 +4,7 @@
 # author: Xianjun Dong
 # email: xdong@rics.bwh.harvard.edu
 # date: 9/16/2013
-# version: 1.0
+# version: 2.0
 ####################################
 
 ############
