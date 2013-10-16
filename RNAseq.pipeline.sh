@@ -4,7 +4,7 @@
 # author: Xianjun Dong
 # email: xdong@rics.bwh.harvard.edu
 # date: 9/16/2013
-# version: 2.0
+# version: 1.0
 ####################################
 
 ############
@@ -19,6 +19,11 @@ BIN=$HOME/projects/PD/src
 input_dir=$1  # $HOME/neurogen/xdong/rnaseq_PD/rawfiles
 output_dir=$input_dir/../run_output
 [ -d $output_dir ] || mkdir $output_dir
+
+
+## Add a folder for output from running RNA-SeQC pipeline from Nathlie Broad
+outputSeQC_dir=$input_dir/run_RNA-SeQC
+[ -d $outputSeQC_dir ] || mkdir $outputSeQC_dir
 
 adaptor_file=adaptor.fa
 

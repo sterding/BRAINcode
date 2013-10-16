@@ -59,6 +59,53 @@ rm $outputdir/$samplename/*fastqc.zip
 
 ## TOADD: RNA-seqc  (by Bin)
 ## 
+############################################
+
+IFS="/" read -a tarray <<< "$R1"
+
+## get the sample name
+tlen=${#tarray[@]}
+
+tsampleName=${tarray[$tlen-1]}
+
+tname=$(echo $tsampleName | awk '{gsub(/_R1.fastq/,"",$tsampleName); print $1}');
+
+## RNA-SeQC output directory
+rseqDir="$outputSeQC_dir/$tname"
+mkdir $rseqDir
+
+## direct the results to the directory $tmpName
+tmpName="$rseqDir/$tname"
+
+bwa aln /PHShome/bz016/neurogen/rnaSeqData/RNA-SeQCoutput/human_all_rRNA.fasta $R1 > $tmpName.sai
+bwa aln /PHShome/bz016/neurogen/rnaSeqData/RNA-SeQCoutput/human_all_rRNA.fasta $R2 > $tmpName.sai
+bwa sampe /PHShome/bz016/neurogen/rnaSeqData/RNA-SeQCoutput/human_all_rRNA.fasta $tmpName.sai $tmpName.sai $R1 $R2 > $tmpName.sam
+
+samtools view -S -b -f 4 -F 264 $tmpName.sam > $tmpName.1.bam
+samtools view -S -b -f 8 -F 260 $tmpName.sam > $tmpName.2.bam
+samtools view -S -b -f 12 -F 256 $tmpName.sam > $tmpName.3.bam
+
+java -Xmx64g -jar /PHShome/bz016/neurogen/local/picard/1.538/bin/MergeSamFiles.jar VALIDATION_STRINGENCY=LENIENT I=$tmpName.1.bam I=$tmpName.2.bam I=$tmpName.3.bam O=$tmpName.strip.bam
+java -Xmx64g -jar /PHShome/bz016/neurogen/local/picard/1.538/bin/SamToFastq.jar VALIDATION_STRINGENCY=LENIENT I=$tmpName.strip.bam F=$tmpName.strip.R1.fastq F2=$tmpName.strip.R2.fastq
+
+# sequence sample name: directory + sampleName
+tmpTophatOutput="$rseqDir/TophatOutput"
+
+tophat2 --num-threads 4 --mate-inner-dist 250 --mate-std-dev 60 --library-type fr-unstranded --output-dir $tmpTophatOutput --no-novel-junc --GTF /PHShome/bz016/neurogen/local/referenceGenome/gencodeV13/gencode.v13.annotation.ExonCds.gtf /PHShome/bz016/neurogen/local/referenceGenome/hg19bt2/hg19 $tmpName.strip.R1.fastq $tmpName.strip.R2.fastq
+
+java -Xmx4g -jar /PHShome/bz016/neurogen/bzh/picard/1.538/bin/AddOrReplaceReadGroups.jar I=$tmpTophatOutput/accepted_hits.bam O=$tmpName.tophat.RG.bam LB=$tname PL=$tname PU=$tname SM=$tname
+
+java -jar /PHShome/bz016/neurogen/local/picard/1.538/bin/ReorderSam.jar I=$tmpName.tophat.RG.bam O=$tmpName.tophat.RG.reorder.bam R=/PHShome/bz016/neurogen/local/referenceGenome/hg19bt2/hg19.fa
+
+samtools index $tmpName.tophat.RG.reorder.bam
+
+java -jar -Xmx4g /PHShome/bz016/neurogen/local/picard/1.538/bin/MarkDuplicates.jar I=$tmpName.tophat.RG.reorder.bam O=$tmpName.tophat.RG.reorder.dup.bam METRICS_FILE=$tmpName.tophat.RG.reorder.dup.all.info.txt
+
+samtools index $tmpName.tophat.RG.reorder.dup.bam
+
+
+############################################
+
 
 ############################################
 echo "############### 4. mapping to the genome"
