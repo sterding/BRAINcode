@@ -53,10 +53,9 @@ do
     samplename=${R1/.R1*/}
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub RNAseq.lsf $R1 $R2
+    bsub _RNAseq.lsf $R1 $R2
     
-    jobid=`qsub $output_dir/$samplename/$samplename.sge | cut -f3 -d' '`
-
+    jobid=`bsub RNAseq.lsf $R1 $R2 | cut -f3 -d' '`
     echo "Your job is submitted (jobID: $jobid) with SGE script at $output_dir/$samplename/$samplename.sge"
 
     gtflist="$gtflist;$output_dir/$samplename/transcripts.gtf"
@@ -73,7 +72,7 @@ done
 ############
 ## 2. TODO: Outlier analysis (clustering, visualization) -- by Bin
 ############
-bsub outlier.sh 
+bsub _outlier.sh 
 
 ############
 ## 3. factor analysis to identify the hidden covariates (PEER)
@@ -94,6 +93,9 @@ bsub Rscript _DE_DEseq.R $output_dir PD Ct $ANNOTATION
 ## 5. eQTL (PEER)
 ############
 ## pre-requirisition: call SNP/variation ahead  -- by Shuilin
+bsub _bam2vcf.lsf $bamfile # by Shuilin
+
+# eQTL
 bsub Rscript _eQTL.R
 
 ############
