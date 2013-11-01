@@ -4,15 +4,15 @@ RNA-seq Analysis Pipeline
 File convention
 ---------------
 To standardlize the process, we suggest to start with conventional file name format. In this pipeline, we will use filename convention as:
-[PD|AD|HD|HC]_[brainBankID]_<batchID>_<rep#>.[R1|R2].<fq|fastq><.gz>
+`[PD|AD|HD|HC]_[brainBankID]_<batchID>_<rep#>.[R1|R2].<fq|fastq><.gz>`
 where,
-. Beginning with patient type, PD="Parkinson's disease", AD="Alzhimer's disease", HD="Huntington's disease" and HC="Health controls", in 2-letter abbreviation;
-. Following with unique BrainBankID rather than the lane# or date
-. batchID and rep# are optional, in format of (if any) 
- -- batchID: batch1, batch2 etc.
- -- rep#: rep1 is for technique replicate, Rep1 for biological replicate
-. Use R1 or R2 to tell the two mates of pair-end sequencing data
-. Use unzipped or zipped fastq, but NOT both.
+- Beginning with patient type, PD="Parkinson's disease", AD="Alzhimer's disease", HD="Huntington's disease" and HC="Health controls", in 2-letter abbreviation;
+- Following with unique BrainBankID rather than the lane# or date
+- batchID and rep# are optional, in format of (if any) 
+- batchID: batch1, batch2 etc.
+- rep#: rep1 is for technique replicate, Rep1 for biological replicate
+- Use R1 or R2 to tell the two mates of pair-end sequencing data
+- Use unzipped or zipped fastq, but NOT both.
 
 Folder structure
 ----------------
