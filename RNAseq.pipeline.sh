@@ -12,9 +12,13 @@
 ############
 n_CPU=8
 reference_version=hg19
-ANNOTATION=/data/neurogen/commonData/gencode.v14.annotation.bed15
-BOWTIE_INDEXES=/pub/genome_references/UCSC/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex
-BIN=$HOME/projects/PD/src
+ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
+Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
+Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
+BOWTIE_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex
+
+pipeline_path=$HOME/neurogen/pipeline/RNAseq/
+export PATH=$pipeline_path:$PATH
 
 input_dir=$1  # $HOME/neurogen/xdong/rnaseq_PD/rawfiles
 output_dir=$input_dir/../run_output
@@ -39,6 +43,12 @@ strandoption="--library-type fr-unstranded"
 #mismatch
 mm=2
 
+## hpcc cluster setting
+email=sterding.hpcc@gmail.com
+cpu=8
+memory=5000 # unit in Kb
+
+
 ############
 ## 1. QC/mapping/assembly/quantification for all samples in the input dir  (Tophat/Cufflink/Htseq-count)
 ############
@@ -53,10 +63,10 @@ do
     samplename=${R1/.R1*/}
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub _RNAseq.lsf $R1 $R2
+    bsub -o $output_dir/$samplename/_RNAseq.log -q long -n $cpu -R rusage[mem=$memory] -u $email -N _RNAseq.sh $R1 $R2
     
-    jobid=`bsub RNAseq.lsf $R1 $R2 | cut -f3 -d' '`
-    echo "Your job is submitted (jobID: $jobid) with SGE script at $output_dir/$samplename/$samplename.sge"
+    #jobid=`bsub RNAseq.lsf $R1 $R2 | cut -f3 -d' '`
+    #echo "Your job is submitted (jobID: $jobid) with SGE script at $output_dir/$samplename/$samplename.sge"
 
     gtflist="$gtflist;$output_dir/$samplename/transcripts.gtf"
     samlist="$samlist;$output_dir/$samplename/accepted_hits.sam"
@@ -85,7 +95,7 @@ bsub Rscript _factor_analysis.R
 [ -d $output_dir/DE_cuffdiff ] || mkdir $output_dir/DE_cuffdiff
 cd $output_dir/DE_cuffdiff
 
-bsub _DE_cuffdiff.lsf $gtflist $samlist $labels
+bsub -o $output_dir/$samplename/_DE_cuffdiff.log -q long -n $cpu -R rusage[mem=$memory] -u $email -N _DE_cuffdiff.sh $gtflist $samlist $labels
 bsub Rscript _DE_DEseq.R $output_dir PD Ct $ANNOTATION
 
 
@@ -93,7 +103,7 @@ bsub Rscript _DE_DEseq.R $output_dir PD Ct $ANNOTATION
 ## 5. eQTL (PEER)
 ############
 ## pre-requirisition: call SNP/variation ahead  -- by Shuilin
-bsub _bam2vcf.lsf $bamfile # by Shuilin
+bsub _bam2vcf.sh $bamfile # by Shuilin
 
 # eQTL
 bsub Rscript _eQTL.R

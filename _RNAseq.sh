@@ -17,7 +17,8 @@ adaptorfile=adaptor.fa
 ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
 Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
 Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
-BOWTIE_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex
+BOWTIE_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex/
+export BOWTIE2_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/
 
 #============= mapping options
 #phred
@@ -105,7 +106,7 @@ echo "############### 4. mapping to the genome"
 ############################################
 ## tophat (output accepted_hits.sam, allow up to 100 multiple hits)
 ## TODO: 1) use offrated index genome_offrate3; 2)RG using HD/HC/PD etc, RG-sample use samplename
-tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2
+tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2
 
 ###########################################
 echo "############### 5. post-processing, format converting"
