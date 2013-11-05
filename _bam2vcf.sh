@@ -7,7 +7,7 @@
 rna_seq_bamfile=$1
 vcffile=${/name/bam$/vcf}
 
-# Add RD group to RAN-seq bam file:
+# Add RD group to RNA-seq bam file:
 
 java -Xmx2g -jar /PHShome/sj750/projects/convert_bam/AddOrReplaceReadGroups.jar SORT_ORDER=coordinate INPUT=$rna_seq_bamfile OUTPUT=rna_seq_bamfile_ad.bam RGPL=illumina RGPU=1 RGLB=bar RGSM=march2013192 RGID=foo CREATE_INDEX=True
 
