@@ -126,8 +126,13 @@ echo "################# 6. assembly and quantification"
 
 cd $outputdir/$samplename
 
-echo "## run cufflinks to get FPKM"
+#echo "## run cufflinks to get FPKM"
 cufflinks -q --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
+
+#echo "## run cufflinks without -M option"
+#cufflinks -q --no-update-check $strandoption -o ./cufflink_wo_M -p $cpu -g $Annotation_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
+
+#exit
 
 echo "## run cufflinks to do de-novo discovery"
 cufflinks -q --no-update-check $strandoption -o ./denovo_cufflinks -p $cpu -g $Annotation_GTF -M $Mask_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
@@ -138,9 +143,9 @@ cufflinks -q --no-update-check $strandoption -o ./denovo_cufflinks -p $cpu -g $A
 
 
 #echo "## run htseq for reads count"
-htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION/gencode.v14.annotation.gtf > $samplename.hgseqcount.by.gene.tab 2> $samplename.hgseqcount.by.gene.tab.stderr
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Aannotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr
 #echo "## run bedtools for reads count"
-#bedtools multicov -D -split -bams accepted_hits.bam -bed $ANNOTATION/gencode.v14.annotation.bed15 > $samplename.bedtools.by.trans.tab
+#bedtools multicov -D -split -bams accepted_hits.bam -bed $ANNOTATION/gencode.v14.annotation.bed15 > bedtools.by.trans.tab
 
 ############################################
 echo "############### 7. prepare for tracks files to display on UCSC / IGV"
