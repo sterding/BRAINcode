@@ -27,10 +27,13 @@ input_dir=$1  # $HOME/neurogen/xdong/rnaseq_PD/rawfiles
 output_dir=$input_dir/../run_output
 [ -d $output_dir ] || mkdir $output_dir
 
+## Add path for summary results
+resultOutput_dir=$input_dir/../results 
+[ -d $resultOutput_dir ] || mkdir $resultOutput_dir
 
 ## Add a folder for output from running RNA-SeQC pipeline from Nathlie Broad
-outputSeQC_dir=$input_dir/run_RNA-SeQC
-[ -d $outputSeQC_dir ] || mkdir $outputSeQC_dir
+#outputSeQC_dir=$input_dir/run_RNA-SeQC
+#[ -d $outputSeQC_dir ] || mkdir $outputSeQC_dir
 
 adaptor_file=adaptor.fa
 
@@ -85,9 +88,9 @@ done
 exit
 
 ############
-## 2. TODO: Outlier analysis (clustering, visualization) -- by Bin
+## 2. Added cluster procedure -- by Bin
 ############
-bsub _outlier.sh 
+bsub Rscript _clustComRNASeq.R $output_dir $resultOutput_dir
 
 ############
 ## 3. factor analysis to identify the hidden covariates (PEER)
