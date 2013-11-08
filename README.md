@@ -30,3 +30,7 @@ For each project (e.g. PDMap), it should have a folder named with project short 
 - for_display
  - Files used for display on UCSC / IGV, such as *.bam, *.bam.bai, *.bw, *.gtf etc.
  - Can be soft links to the output files
+
+Pipeline Requirement
+--------------------
+1. Install programs: tophat, cufflinks, bowtie, bedtools, samtools, and htseq-count; and have their executable programs in the $PATH

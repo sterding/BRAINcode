@@ -1,11 +1,11 @@
-### Pipeline for RNAseq data analysis
-
 ####################################
+# Pipeline for RNAseq data analysis
 # author: Xianjun Dong
 # email: xdong@rics.bwh.harvard.edu
 # date: 9/16/2013
 # version: 1.0
 ####################################
+#!/bin/bash
 
 ############
 ## 0. setting 
@@ -19,6 +19,9 @@ BOWTIE_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bo
 
 pipeline_path=$HOME/neurogen/pipeline/RNAseq/
 export PATH=$pipeline_path:$PATH
+
+##TODO: test if the executable program are installed 
+# bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
 
 input_dir=$1  # $HOME/neurogen/xdong/rnaseq_PD/rawfiles
 output_dir=$input_dir/../run_output
@@ -35,7 +38,7 @@ adaptor_file=adaptor.fa
 #phred
 bowtie="--phred33-quals"; bowtie2="--phred33"; tophat=""; far="fastq-sanger"; fastqmcf="33"; trimmomatic="-phred33"
 #Pair-end option
-PE="--mate-inner-dist 250 --mate-std-dev 60"
+PE="--mate-inner-dist 50 --mate-std-dev 20"
 #strand
 strandoption="--library-type fr-unstranded"
 
@@ -44,9 +47,9 @@ strandoption="--library-type fr-unstranded"
 mm=2
 
 ## hpcc cluster setting
-email=sterding.hpcc@gmail.com
+email="-u sterding.hpcc@gmail.com -N"
 cpu=8
-memory=5000 # unit in Kb
+memory=40000 # unit in Kb, e.g. 20000=20G
 
 
 ############
@@ -56,14 +59,14 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *.R1.fastq;
+for i in *R1.fastq;  # for test purpose only use samples starting with 2*
 do
     R1=$i
     R2=${i/R1/R2};
     samplename=${R1/.R1*/}
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub -o $output_dir/$samplename/_RNAseq.log -q long -n $cpu -R rusage[mem=$memory] -u $email -N _RNAseq.sh $R1 $R2
+    bsub -J $samplename -o $output_dir/$samplename/_RNAseq.log -q big-multi -n $cpu -M $memory -R rusage[mem=$memory] $email _RNAseq.sh $R1 $R2
     
     #jobid=`bsub RNAseq.lsf $R1 $R2 | cut -f3 -d' '`
     #echo "Your job is submitted (jobID: $jobid) with SGE script at $output_dir/$samplename/$samplename.sge"
@@ -78,6 +81,8 @@ do
     fi
 done
 
+# set break point here to wait until all samples are completedly processed.
+exit
 
 ############
 ## 2. TODO: Outlier analysis (clustering, visualization) -- by Bin

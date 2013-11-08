@@ -17,7 +17,6 @@ adaptorfile=adaptor.fa
 ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
 Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
 Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
-BOWTIE_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex/
 export BOWTIE2_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/
 
 #============= mapping options
@@ -106,7 +105,7 @@ echo "############### 4. mapping to the genome"
 ############################################
 ## tophat (output accepted_hits.sam, allow up to 100 multiple hits)
 ## TODO: 1) use offrated index genome_offrate3; 2)RG using HD/HC/PD etc, RG-sample use samplename
-tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2
+tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --keep-fasta-order -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2
 
 ###########################################
 echo "############### 5. post-processing, format converting"
@@ -115,7 +114,7 @@ echo "############### 5. post-processing, format converting"
 cd $outputdir/$samplename
 
 ## sam -> bam -> sorted -> index
-samtools view -Sbut $BOWTIE_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted
+samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted
 mv accepted_hits.sorted.bam accepted_hits.bam
 samtools index accepted_hits.bam
 
@@ -127,15 +126,14 @@ echo "################# 6. assembly and quantification"
 cd $outputdir/$samplename
 
 #echo "## run cufflinks to get FPKM"
-cufflinks -q --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
+# using "-b" option to correct the bias can lead to segementation fault error. 
+cufflinks -q --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF --multi-read-correct accepted_hits.bam
 
 #echo "## run cufflinks without -M option"
-#cufflinks -q --no-update-check $strandoption -o ./cufflink_wo_M -p $cpu -g $Annotation_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
-
-#exit
+#cufflinks -q --no-update-check $strandoption -o ./cufflink_wo_M -p $cpu -G $Annotation_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
 
 echo "## run cufflinks to do de-novo discovery"
-cufflinks -q --no-update-check $strandoption -o ./denovo_cufflinks -p $cpu -g $Annotation_GTF -M $Mask_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
+cufflinks -q --no-update-check $strandoption -o ./denovo_cufflinks -p $cpu -g $Annotation_GTF -M $Mask_GTF --multi-read-correct accepted_hits.bam
 ##echo "## run trinity to do de-novo discovery"
 #Trinity.pl --output denovo_trinity --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
 #echo "## run STAR to do de-novo discovery"
