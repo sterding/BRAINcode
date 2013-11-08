@@ -80,9 +80,9 @@ done
 
 
 ############
-## 2. TODO: Outlier analysis (clustering, visualization) -- by Bin
+## 2. Added cluster procedure -- by Bin
 ############
-bsub _outlier.sh 
+bsub _cluster.sh 
 
 ############
 ## 3. factor analysis to identify the hidden covariates (PEER)
