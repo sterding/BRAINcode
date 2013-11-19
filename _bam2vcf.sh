@@ -25,6 +25,59 @@ samtools index rna_seq_bamfile_ad.kayrotypic.bam
 
 
 
+
+## mark duplicate of bam file
+java -Xmx5g -jar /PHShome/sj750/neurogen/local/picard/1.538/bin/MarkDuplicates.jar I=/PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march2013101_first.bam O=/PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march2013101_marked.bam METRICS_FILE=/PHShome/sj750/neurogen/ranSeq_snpcalling/march101/ metrics.txt CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=true
+
+
+##Analyze patterns of covariation in the sequence dataset
+
+java -jar /PHShome/sj750/projects/gatk_package/GenomeAnalysisTK.jar -T BaseRecalibrator -R /PHShome/sj750/neurogen/local/referenceGenome/hg19bt2/hg19.fa  -I /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_realigned_reads.bam -knownSites dbsnp.vcf   -knownSites gold_indels.vcf   -o /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_recal_data.table 
+
+##Do a second pass to analyze covariation remaining after recalibration
+#Action
+
+java -jar /PHShome/sj750/projects/gatk_package/GenomeAnalysisTK.jar -T BaseRecalibrator -R /PHShome/sj750/neurogen/local/referenceGenome/hg19bt2/hg19.fa -I /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_realigned_reads.bam -knownSites dbsnp.vcf   -knownSites gold_indels.vcf -BQSR /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_recal_data.table   
+ -o /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_post_recal_data.table
+
+##Generate before/after plots
+
+java -jar /PHShome/sj750/projects/gatk_package/GenomeAnalysisTK.jar -T AnalyzeCovariates  -R /PHShome/sj750/neurogen/local/referenceGenome/hg19bt2/hg19.fa
+-before /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_recal_data.table    -after /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_post_recal_data.table -plots /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_recalibration_plots.pdf
+
+
+##Apply the recalibration to your sequence data
+
+java -jar /PHShome/sj750/projects/gatk_package/GenomeAnalysisTK.jar 
+    -T PrintReads 
+    -R /PHShome/sj750/neurogen/local/referenceGenome/hg19bt2/hg19.fa
+    -I /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_realigned_reads.bam
+    -BQSR /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_recal_data.table    -o /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_recal_reads.bam
+
+## Compress read data with ReduceReads
+
+java -jar /PHShome/sj750/projects/gatk_package/GenomeAnalysisTK.jar -T ReduceReads   -R /PHShome/sj750/neurogen/local/referenceGenome/hg19bt2/hg19.fa  -I /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_recal_reads.bam      -o /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_reduced_reads.bam 
+
+
+## merge all the bam file together….
+
+samtools merge out.bam in1.bam in2.bam in3.bam
+
+
+
+## Call variants on a diploid genome with the HaplotypeCaller 
+
+java -jar /PHShome/sj750/projects/gatk_package/GenomeAnalysisTK.jar
+    -T HaplotypeCaller 
+    -R /PHShome/sj750/neurogen/local/referenceGenome/hg19bt2/hg19.fa
+    -I /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_reduced_reads.bam 
+    --genotyping_mode DISCOVERY 
+    -stand_emit_conf 10 
+    -stand_call_conf 30  
+    -o /PHShome/sj750/neurogen/ranSeq_snpcalling/march101/march101_raw_variants.vcf 
+
+
+
 # call snp
 
 java -Xmx5g -jar /PHShome/sj750/projects/gatk_package/GenomeAnalysisTK.jar -T HaplotypeCaller -R /PHShome/sj750/neurogen/local/referenceGenome/hg19bt2/hg19.fa  --filter_reads_with_N_cigar -I rna_seq_bamfile_ad.kayrotypic.bam -o vcffile  -stand_call_conf 30.0 -stand_emit_conf 10.0
