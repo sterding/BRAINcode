@@ -1,5 +1,6 @@
 ###########################################
 ## bash script for running paired-end RNAseq
+## Note: call this script in the folder of fastq file
 ###########################################
 #!/bin/bash
 
@@ -7,13 +8,19 @@
 ############## 1. Configuring
 ###########################################
 
-R1=$1  # full path of R1 
-R2=$2  # full path of R2 (for paired-end reads)
+if [ $# -ne 2 ]
+then
+  echo "Usage: `basename $0` /data/neurogen/rnaseq_PD/rawfiles"
+  exit
+fi
+
+R1=$1  # filename of R1 
+R2=$2  # filename of R2 (for paired-end reads)
 
 samplename=${R1/[.|_]R1*/}
 cpu=8
 index=hg19
-adaptorfile=adaptor.fa
+adaptorfile=/data/neurogen/referenceGenome/adaptor.fa
 ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
 Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
 Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
@@ -40,71 +47,23 @@ echo "###############  2. quality filter: adaptor removal/clip"
 ###########################################
 
 ##### adaptor removal
-#[ -d ../filtered ] || mkdir ../filtered
-#fastq-mcf -o ../filtered/$R1 -o ../filtered/$R2 -l 16 -q 15 -w 4 -x 10 -u -P $fastqmcf $adaptorfile $R1 $R2
+[ -d $inputdir/../filtered ] || mkdir $inputdir/../filtered
+fastq-mcf -o $inputdir/../filtered/$R1 -o $inputdir/../filtered/$R2 -w 4 -x 10 -u -P $fastqmcf $adaptorfile $R1 $R2
 
-#cd ../filtered
+cd ../filtered
 
 #############################################
-#echo "################ 3. QC"
+echo "################ 3. QC"
 ############################################
 
-#fastqc --outdir $outputdir/$samplename --extract -t 2 $R1 $R2
-#rm $outputdir/$samplename/*fastqc.zip
-
-## TOADD: RNA-seqc  (by Bin)
-## 
-############################################
-
-#IFS="/" read -a tarray <<< "$R1"
-#
-### get the sample name
-#tlen=${#tarray[@]}
-#
-#tsampleName=${tarray[$tlen-1]}
-#
-#tname=$(echo $tsampleName | awk '{gsub(/_R1.fastq/,"",$tsampleName); print $1}');
-#
-### RNA-SeQC output directory
-#rseqDir="$outputSeQC_dir/$tname"
-#mkdir $rseqDir
-#
-### direct the results to the directory $tmpName
-#tmpName="$rseqDir/$tname"
-#
-#bwa aln /PHShome/bz016/neurogen/rnaSeqData/RNA-SeQCoutput/human_all_rRNA.fasta $R1 > $tmpName.sai
-#bwa aln /PHShome/bz016/neurogen/rnaSeqData/RNA-SeQCoutput/human_all_rRNA.fasta $R2 > $tmpName.sai
-#bwa sampe /PHShome/bz016/neurogen/rnaSeqData/RNA-SeQCoutput/human_all_rRNA.fasta $tmpName.sai $tmpName.sai $R1 $R2 > $tmpName.sam
-#
-#samtools view -S -b -f 4 -F 264 $tmpName.sam > $tmpName.1.bam
-#samtools view -S -b -f 8 -F 260 $tmpName.sam > $tmpName.2.bam
-#samtools view -S -b -f 12 -F 256 $tmpName.sam > $tmpName.3.bam
-#
-#java -Xmx64g -jar /PHShome/bz016/neurogen/local/picard/1.538/bin/MergeSamFiles.jar VALIDATION_STRINGENCY=LENIENT I=$tmpName.1.bam I=$tmpName.2.bam I=$tmpName.3.bam O=$tmpName.strip.bam
-#java -Xmx64g -jar /PHShome/bz016/neurogen/local/picard/1.538/bin/SamToFastq.jar VALIDATION_STRINGENCY=LENIENT I=$tmpName.strip.bam F=$tmpName.strip.R1.fastq F2=$tmpName.strip.R2.fastq
-#
-## sequence sample name: directory + sampleName
-#tmpTophatOutput="$rseqDir/TophatOutput"
-#
-#tophat2 --num-threads 4 --mate-inner-dist 250 --mate-std-dev 60 --library-type fr-unstranded --output-dir $tmpTophatOutput --no-novel-junc --GTF /PHShome/bz016/neurogen/local/referenceGenome/gencodeV13/gencode.v13.annotation.ExonCds.gtf /PHShome/bz016/neurogen/local/referenceGenome/hg19bt2/hg19 $tmpName.strip.R1.fastq $tmpName.strip.R2.fastq
-#
-#java -Xmx4g -jar /PHShome/bz016/neurogen/local/picard/1.538/bin/AddOrReplaceReadGroups.jar I=$tmpTophatOutput/accepted_hits.bam O=$tmpName.tophat.RG.bam LB=$tname PL=$tname PU=$tname SM=$tname
-#
-#java -jar /PHShome/bz016/neurogen/local/picard/1.538/bin/ReorderSam.jar I=$tmpName.tophat.RG.bam O=$tmpName.tophat.RG.reorder.bam R=/PHShome/bz016/neurogen/local/referenceGenome/hg19bt2/hg19.fa
-#
-#samtools index $tmpName.tophat.RG.reorder.bam
-#
-#java -jar -Xmx4g /PHShome/bz016/neurogen/local/picard/1.538/bin/MarkDuplicates.jar I=$tmpName.tophat.RG.reorder.bam O=$tmpName.tophat.RG.reorder.dup.bam METRICS_FILE=$tmpName.tophat.RG.reorder.dup.all.info.txt
-#
-#samtools index $tmpName.tophat.RG.reorder.dup.bam
-############################################
-
+fastqc --outdir $outputdir/$samplename --extract -t 2 $R1 $R2
+rm $outputdir/$samplename/*fastqc.zip
 
 ############################################
 echo "############### 4. mapping to the genome"
 ############################################
 ## tophat (output accepted_hits.sam, allow up to 100 multiple hits)
-## TODO: 1) use offrated index genome_offrate3; 2)RG using HD/HC/PD etc, RG-sample use samplename
+## TODO: 1) use offrated index genome_offrate3; 
 tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --keep-fasta-order -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2
 
 ###########################################
@@ -125,23 +84,24 @@ echo "################# 6. assembly and quantification"
 
 cd $outputdir/$samplename
 
-#echo "## run cufflinks to get FPKM"
-# using "-b" option to correct the bias can lead to segementation fault error. 
-cufflinks -q --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF --multi-read-correct accepted_hits.bam
+echo "## run cufflinks to assembly (including do de-novo discovery)"
+cufflinks -q --no-update-check $strandoption -o ./denovo -p $cpu -g $Annotation_GTF -M $Mask_GTF accepted_hits.bam
+##echo "## run trinity to do de-novo discovery"
+#Trinity.pl --output denovo --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
+#echo "## run STAR to do de-novo discovery"
+## TODO: STAR
+
+echo "## run cufflinks to get FPKM"
+# Using gtf from deno assembly
+# Note: "-b" option (for bias correction) can lead to segementation fault error. 
+cufflinks -q --no-update-check $strandoption -o ./ -p $cpu -G denovo/transcripts.gtf -M $Mask_GTF --compatible-hits-norm --multi-read-correct accepted_hits.bam
 
 #echo "## run cufflinks without -M option"
 #cufflinks -q --no-update-check $strandoption -o ./cufflink_wo_M -p $cpu -G $Annotation_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
 
-echo "## run cufflinks to do de-novo discovery"
-cufflinks -q --no-update-check $strandoption -o ./denovo_cufflinks -p $cpu -g $Annotation_GTF -M $Mask_GTF --multi-read-correct accepted_hits.bam
-##echo "## run trinity to do de-novo discovery"
-#Trinity.pl --output denovo_trinity --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
-#echo "## run STAR to do de-novo discovery"
-## TODO: STAR 
-
 
 #echo "## run htseq for reads count"
-htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Aannotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam denovo/transcripts.gtf > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr
 #echo "## run bedtools for reads count"
 #bedtools multicov -D -split -bams accepted_hits.bam -bed $ANNOTATION/gencode.v14.annotation.bed15 > bedtools.by.trans.tab
 
@@ -161,7 +121,7 @@ ln -s $outputdir/$samplename/accepted_hits.bam.bai $samplename.accepted_hits.bam
 
 # bigwig for UCSC
 echo "## generating bigwig files for UCSC display"
-bamToBed -i $samplename.accepted_hits.bam -split > $samplename.accepted_hits.bed
+bamToBed -i $outputdir/$samplename/accepted_hits.sam -split > $samplename.accepted_hits.bed
 sort -k1,1 $samplename.accepted_hits.bed | bedItemOverlapCount $index -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > $samplename.accepted_hits.bedGraph
 bedGraphToBigWig $samplename.accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt $samplename.accepted_hits.bw
 rm $samplename.accepted_hits.bed $samplename.accepted_hits.bedGraph
@@ -171,7 +131,7 @@ ln -s $outputdir/$samplename/genes.fpkm_tracking $samplename.genes.fpkm_tracking
 
 # gtf of assembly
 echo "track name=$samplename description=$samplename visibility=pack colorByStrand='200,100,0 0,100,200'" > $samplename.transcripts.gtf
-cat $outputdir/$samplename/transcripts.gtf >> $samplename.transcripts.gtf
+cat $outputdir/$samplename/denovo/transcripts.gtf >> $samplename.transcripts.gtf
 gzip -f $samplename.transcripts.gtf
 
 echo "!! _RNAseq.lsf job for sample $samplename is done !!"

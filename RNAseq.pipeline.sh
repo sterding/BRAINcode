@@ -4,8 +4,15 @@
 # email: xdong@rics.bwh.harvard.edu
 # date: 9/16/2013
 # version: 1.0
+# Usage: $0
 ####################################
 #!/bin/bash
+
+if [ $# -ne 1 ]
+then
+  echo "Usage: `basename $0` /data/neurogen/rnaseq_PD/rawfiles"
+  exit
+fi
 
 ############
 ## 0. setting 
@@ -35,7 +42,6 @@ resultOutput_dir=$input_dir/../results
 #outputSeQC_dir=$input_dir/run_RNA-SeQC
 #[ -d $outputSeQC_dir ] || mkdir $outputSeQC_dir
 
-adaptor_file=adaptor.fa
 
 ## parameters of RNAseq library
 #phred
@@ -62,14 +68,14 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *R1.fastq;  # for test purpose only use samples starting with 2*
+for i in *R1.fastq.gz;  # for test purpose only use samples starting with 2*
 do
     R1=$i
     R2=${i/R1/R2};
     samplename=${R1/.R1*/}
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub -J $samplename -o $output_dir/$samplename/_RNAseq.log -q big-multi -n $cpu -M $memory -R rusage[mem=$memory] $email _RNAseq.sh $R1 $R2
+    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi -n $cpu -M $memory -R rusage[mem=$memory] $email _RNAseq.sh $R1 $R2
     
     #jobid=`bsub RNAseq.lsf $R1 $R2 | cut -f3 -d' '`
     #echo "Your job is submitted (jobID: $jobid) with SGE script at $output_dir/$samplename/$samplename.sge"
