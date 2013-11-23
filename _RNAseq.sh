@@ -10,7 +10,7 @@
 
 if [ $# -ne 2 ]
 then
-  echo "Usage: `basename $0` /data/neurogen/rnaseq_PD/rawfiles"
+  echo "Usage: `basename $0` HC_BN10-39_2.R1.fastq.gz HC_BN10-39_2.R2.fastq.gz"
   exit
 fi
 
