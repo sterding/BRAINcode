@@ -17,15 +17,18 @@ fi
 ############
 ## 0. setting 
 ############
-n_CPU=8
 reference_version=hg19
 ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
 Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
 Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
 BOWTIE_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex
-
 pipeline_path=$HOME/neurogen/pipeline/RNAseq/
 export PATH=$pipeline_path:$PATH
+
+## hpcc cluster setting
+email="-u sterding.hpcc@gmail.com -N"
+cpu=8
+memory=94000 # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
 # bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
@@ -43,24 +46,6 @@ resultOutput_dir=$input_dir/../results
 #[ -d $outputSeQC_dir ] || mkdir $outputSeQC_dir
 
 
-## parameters of RNAseq library
-#phred
-bowtie="--phred33-quals"; bowtie2="--phred33"; tophat=""; far="fastq-sanger"; fastqmcf="33"; trimmomatic="-phred33"
-#Pair-end option
-PE="--mate-inner-dist 50 --mate-std-dev 20"
-#strand
-strandoption="--library-type fr-unstranded"
-
-## mapping
-#mismatch
-mm=2
-
-## hpcc cluster setting
-email="-u sterding.hpcc@gmail.com -N"
-cpu=8
-memory=40000 # unit in Kb, e.g. 20000=20G
-
-
 ############
 ## 1. QC/mapping/assembly/quantification for all samples in the input dir  (Tophat/Cufflink/Htseq-count)
 ############
@@ -68,7 +53,7 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *R1.fastq.gz;  # for test purpose only use samples starting with 2*
+for i in *R1.fastq.gz; 
 do
     R1=$i
     R2=${i/R1/R2};

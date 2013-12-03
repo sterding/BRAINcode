@@ -33,4 +33,24 @@ For each project (e.g. PDMap), it should have a folder named with project short 
 
 Pipeline Requirement
 --------------------
-1. Install programs: tophat, cufflinks, bowtie, bedtools, samtools, and htseq-count; and have their executable programs in the $PATH
+1. Install programs: tophat, cufflinks, bowtie, bedtools, samtools, fastq-mcf, fastqc, and htseq-count; and add their executable programs in the $PATH
+
+Pipeline structure
+--------------
+### Main script:
+RNAseq.pipeline.sh
+### Modules:
+#### _RNAseq.sh
+
+#### _bam2vcf.sh
+#### _callSNP.sh
+#### _sam2variation.awk
+
+#### _clustComRNASeq.R
+#### _cluster.sh
+
+#### _DE_cuffdiff.sh
+#### _DE_DEseq.R
+
+#### _factor_analysis.R
+
