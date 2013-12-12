@@ -1,0 +1,67 @@
+#!/bin/awk -f
+#############################################
+# Author: Xianjun Dong
+# Email: xdong@rics.bwh.harvard.edu
+# Version: 0.1
+#############################################
+# AWK script to convert sam format to bed format, using XS:A tag for strand info (if any, otherwise use FLAG tag)
+# Note that only aligned reads are converted, the unaligned (FLAG:4) are excluded.
+# Usage: sam2bed [option] input.sam > input.bed
+# Options:
+#   -bed12 [T|F] If True, then write as "blocked" BED format (aka "BED12"), otherwise report "split" SAM alignments as separate BED entries; Default TRUE
+#   -sCol [NH|NM...] which column in SAM file is used as score, default is $5 (MAPQ)
+#   -XSstrand [T|F] If true, then use the XS:A as strand info, otherwise, use the FLAG (mapping orientation) as strand
+
+# Log:
+# Aug 27, 2013: fix a bug for strand when XSstrand==F. RNAseq analysis is not affected.
+# Aug 27, 2013: fix a minor bug for "name". If $1 already has /1 or /2 at the end, do nothing.
+ 
+BEGIN{
+    OFS="\t";
+    if(bed12=="" || bed12=="T") bed12="TRUE";
+    else bed12="FALSE";
+    if(sCol=="") sCol=5;
+}
+{
+    if($0~/^@/) next;
+    chr=$3;
+    if(chr=="*") next;  # skip the unaligned
+    start12=$4-1;
+    end12=start12;
+    blockCount=0;
+    blockSizes="";
+    blockStarts="";
+    # use the XS:A tag as strand information
+    if(XSstrand=="" || XSstrand=="T" || XSstrand=="true") strand=match($0, "XS:A")?substr($0,RSTART+5,1):".";
+    # use the mapping orientation as strand (which can be misleading for nonstrand-specific library)
+    if(XSstrand=="false" || XSstrand=="F") strand=(($2!~/^[0-9]/ && $2~/r/) || and($2,0x10))?"-":"+";
+
+    if(sCol~/^[0-9]+$/) score=$sCol;
+    else {  # e.g. NH:i:9
+        for(i=1;i<=NF;i++) if(match($i, sCol)) {score=substr($i, RSTART+RLENGTH+3);break;}
+    }
+    if(score!~/^[0-9]+$/) {print "Score in BED file must be integers. Exit"; exit;}
+
+    name=$1;
+    if(name!~/\/[1-2]$/) name=$1"/"(($2~/^[0-9]/)?((and($2,129)==129)?"2":"1"):substr($2,length($2)));
+    cigar=$6;
+    while(match(cigar,"[0-9]+[A-Z]")) {
+        m=substr(cigar, RSTART, RLENGTH);
+        m1=substr(m,1,length(m)-1);
+        m2=substr(m,length(m));
+        if(m2~/M|=|X/) {
+            #print m1, m2;
+            blockCount++;
+            blockSizes=blockSizes m1",";
+            blockStarts=blockStarts (end12-start12)","
+            if(bed12=="FALSE")  print chr, end12, end12+m1, name, score, strand;
+            end12=end12+m1;
+        }
+        else if(m2~/N|D/){
+            #print m1, m2;
+            end12=end12+m1;
+        }
+        cigar=substr(cigar, RSTART+RLENGTH);
+    }
+    if(bed12=="TRUE") print chr, start12, end12, name, score, strand, start12, end12, "255,0,0", blockCount, blockSizes, blockStarts;
+}
