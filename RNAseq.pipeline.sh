@@ -1,12 +1,15 @@
 ####################################
-# Pipeline for RNAseq data analysis
-# author: Xianjun Dong
-# email: xdong@rics.bwh.harvard.edu
-# date: 9/16/2013
-# version: 1.0
-# Usage: $0
+# Pipeline for RNAseq data Analysis
+# Authors: Bioinformatics Team @ Scherzer's lab 
+# Email: xdong@rics.bwh.harvard.edu
+# Date: 9/16/2013
+# Version: 1.0
 ####################################
 #!/bin/bash
+
+modulename=`basename $0`
+set +o posix  #  enables the execution of process substitution e.g. http://www.linuxjournal.com/content/shell-process-redirection
+STEP=0
 
 if [ $# -ne 1 ]
 then
@@ -27,8 +30,8 @@ export PATH=$pipeline_path:$PATH
 
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
-cpu=8
-memory=94000 # unit in Kb, e.g. 20000=20G
+cpu=4
+memory=20000 # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
 # bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
@@ -53,11 +56,15 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *R1.fastq.gz; 
+#for i in HC_BN10-26_3.R1.fastq.gz HC_BN11-81_3.R1.fastq.gz ILB_BN04-64_3.R1.fastq.gz ILB_BN11-60_3.R1.fastq.gz;
+for i in *R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
     samplename=${R1/.R1*/}
+    
+    # skip the completed steps
+    touch $output_dir/$samplename/.status.$modulename.adaptorremoval $output_dir/$samplename/.status.$modulename.fastqc $output_dir/$samplename/.status.$modulename.mapping $output_dir/$samplename/.status.$modulename.sam2bam $output_dir/$samplename/.status.$modulename.cufflinks $output_dir/$samplename/.status.$modulename.htseqcount
     
     # run the QC/mapping/assembly/quantification for RNAseq
     bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi -n $cpu -M $memory -R rusage[mem=$memory] $email _RNAseq.sh $R1 $R2
@@ -96,7 +103,6 @@ cd $output_dir/DE_cuffdiff
 
 bsub -o $output_dir/$samplename/_DE_cuffdiff.log -q long -n $cpu -R rusage[mem=$memory] -u $email -N _DE_cuffdiff.sh $gtflist $samlist $labels
 bsub Rscript _DE_DEseq.R $output_dir PD Ct $ANNOTATION
-
 
 ############
 ## 5. eQTL (PEER)
