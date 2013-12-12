@@ -103,7 +103,7 @@ echo "############### 6. call variation"
 cd $outputdir/$samplename
 
 [ ! -f $outputdir/$samplename/.status.$modulename.callSNP ] && \
-modules/_callSNP.sh accepted_hits.sam && \
+_callSNP.sh accepted_hits.sam && \
 touch $outputdir/$samplename/.status.$modulename.callSNP
 
 ###########################################
@@ -156,7 +156,7 @@ echo "## generating bigwig files for UCSC display"
 
 #bamToBed -i $samplename.accepted_hits.bam -bed12 | awk '{if($1!~/_/)print}' > $samplename.accepted_hits.bed ## Note: may take more time in converting bam to sam
 [ ! -f $outputdir/$samplename/.status.$modulename.sam2bw ] && \
-bin/sam2bed -v bed12=T -v sCol=NH $outputdir/$samplename/accepted_hits.sam | awk '{if($1!~/_/)print}' > $samplename.accepted_hits.bed && \
+sam2bed -v bed12=T -v sCol=NH $outputdir/$samplename/accepted_hits.sam | awk '{if($1!~/_/)print}' > $samplename.accepted_hits.bed && \
 sort -k1,1 $samplename.accepted_hits.bed | bedItemOverlapCount $index -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > $samplename.accepted_hits.bedGraph && \
 bedGraphToBigWig $samplename.accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt $samplename.accepted_hits.bw && \
 touch $outputdir/$samplename/.status.$modulename.sam2bw 
