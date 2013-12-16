@@ -10,6 +10,8 @@
 #BSUB -e t2.%J.err 
 #BSUB -R rusage[mem=5000]
 
+## make samplelist_file.txt
 ./makeSamplelistFile.sh "/PHShome/bz016/neurogen/rnaseq_PD/run_output/*/acce*.bam"
 
+## gencodePlusMask.v13.annotation.gtf is a combination of gencode.v13.annotation.karotyped.gtf and chrM.rRNA.tRNA.gtf
 java -jar -Xmx64g RNA-SeQC_v1.1.7.jar -s samplelist_file.txt -t gencodePlusMask.v13.annotation.gtf -r /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/genome.fa -o RNASeQCoutput
