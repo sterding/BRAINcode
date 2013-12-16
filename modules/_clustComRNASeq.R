@@ -1,6 +1,8 @@
 ##########################################################################################
-# This module is to perform hierarchical clustering analysis using cufflinks' output
-# Input: the directory of the output of Cufflinks, the path where the cluster output will be 
+# This module is to perform sample hierarchical clustering analysis using cufflinks' output
+# i.e. genes.fpkm_tracking and isoforms.fpkm_tracking
+# Input:  1. the directory of the output of Cufflinks
+#         2. the path where the output of cluster analysis will be 
 # Output: 1. the excel sheets contain the FPKM values of the genes and transcripts are found in all samples
 #         2. the pdf files contains a plot of the hierachical clustering 
 # Usage: Rscript clustComRNASeq.R inputPath outputPath
