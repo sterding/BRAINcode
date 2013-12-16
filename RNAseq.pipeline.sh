@@ -88,17 +88,15 @@ bsub Rscript _clustComRNASeq.R $output_dir $resultOutput_dir
 
 ############
 # RNA-SeQC
-# outputSeQC_dir=$input_dir/run_RNA-SeQC
-#[ -d $outputSeQC_dir ] || mkdir $outputSeQC_dir
+#
 # make samplelist_file.txt
-# "/PHShome/bz016/neurogen/rnaseq_PD/run_output/*/acce*.bam" is the path of the output 
-# of Tophat, i.e. where bam files are
 
-#./makeSamplelistFile.sh "/PHShome/bz016/neurogen/rnaseq_PD/run_output/*/acce*.bam" > $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt
+./makeSamplelistFile.sh "$output_dir/*/acce*.bam" > $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt
 
-./makeSamplelistFile.sh "$output_dir/$samplename/*/acce*.bam" > $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt
+# gencodePlusMask.v13.annotation.gtf is a combination of 
+# gencode.v13.annotation.karotyped.gtf and chrM.rRNA.tRNA.gtf
 
-bsub < _runRNASeQC.lsf
+bsub -J runRnaSeqc -q big-multi -n 4 -R 'rusage[mem=10000]' "java -jar -Xmx64g RNA-SeQC_v1.1.7.jar -s $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt -t /PHShome/bz016/neurogen/rnaseq_PD/results/RNA-SEQCfolder/gencodePlusMask.v13.annotation.gtf -r /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/genome.fa -o $resultOutput_dir/RNA-SEQCfolder/RNASeQCoutput"
 
 ############
 
