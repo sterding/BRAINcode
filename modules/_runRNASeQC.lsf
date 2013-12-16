@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#BSUB -n 1 
+#BSUB -u bzheng@partners.org
+#BSUB -J t2
+#BSUB -q big-multi
+#BSUB -P t2
+#BSUB -J t2
+#BSUB -o t2.%J.out
+#BSUB -e t2.%J.err 
+#BSUB -R rusage[mem=5000]
+
+./makeSamplelistFile.sh "/PHShome/bz016/neurogen/rnaseq_PD/run_output/*/acce*.bam"
+
+java -jar -Xmx64g RNA-SeQC_v1.1.7.jar -s samplelist_file.txt -t gencodePlusMask.v13.annotation.gtf -r /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/genome.fa -o RNASeQCoutput

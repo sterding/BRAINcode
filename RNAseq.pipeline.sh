@@ -44,10 +44,6 @@ output_dir=$input_dir/../run_output
 resultOutput_dir=$input_dir/../results 
 [ -d $resultOutput_dir ] || mkdir $resultOutput_dir
 
-## Add a folder for output from running RNA-SeQC pipeline from Nathlie Broad
-#outputSeQC_dir=$input_dir/run_RNA-SeQC
-#[ -d $outputSeQC_dir ] || mkdir $outputSeQC_dir
-
 
 ############
 ## 1. QC/mapping/assembly/quantification for all samples in the input dir  (Tophat/Cufflink/Htseq-count)
@@ -89,6 +85,13 @@ exit
 ## 2. Added cluster procedure -- by Bin
 ############
 bsub Rscript _clustComRNASeq.R $output_dir $resultOutput_dir
+
+############
+# RNA-SeQC
+# outputSeQC_dir=$input_dir/run_RNA-SeQC
+#[ -d $outputSeQC_dir ] || mkdir $outputSeQC_dir
+bsub < _runRNASeQC.lsf
+############
 
 ############
 ## 3. factor analysis to identify the hidden covariates (PEER)
