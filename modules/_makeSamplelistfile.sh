@@ -11,6 +11,7 @@ paste t1.txt t2.txt t3.txt > t4.txt
 
 echo -e Sample'\t'IDBam'\t'FileNotes > thead.txt
 
-cat thead.txt t4.txt > samplelist_file.txt
+cat thead.txt t4.txt 
+# > samplelist_file.txt
 
 rm t1.txt t2.txt t3.txt t4.txt t5.txt tlen.txt thead.txt
