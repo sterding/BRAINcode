@@ -47,6 +47,8 @@ RNAseq.pipeline.sh
 #### _sam2variation.awk
 
 #### _clustComRNASeq.R
+# performs sample clustering analysis based on genes.fpkm_tracking and isoforms.fpkm_tracking
+# from Cufflinks' output  
 #### _cluster.sh
 
 #### _DE_cuffdiff.sh
