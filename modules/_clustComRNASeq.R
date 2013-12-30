@@ -62,7 +62,7 @@ pdf(paste(DsoutPath, "FPKM cluster on the isoform level.pdf",sep="/"), width=8,h
 plot(hcIso, hang=-1, main="Isoform level", xlab="Samples", sub="", y="Height", cex=0.5)
 dev.off()
 
-write.table(xGenes,file=paste(DsoutPath, paste("Common ", nrow(xGenes), " Genes FPKM.xls", sep=""), sep="/"), sep="\t",row.names=F)
-write.table(xIsos,file=paste(DsoutPath, paste("Common ", nrow(xIsos), " Isoforms FPKM.xls", sep=""), sep="/"), sep="\t",row.names=F)
+write.table(xGenes,file=paste(DsoutPath, paste("Common ", nrow(xGenes), " Genes FPKM.xls", sep=""), sep="/"), sep="\t",row.names=T)
+write.table(xIsos,file=paste(DsoutPath, paste("Common ", nrow(xIsos), " Isoforms FPKM.xls", sep=""), sep="/"), sep="\t",row.names=T)
 
 
