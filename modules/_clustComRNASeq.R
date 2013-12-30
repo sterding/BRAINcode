@@ -55,11 +55,11 @@ colnames(xIsos)=a
 scaledxIsos = scale(xIsos)
 hcIso <- hclust(dist(t(scaledxIsos)), "ave")
 
-pdf(paste(DsoutPath,"FPKM cluster on the gene level.pdf",sep="/"), width=4,height=4)
-plot(hcGene, hang=-1, main="Gene Level", xlab="Samples", sub="", y="Height")
+pdf(paste(DsoutPath,"FPKM cluster on the gene level.pdf",sep="/"), width=8,height=8)
+plot(hcGene, hang=-1, main="Gene Level", xlab="Samples", sub="", y="Height", cex=0.5)
 dev.off()
-pdf(paste(DsoutPath, "FPKM cluster on the isoform level.pdf",sep="/"), width=4,height=4)
-plot(hcIso, hang=-1, main="Isoform level", xlab="Samples", sub="", y="Height")
+pdf(paste(DsoutPath, "FPKM cluster on the isoform level.pdf",sep="/"), width=8,height=8)
+plot(hcIso, hang=-1, main="Isoform level", xlab="Samples", sub="", y="Height", cex=0.5)
 dev.off()
 
 write.table(xGenes,file=paste(DsoutPath, paste("Common ", nrow(xGenes), " Genes FPKM.xls", sep=""), sep="/"), sep="\t",row.names=F)
