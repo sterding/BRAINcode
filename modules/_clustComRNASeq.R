@@ -1,6 +1,8 @@
 ##########################################################################################
-# This module is to perform hierarchical clustering analysis using cufflinks' output
-# Input: the directory of the output of Cufflinks, the path where the cluster output will be 
+# This module is to perform sample hierarchical clustering analysis using cufflinks' output
+# i.e. genes.fpkm_tracking and isoforms.fpkm_tracking
+# Input:  1. the directory of the output of Cufflinks
+#         2. the path where the output of cluster analysis will be 
 # Output: 1. the excel sheets contain the FPKM values of the genes and transcripts are found in all samples
 #         2. the pdf files contains a plot of the hierachical clustering 
 # Usage: Rscript clustComRNASeq.R inputPath outputPath
@@ -53,14 +55,14 @@ colnames(xIsos)=a
 scaledxIsos = scale(xIsos)
 hcIso <- hclust(dist(t(scaledxIsos)), "ave")
 
-pdf(paste(DsoutPath,"FPKM cluster on the gene level.pdf",sep="/"), width=4,height=4)
-plot(hcGene, hang=-1, main="Gene Level", xlab="Samples", sub="", y="Height")
+pdf(paste(DsoutPath,"FPKM cluster on the gene level.pdf",sep="/"), width=8,height=8)
+plot(hcGene, hang=-1, main="Gene Level", xlab="Samples", sub="", y="Height", cex=0.5)
 dev.off()
-pdf(paste(DsoutPath, "FPKM cluster on the isoform level.pdf",sep="/"), width=4,height=4)
-plot(hcIso, hang=-1, main="Isoform level", xlab="Samples", sub="", y="Height")
+pdf(paste(DsoutPath, "FPKM cluster on the isoform level.pdf",sep="/"), width=8,height=8)
+plot(hcIso, hang=-1, main="Isoform level", xlab="Samples", sub="", y="Height", cex=0.5)
 dev.off()
 
-write.table(xGenes,file=paste(DsoutPath, paste("Common ", nrow(xGenes), " Genes FPKM.xls", sep=""), sep="/"), sep="\t",row.names=F)
-write.table(xIsos,file=paste(DsoutPath, paste("Common ", nrow(xIsos), " Isoforms FPKM.xls", sep=""), sep="/"), sep="\t",row.names=F)
+write.table(xGenes,file=paste(DsoutPath, paste("Common ", nrow(xGenes), " Genes FPKM.xls", sep=""), sep="/"), sep="\t",row.names=T)
+write.table(xIsos,file=paste(DsoutPath, paste("Common ", nrow(xIsos), " Isoforms FPKM.xls", sep=""), sep="/"), sep="\t",row.names=T)
 
 
