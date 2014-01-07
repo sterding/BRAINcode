@@ -13,7 +13,7 @@ STEP=0
 
 if [ $# -ne 1 ]
 then
-  echo "Usage: `basename $0` /data/neurogen/rnaseq_PD/rawfiles"
+  echo "Usage: $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles"
   exit
 fi
 
@@ -26,23 +26,24 @@ Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
 Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
 BOWTIE_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex
 pipeline_path=$HOME/neurogen/pipeline/RNAseq/
-export PATH=$pipeline_path:$PATH
+export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
-cpu=4
-memory=20000 # unit in Kb, e.g. 20000=20G
+cpu="-n 8"
+memory="-M 10000 -R rusage[mem=10000]" # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
 # bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
 
+# project folders
 input_dir=$1  # $HOME/neurogen/xdong/rnaseq_PD/rawfiles
 output_dir=$input_dir/../run_output
 [ -d $output_dir ] || mkdir $output_dir
 
 ## Add path for summary results
-resultOutput_dir=$input_dir/../results 
-[ -d $resultOutput_dir ] || mkdir $resultOutput_dir
+result_dir=$input_dir/../results 
+[ -d $result_dir ] || mkdir $result_dir
 
 ## Add a folder for output from running RNA-SeQC pipeline from Nathlie Broad
 #outputSeQC_dir=$input_dir/run_RNA-SeQC
@@ -56,21 +57,17 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-#for i in HC_BN10-26_3.R1.fastq.gz HC_BN11-81_3.R1.fastq.gz ILB_BN04-64_3.R1.fastq.gz ILB_BN11-60_3.R1.fastq.gz;
 for i in *R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
     samplename=${R1/.R1*/}
-    
-    # skip the completed steps
-    touch $output_dir/$samplename/.status.$modulename.adaptorremoval $output_dir/$samplename/.status.$modulename.fastqc $output_dir/$samplename/.status.$modulename.mapping $output_dir/$samplename/.status.$modulename.sam2bam $output_dir/$samplename/.status.$modulename.cufflinks $output_dir/$samplename/.status.$modulename.htseqcount
+        
+    # TEST:
+    [ -f $output_dir/$samplename/.status._RNAseq.sh.callSNP ] && rm $output_dir/$samplename/.status._RNAseq.sh.callSNP
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi -n $cpu -M $memory -R rusage[mem=$memory] $email _RNAseq.sh $R1 $R2
-    
-    #jobid=`bsub RNAseq.lsf $R1 $R2 | cut -f3 -d' '`
-    #echo "Your job is submitted (jobID: $jobid) with SGE script at $output_dir/$samplename/$samplename.sge"
+    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi $cpu $memory $email _RNAseq.sh $R1 $R2
 
     gtflist="$gtflist;$output_dir/$samplename/transcripts.gtf"
     samlist="$samlist;$output_dir/$samplename/accepted_hits.sam"
@@ -88,7 +85,7 @@ exit
 ############
 ## 2. Added cluster procedure -- by Bin
 ############
-bsub Rscript _clustComRNASeq.R $output_dir $resultOutput_dir
+bsub Rscript _clustComRNASeq.R $output_dir $result_dir
 
 ############
 ## 3. factor analysis to identify the hidden covariates (PEER)
@@ -98,15 +95,22 @@ bsub Rscript _factor_analysis.R
 ############
 ## 4. identify differentially expressed genes (cuffdiff and DEseq), incoperating the hidden covariates from PEER
 ############
-[ -d $output_dir/DE_cuffdiff ] || mkdir $output_dir/DE_cuffdiff
-cd $output_dir/DE_cuffdiff
+[ -d $result_dir/DE_cuffdiff ] || mkdir $result_dir/DE_cuffdiff
+cd $result_dir/DE_cuffdiff
 
-bsub -o $output_dir/$samplename/_DE_cuffdiff.log -q long -n $cpu -R rusage[mem=$memory] -u $email -N _DE_cuffdiff.sh $gtflist $samlist $labels
-bsub Rscript _DE_DEseq.R $output_dir PD Ct $ANNOTATION
+bsub -o _DE_cuffdiff.log -q long $cpu $memory $email _DE_cuffdiff.sh $gtflist $samlist $labels
+
+[ -d $result_dir/DE_DESeq2 ] || mkdir $result_dir/DE_DESeq2
+cd $result_dir/DE_DESeq2
+# Save the covariance table from Google Doc (e.g. https://docs.google.com/spreadsheet/ccc?key=0Aumm3V3g3dF7dEFnZ2pPQjlheXlZand6YWUxeF9PMUE&usp=drive_web#gid=5)
+# file: covariances.tab
+bsub -o _DE_DESeq2.log -q long $cpu $memory $email Rscript _DE_DESeq2.R $output_dir PD Ct $ANNOTATION
 
 ############
-## 5. eQTL (PEER)
+## 5. eQTL 
 ############
+[ -d $result_dir/eQTL ] || mkdir $result_dir/eQTL
+cd $result_dir/eQTL
 ## pre-requirisition: call SNP/variation ahead  -- by Shuilin
 bsub _bam2vcf.sh $bamfile # by Shuilin
 
