@@ -87,10 +87,9 @@ bsub Rscript _clustComRNASeq.R $output_dir $result_dir
 
 ./makeSamplelistFile.sh "$output_dir/*/acce*.bam" > $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt
 
-# gencodePlusMask.v13.annotation.gtf is a combination of 
-# gencode.v13.annotation.karotyped.gtf and chrM.rRNA.tRNA.gtf
+# gencode.v13.annotation.proteinCoding.gtf is the gencode.v13.annotation.karotyped.gtf only including protein-coding genes
 
-bsub -J runRnaSeqc -q big-multi -n 4 -R 'rusage[mem=10000]' "java -jar -Xmx64g RNA-SeQC_v1.1.7.jar -s $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt -t /PHShome/bz016/neurogen/rnaseq_PD/results/RNA-SEQCfolder/gencodePlusMask.v13.annotation.gtf -r /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/genome.fa -o $resultOutput_dir/RNA-SEQCfolder/RNASeQCoutput"
+bsub -J runRnaSeqc -q big-multi -n 4 -R 'rusage[mem=10000]' "java -jar -Xmx64g RNA-SeQC_v1.1.7.jar -s $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt -t /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/gencode.v13.annotation.proteinCoding.gtf -r /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/genome.fa -o $resultOutput_dir/RNA-SEQCfolder/RNASeQCoutput"
 
 ############
 
