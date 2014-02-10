@@ -1,37 +1,33 @@
-## Rscript to run eQTL analysis using Matrix eQTL
+###########################################
+# Rscript to run eQTL analysis using Matrix eQTL
 # Matrix eQTL by Andrey A. Shabalin
 # http://www.bios.unc.edu/research/genomic_software/Matrix_eQTL/
-# 
+# Usage: Rscript $PIPELINE_PATH/_eQTL.R
+# Author: Xianjun Dong
+# Version: 0.0
+###########################################
+
+## TODO: incooprate the genotype-covairance interaction!!
+## TODO: re-run without 
+## Note: PD could potentially introduce noise (e.g. those survived neurons could be more resisitent than other died)
 
 require('MatrixEQTL') || install.package('MatrixEQTL', repo='http://cran.revolutionanalytics.com');
 
+args<-commandArgs(TRUE)
+SNP_file_name=args[1]
+expression_file_name=args[2]
+covariates_file_name=args[3]
+output_file_name=args[4]
+useModel = modelLINEAR_CROSS #args[5]  # modelANOVA, modelLINEAR, or modelLINEAR_CROSS
+
 ## Settings
-base.dir = '.';
-
-# Linear model to use, modelANOVA, modelLINEAR, or modelLINEAR_CROSS
-useModel = modelLINEAR; # modelANOVA, modelLINEAR, or modelLINEAR_CROSS
-
-# Genotype file name
-SNP_file_name = paste(base.dir, "SNP.txt", sep="/");
-
-# Gene expression file name
-expression_file_name = paste(base.dir, "GE.txt", sep="/");
-
-# Covariates file name
-# Set to character() for no covariates
-covariates_file_name = paste(base.dir, "Covariates.txt", sep="/");
-
-# Output file name
-output_file_name = paste(base.dir, "output_eQTL.txt", sep="/");
-
 # Only associations significant at this level will be saved
-pvOutputThreshold = 1e-2;
+pvOutputThreshold = 5e-2;
 
 # Error covariance matrix
 # Set to numeric() for identity.
 errorCovariance = numeric();
 # errorCovariance = read.table("Sample_Data/errorCovariance.txt");
-
 
 ## Load genotype data
 
@@ -71,7 +67,7 @@ me = Matrix_eQTL_engine(
 snps = snps,
 gene = gene,
 cvrt = cvrt,
-output_file_name = output_file_name,
+output_file_name = paste(output_file_name,"txt", sep="."),
 pvOutputThreshold = pvOutputThreshold,
 useModel = useModel, 
 errorCovariance = errorCovariance, 
@@ -88,6 +84,6 @@ cat('Analysis done in: ', me$time.in.sec, ' seconds', '\n');
 cat('Detected eQTLs:', '\n');
 show(me$all$eqtls)
 
-pdf(paste(base.dir, "output_eQTL.pdf", sep="/"));
+pdf(paste(output_file_name, "pdf", sep="."));
 plot(me);
 dev.off();

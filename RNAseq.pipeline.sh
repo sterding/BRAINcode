@@ -31,7 +31,7 @@ export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
 cpu="-n 8"
-memory="-M 10000 -R rusage[mem=10000]" # unit in Kb, e.g. 20000=20G
+memory="-M 20000 -R rusage[mem=20000]" # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
 # bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
@@ -58,9 +58,6 @@ do
     R1=$i
     R2=${i/R1/R2};
     samplename=${R1/.R1*/}
-        
-    # TEST:
-    [ -f $output_dir/$samplename/.status._RNAseq.sh.callSNP ] && rm $output_dir/$samplename/.status._RNAseq.sh.callSNP
     
     # run the QC/mapping/assembly/quantification for RNAseq
     bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi $cpu $memory $email _RNAseq.sh $R1 $R2
@@ -112,8 +109,8 @@ bsub -o _DE_cuffdiff.log -q long $cpu $memory $email _DE_cuffdiff.sh $gtflist $s
 
 [ -d $result_dir/DE_DESeq2 ] || mkdir $result_dir/DE_DESeq2
 cd $result_dir/DE_DESeq2
-# Save the covariance table from Google Doc (e.g. https://docs.google.com/spreadsheet/ccc?key=0Aumm3V3g3dF7dEFnZ2pPQjlheXlZand6YWUxeF9PMUE&usp=drive_web#gid=5)
-# file: covariances.tab
+# Save the covariance table from Google Doc
+# wget --no-check-certificate -qO - "https://docs.google.com/spreadsheet/ccc?key=0Aumm3V3g3dF7dEFnZ2pPQjlheXlZand6YWUxeF9PMUE&gid=5&output=txt" > covariances.tab
 bsub -o _DE_DESeq2.log -q long $cpu $memory $email Rscript _DE_DESeq2.R $output_dir PD Ct $ANNOTATION
 
 ############

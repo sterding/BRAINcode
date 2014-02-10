@@ -33,8 +33,7 @@ Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
 Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
 export BOWTIE2_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/
 pipeline_path=$HOME/neurogen/pipeline/RNAseq/
-export PATH=$pipeline_path:$PATH
-
+export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 
 #============= mapping options
 #phred
@@ -49,8 +48,6 @@ strand_option="--library-type fr-unstranded"
 inputdir=$PWD
 outputdir=$inputdir/../run_output
 [ -d $outputdiri/$samplename ] || mkdir -p $outputdir/$samplename
-
-#ln -sf /tmp/$LSB_JOBID.out $outputdir/$samplename/$modulename.log
 
 ###########################################
 echo "###############  2. quality filter: adaptor removal/clip"
@@ -79,9 +76,10 @@ touch $outputdir/$samplename/.status.$modulename.fastqc
 echo "############### 4. mapping to the genome"
 ############################################
 ## tophat (output accepted_hits.sam, allow up to 100 multiple hits)
-## TODO: 1) use offrated index genome_offrate3; 
+## TODO: 1) use offrated index genome_offrate3;
+## Note: GATK requires @RG group has fields of ID, SM, PL, LB, PU
 [ ! -f $outputdir/$samplename/.status.$modulename.mapping ] && \
-tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --keep-fasta-order -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2 && \
+tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2 && \
 touch $outputdir/$samplename/.status.$modulename.mapping
 
 ###########################################
@@ -90,11 +88,35 @@ echo "############### 5. post-processing, format converting"
 
 cd $outputdir/$samplename
 
-[ ! -f $outputdir/$samplename/.status.$modulename.sam2bam ] && \
+[ ! -f .status.$modulename.sam2bam ] && \
 samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted && \
 mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
-touch $outputdir/$samplename/.status.$modulename.sam2bam 
+touch .status.$modulename.sam2bam
+
+[ ! -f .status.$modulename.bam2stat ] && \
+samtools flagstat accepted_hits.bam > accepted_hits.bam.stat && \
+touch .status.$modulename.bam2stat
+
+### bigwig for UCSC
+echo "## generating bigwig files for UCSC display"
+
+#bamToBed -i $samplename.accepted_hits.bam -bed12 | awk '{if($1!~/_/)print}' > $samplename.accepted_hits.bed ## Note: may take more time in converting bam to sam
+[ ! -f .status.$modulename.sam2bw ] && \
+sam2bed -v bed12=T -v sCol=NH accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
+sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > accepted_hits.bedGraph && \
+bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
+touch .status.$modulename.sam2bw 
+
+# normalized bigwig (rpm)
+[ ! -f .status.$modulename.sam2normalizedbw ] && \
+total_mapped_reads=`cat logs/bowtie.*t_kept_reads.log | grep -P "1\stime" | awk '{s=$1+s;}END{print s}'` && \
+echo "total_mapped_reads:$total_mapped_reads" && \
+awk -v tmr=$total_mapped_reads 'BEGIN{print "#total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
+bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
+touch .status.$modulename.sam2normalizedbw
+
+#rm accepted_hits.bed accepted_hits.*bedGraph
 
 ###########################################
 echo "############### 6. call variation"
@@ -102,9 +124,9 @@ echo "############### 6. call variation"
 
 cd $outputdir/$samplename
 
-[ ! -f $outputdir/$samplename/.status.$modulename.callSNP ] && \
+[ ! -f .status.$modulename.callSNP ] && \
 _callSNP.sh accepted_hits.sam && \
-touch $outputdir/$samplename/.status.$modulename.callSNP
+touch .status.$modulename.callSNP
 
 ###########################################
 echo "################# 7. assembly and quantification"
@@ -122,60 +144,85 @@ cd $outputdir/$samplename
 echo "## run cufflinks to get FPKM"
 # Using gtf from deno assembly
 # Note: "-b" option (for bias correction) can lead to segementation fault error.
-[ ! -f $outputdir/$samplename/.status.$modulename.cufflinks ] && \
+[ ! -f .status.$modulename.cufflinks ] && \
 cufflinks --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF --compatible-hits-norm --multi-read-correct accepted_hits.bam && \
-touch $outputdir/$samplename/.status.$modulename.cufflinks 
+touch .status.$modulename.cufflinks 
 
 #echo "## run cufflinks without -M option"
 #cufflinks -q --no-update-check $strandoption -o ./cufflink_wo_M -p $cpu -G $Annotation_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
 
 echo "## run htseq for reads count"
-[ ! -f $outputdir/$samplename/.status.$modulename.htseqcount ] && \
+[ ! -f .status.$modulename.htseqcount ] && \
 htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
-touch $outputdir/$samplename/.status.$modulename.htseqcount
-
-#echo "## run bedtools for reads count"
-#bedtools multicov -D -split -bams accepted_hits.bam -bed $ANNOTATION/gencode.v14.annotation.bed15 > bedtools.by.trans.tab
+touch .status.$modulename.htseqcount
 
 ############################################
-echo "############### 8. prepare for tracks files to display on UCSC / IGV"
+echo "############### 8. for uniq"
+############################################
+
+## extract the unique mapper only
+mkdir $outputdir/$samplename/uniq
+cd $outputdir/$samplename/uniq
+
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq ] && \
+samtools view -SH $outputdir/$samplename/accepted_hits.sam > accepted_hits.sam && \
+fgrep -w NH:i:1 $outputdir/$samplename/accepted_hits.sam >> accepted_hits.sam && \
+samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted && \
+mv accepted_hits.sorted.bam accepted_hits.bam && \
+samtools index accepted_hits.bam && \
+cufflinks --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF --compatible-hits-norm accepted_hits.bam && \
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
+sam2bed -v bed12=T -v sCol=NH accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
+_callSNP.sh accepted_hits.sam && \
+sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > accepted_hits.bedGraph && \
+mv $samplename.accepted_hits.bedGraph accepted_hits.bedGraph && \
+bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
+total_mapped_reads=`wc -l accepted_hits.bed | cut -f1 -d' '` && \
+echo "total_mapped_reads:$total_mapped_reads" && \
+awk -v tmr=$total_mapped_reads 'BEGIN{print "#total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
+bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
+touch $outputdir/$samplename/.status.$modulename.uniq
+
+#rm accepted_hits.bed accepted_hits.*bedGraph
+
+############################################
+echo "############### 9. prepare for tracks files to display on UCSC / IGV"
 ############################################
 #
 [ -d $inputdir/../for_display ] || mkdir $inputdir/../for_display
 cd $inputdir/../for_display
 
-## make index for the (sorted) BAM
-ln -fs $outputdir/$samplename/accepted_hits.bam $samplename.accepted_hits.bam
-ln -fs $outputdir/$samplename/accepted_hits.bam.bai $samplename.accepted_hits.bam.bai
-
-## QC
-mv $outputdir/$samplename/*_fastqc ./
-
-# bigwig for UCSC
-echo "## generating bigwig files for UCSC display"
-
-#bamToBed -i $samplename.accepted_hits.bam -bed12 | awk '{if($1!~/_/)print}' > $samplename.accepted_hits.bed ## Note: may take more time in converting bam to sam
-[ ! -f $outputdir/$samplename/.status.$modulename.sam2bw ] && \
-sam2bed -v bed12=T -v sCol=NH $outputdir/$samplename/accepted_hits.sam | awk '{if($1!~/_/)print}' > $samplename.accepted_hits.bed && \
-sort -k1,1 $samplename.accepted_hits.bed | bedItemOverlapCount $index -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > $samplename.accepted_hits.bedGraph && \
-bedGraphToBigWig $samplename.accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt $samplename.accepted_hits.bw && \
-touch $outputdir/$samplename/.status.$modulename.sam2bw 
-
-# normalized bigwig (rpm)
-[ ! -f $outputdir/$samplename/.status.$modulename.sam2normalizedbw ] && \
-total_mapped_reads=`cat $outputdir/$samplename/logs/bowtie.*t_kept_reads.log | grep -P "1\stime" | awk '{s=$1+s;}END{print int(s/1000000)}'` && \
-awk -v tmr=$total_mapped_reads 'BEGIN{print "#total_mapped_reads="tmr;}{$4=$4/tmr; print}' $samplename.accepted_hits.bedGraph > $samplename.accepted_hits.normalized.bedGraph && \
-bedGraphToBigWig $samplename.accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt $samplename.accepted_hits.normalized.bw && \
-touch $outputdir/$samplename/.status.$modulename.sam2normalizedbw
-
-#rm $samplename.accepted_hits.bed $samplename.accepted_hits.*bedGraph
-
-ln -fs $outputdir/$samplename/isoforms.fpkm_tracking $samplename.isoforms.fpkm_tracking
-ln -fs $outputdir/$samplename/genes.fpkm_tracking $samplename.genes.fpkm_tracking
-
+### others
+[ ! -f $outputdir/$samplename/.status.$modulename.makelinks ] && \
+# make soft link
+# multi
+ln -fs $outputdir/$samplename/accepted_hits.bam $samplename.multi.accepted_hits.bam && \
+ln -fs $outputdir/$samplename/accepted_hits.bam.bai $samplename.multi.accepted_hits.bam.bai && \
+ln -fs $outputdir/$samplename/isoforms.fpkm_tracking $samplename.multi.isoforms.fpkm_tracking && \
+ln -fs $outputdir/$samplename/genes.fpkm_tracking $samplename.multi.genes.fpkm_tracking && \
+ln -fs $outputdir/$samplename/hgseqcount.by.gene.tab $samplename.multi.hgseqcount.by.gene.tab && \
+ln -fs $outputdir/$samplename/accepted_hits.bw $samplename.multi.accepted_hits.bw && \
+ln -fs $outputdir/$samplename/accepted_hits.normalized.bw $samplename.multi.accepted_hits.normalized.bw && \
+# uniq
+ln -fs $outputdir/$samplename/uniq/accepted_hits.bam $samplename.uniq.accepted_hits.bam && \
+ln -fs $outputdir/$samplename/uniq/accepted_hits.bam.bai $samplename.uniq.accepted_hits.bam.bai && \
+ln -fs $outputdir/$samplename/uniq/isoforms.fpkm_tracking $samplename.uniq.isoforms.fpkm_tracking && \
+ln -fs $outputdir/$samplename/uniq/genes.fpkm_tracking $samplename.uniq.genes.fpkm_tracking && \
+ln -fs $outputdir/$samplename/uniq/hgseqcount.by.gene.tab $samplename.uniq.hgseqcount.by.gene.tab && \
+ln -fs $outputdir/$samplename/uniq/accepted_hits.bw $samplename.uniq.accepted_hits.bw && \
+ln -fs $outputdir/$samplename/uniq/accepted_hits.normalized.bw $samplename.uniq.accepted_hits.normalized.bw && \
 # gtf of assembly
-echo "track name=$samplename description=$samplename visibility=pack colorByStrand='200,100,0 0,100,200'" > $samplename.transcripts.gtf
-cat $outputdir/$samplename/transcripts.gtf >> $samplename.transcripts.gtf
-gzip -f $samplename.transcripts.gtf
+echo "track name=$samplename.multi.gtf description=$samplename.multi.gtf visibility=pack colorByStrand='200,100,0 0,100,200'" > $samplename.multi.transcripts.gtf && \
+cat $outputdir/$samplename/transcripts.gtf >> $samplename.multi.transcripts.gtf && \
+gzip -f $samplename.multi.transcripts.gtf && \
+# for uniq
+echo "track name=$samplename.uniq.gtf description=$samplename.uniq.gtf visibility=pack colorByStrand='200,100,0 0,100,200'" > $samplename.uniq.transcripts.gtf && \
+cat $outputdir/$samplename/uniq/transcripts.gtf >> $samplename.uniq.transcripts.gtf && \
+gzip -f $samplename.uniq.transcripts.gtf && \
+## QC
+ln -fs $outputdir/$samplename/$samplename.R1_fastqc $samplename.R1_fastqc && \
+ln -fs $outputdir/$samplename/$samplename.R2_fastqc $samplename.R2_fastqc && \
+
+touch $outputdir/$samplename/.status.$modulename.makelinks
 
 echo "!! $modulename job for sample $samplename is done !!"
