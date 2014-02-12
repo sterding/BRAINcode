@@ -3,7 +3,8 @@
 # Date: 2014-1-24
 # Version: 4.0
 # Usage: bsub _bam2vcf.sh <input.bam>
-a=/PHShome/sj750/neurogen/rnaseq_PD/run_output/HC_BN08-44_3
+
+input_samfile=$1
 rna_seq_snp_calling=/PHShome/sj750/neurogen/sjn/rna_snp_calling/HC_BN08-44_3
 
 

@@ -38,10 +38,17 @@ memory="-M 20000 -R rusage[mem=20000]" # unit in Kb, e.g. 20000=20G
 
 # project folders
 input_dir=$1  # $HOME/neurogen/xdong/rnaseq_PD/rawfiles
+
+# create the subfolders (e.g. filtered, run_output, for_display, results)
+filtered_dir=$input_dir/../filtered
+[ -d $filtered_dir ] || mkdir $filtered_dir
+
 output_dir=$input_dir/../run_output
 [ -d $output_dir ] || mkdir $output_dir
 
-## Add path for summary results
+fordisplay_dir=$input_dir/../for_display
+[ -d $fordisplay_dir ] || mkdir $fordisplay_dir
+
 result_dir=$input_dir/../results 
 [ -d $result_dir ] || mkdir $result_dir
 
@@ -60,7 +67,7 @@ do
     samplename=${R1/.R1*/}
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi $cpu $memory $email _RNAseq.sh $R1 $R2
+    #bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi $cpu $memory $email _RNAseq.sh $R1 $R2
 
     gtflist="$gtflist;$output_dir/$samplename/transcripts.gtf"
     samlist="$samlist;$output_dir/$samplename/accepted_hits.sam"
@@ -70,6 +77,19 @@ do
         else
             labels="$labels,$samplename"
     fi
+done
+
+
+############
+## 2. draw aggregation plot for the RNAseq density in the genetic region
+# Note: see note in bigWigAverageOverBed_81bins.sh for requisition 
+############
+[ -d $result_dir/aggregationPlot ] || mkdir $result_dir/aggregationPlot
+cd $result_dir/aggregationPlot
+LOG=$result_dir/aggregationPlot/_aggPlot.log
+for i in $fordisplay_dir/*uniq*ed.bw;
+do
+    bsub -J aggPlot -oo $LOG.$i -eo $LOG.$i -q big-multi -u sterding.hpcc@gmail.com -N -M 4000 -R rusage[mem=4000] -n 2 aggregationPlot_getBinSignal.sh $GENOME/Annotation/Genes/gencode.v19.annotation.bed12.mRNA.81bins.bed 81 $i;
 done
 
 # set break point here to wait until all samples are completedly processed.
@@ -87,11 +107,12 @@ bsub Rscript _clustComRNASeq.R $output_dir $result_dir
 
 ./makeSamplelistFile.sh "$output_dir/*/acce*.bam" > $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt
 
-# gencode.v13.annotation.proteinCoding.gtf is the gencode.v13.annotation.karotyped.gtf only including protein-coding genes
+# gencodePlusMask.v13.annotation.gtf is a combination of 
+# gencode.v13.annotation.karotyped.gtf and chrM.rRNA.tRNA.gtf
 
-bsub -J runRnaSeqc -q big-multi -n 4 -R 'rusage[mem=10000]' "java -jar -Xmx64g RNA-SeQC_v1.1.7.jar -s $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt -t /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/gencode.v13.annotation.proteinCoding.gtf -r /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/genome.fa -o $resultOutput_dir/RNA-SEQCfolder/RNASeQCoutput"
-
+bsub -J runRnaSeqc -q big-multi -n 4 -R 'rusage[mem=10000]' "java -jar -Xmx64g RNA-SeQC_v1.1.7.jar -s $resultOutput_dir/RNA-SEQCfolder/samplelist_file.txt -t /PHShome/bz016/neurogen/rnaseq_PD/results/RNA-SEQCfolder/gencodePlusMask.v13.annotation.gtf -r /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/genome.fa -o $resultOutput_dir/RNA-SEQCfolder/RNASeQCoutput"
 ############
+
 
 ############
 ## 3. factor analysis to identify the hidden covariates (PEER)
