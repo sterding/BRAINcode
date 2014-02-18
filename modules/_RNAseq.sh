@@ -128,6 +128,11 @@ cd $outputdir/$samplename
 _callSNP.sh accepted_hits.sam && \
 touch .status.$modulename.callSNP
 
+# shuilin's GATK
+#[ ! -f .status.$modulename.callSNP_GATK ] && \
+#_bam2vcf.sh accepted_hits.sam && \
+#touch .status.$modulename.callSNP_GATK
+
 ###########################################
 echo "################# 7. assembly and quantification"
 ###########################################

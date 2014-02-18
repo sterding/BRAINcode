@@ -1,3 +1,26 @@
+plotClassification <- function(all, subtype)
+{
+    # all=genes;  subtype="protein_coding"
+    subset=all;
+    if(subtype!='all') subset=all[grep(subtype, rownames(all)),]
+
+    subset=subset[!is.na(rowSums(subset)),] # remove trans with nan values from bigWigAverageBed (e.g. chr1 1 1)
+    subset=subset[rowSums(subset)>0,] # Optional: remove genes with all zero (or unexpressed)
+    subset=subset*1e6 # TEMPERAL USE: "uniq" dataset was not properly normalized
+
+    # only the gene body
+    gb=subset[,21:61]
+    gb=gb[rowSums(gb)>0,] # Optional: remove genes with all zero (or unexpressed)
+    
+    # only the protein-coding transcripts (from protein-coding genes) [test]
+    gb=gb[grep("\\.protein_coding",rownames(gb)),]
+    
+    d <- dist(gb, method = "euclidean")
+    hc <- hclust(d, method="average")
+    #plot(hc) # display dendogram
+    image(d[[hc$order]])
+}
+
 getAGGREGATION <- function(all, subtype,  TRIM=0, meanmedian='mean')
 {
     subset=all;

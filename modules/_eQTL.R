@@ -18,7 +18,7 @@ SNP_file_name=args[1]
 expression_file_name=args[2]
 covariates_file_name=args[3]
 output_file_name=args[4]
-useModel = modelLINEAR_CROSS #args[5]  # modelANOVA, modelLINEAR, or modelLINEAR_CROSS
+useModel = args[5]  # modelANOVA, modelLINEAR, or modelLINEAR_CROSS
 
 ## Settings
 # Only associations significant at this level will be saved
