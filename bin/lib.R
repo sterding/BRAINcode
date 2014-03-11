@@ -1,24 +1,48 @@
-plotClassification <- function(all, subtype)
+
+# cluster rows of X and graphically visualize it as a heatmap
+plotClassification <- function(x)
 {
-    # all=genes;  subtype="protein_coding"
-    subset=all;
-    if(subtype!='all') subset=all[grep(subtype, rownames(all)),]
-
-    subset=subset[!is.na(rowSums(subset)),] # remove trans with nan values from bigWigAverageBed (e.g. chr1 1 1)
-    subset=subset[rowSums(subset)>0,] # Optional: remove genes with all zero (or unexpressed)
-    subset=subset*1e6 # TEMPERAL USE: "uniq" dataset was not properly normalized
-
-    # only the gene body
-    gb=subset[,21:61]
-    gb=gb[rowSums(gb)>0,] # Optional: remove genes with all zero (or unexpressed)
+    # x=df[,21:81]
+    #d <- dist(x, method = "euclidean")
+    d <- as.dist(1-cor(t(x)))
     
-    # only the protein-coding transcripts (from protein-coding genes) [test]
-    gb=gb[grep("\\.protein_coding",rownames(gb)),]
-    
-    d <- dist(gb, method = "euclidean")
     hc <- hclust(d, method="average")
-    #plot(hc) # display dendogram
+    plot(hc) # display dendogram
     image(d[[hc$order]])
+    
+    
+    t<-read.table("histone/gencode_v3c_hg19_tr_with115_cshl_long_quantif.level12.protein_coding.TSS.wgEncodeBroadHistoneK562H3k79me2StdAln_2Reps.norm5.rawsignal.up2k.down10k.20bpBin",sep="\t")
+    t.km<-kmeans(t,7)
+    t.km.center<-apply(t.km$center,1,sum)
+    write.table(t.km$cluster,"K562H3k79me2.cluster",quote=F,sep="\t",row.names=F,col.names=F)
+    write.table(t.km.center,"K562H3k79me2.center",quote=F,sep="\t",row.names=F,col.names=F)
+    gene.order<-order(order(order(t.km.center))[t.km$cluster])
+    
+    zmin<-0
+    zmax<-8
+    
+    ## draw the 1174 and K562H3k79me2 as the figure2
+    nheat<-1
+    collist<-c("#053061","#2166AC","#4393C3","#92C5DE","#D1E5F0","#F7F7F7","#FDDBC7","#F4A582","#D6604D","#B2182B","#67001F")
+    ColorRamp<-colorRampPalette(collist, bias=1)(10000)
+    ColorLevels<-seq(to=zmax,from=zmin, length=10000)
+    
+    png("all.order.normSignal.K562H3k79me2.sub.png",width=6,height=8,units="in",res=300)
+    par(mar=c(2,2,2,2))
+    layout(matrix(seq(nheat+1),nrow=1,ncol=nheat+1),widths=c(rep(2,nheat),0.5),heights=rep(1,nheat+1))
+    
+    t<-as.matrix(t)
+    t<-t*10000000/sum(t)
+    t[t<zmin]<-zmin
+    t[t>zmax]<-zmax
+    ColorRamp_ex <- ColorRamp[round(1+(min(t)-zmin)*10000/(zmax-zmin)) : round( (max(t)-zmin)*10000/(zmax-zmin) )]
+    image(1:ncol(t), 1:nrow(t),t(t[gene.order,]) , axes=FALSE, col=ColorRamp_ex,xlab="",ylab="")
+    axis(2,at=c(1,cumsum(t.km$size[order(t.km.center)])),labels=F,tck=-0.02,mgp=c(3,0.2,0.2))
+    
+    image(1,ColorLevels,matrix(data=ColorLevels,ncol=length(ColorLevels),nrow=1),col=ColorRamp, xlab="",ylab="",cex.axis=1,xaxt="n",yaxt="n")
+    axis(4,seq(zmin,zmax,3),seq(zmin,zmax,3),mgp=c(mgp=c(3,0.2,0)))
+    dev.off();
+    
 }
 
 getAGGREGATION <- function(all, subtype,  TRIM=0, meanmedian='mean')

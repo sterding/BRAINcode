@@ -30,8 +30,8 @@ export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
-cpu="-n 8"
-memory="-M 20000 -R rusage[mem=20000]" # unit in Kb, e.g. 20000=20G
+cpu="-n 4"
+memory="-M 5000 -R rusage[mem=5000]" # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
 # bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
@@ -67,7 +67,7 @@ do
     samplename=${R1/.R1*/}
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    #bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi $cpu $memory $email _RNAseq.sh $R1 $R2
+    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q normal $cpu $memory $email _RNAseq.sh $R1 $R2;
 
     gtflist="$gtflist;$output_dir/$samplename/transcripts.gtf"
     samlist="$samlist;$output_dir/$samplename/accepted_hits.sam"
@@ -79,6 +79,7 @@ do
     fi
 done
 
+exit
 
 ############
 ## 2. draw aggregation plot for the RNAseq density in the genetic region
@@ -89,7 +90,7 @@ cd $result_dir/aggregationPlot
 LOG=$result_dir/aggregationPlot/_aggPlot.log
 for i in $fordisplay_dir/*uniq*ed.bw;
 do
-    bsub -J aggPlot -oo $LOG.$i -eo $LOG.$i -q big-multi -u sterding.hpcc@gmail.com -N -M 4000 -R rusage[mem=4000] -n 2 aggregationPlot_getBinSignal.sh $GENOME/Annotation/Genes/gencode.v19.annotation.bed12.mRNA.81bins.bed 81 $i;
+    bsub -J aggPlot -oo $LOG.$i -eo $LOG.$i -q big-multi $email -M 4000 -R rusage[mem=4000] -n 2 aggregationPlot_getBinSignal.sh $GENOME/Annotation/Genes/gencode.v19.annotation.bed12.mRNA.81bins.bed 81 $i;
 done
 
 # set break point here to wait until all samples are completedly processed.

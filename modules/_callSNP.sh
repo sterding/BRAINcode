@@ -16,51 +16,60 @@ fi
 pipeline_path=$HOME/neurogen/pipeline/RNAseq/
 export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 
-module use /apps/modulefiles/test
-module load bedtools2/2.18.2
+GENOME=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19
 
-rRNA=~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/rRNA.bed
-LINE=~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/LINE.bed
-dbSNP=~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Variation/snp137.bed.SNP
-exons=~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/gencode.v13.annotation.gtf.exons.bed
-introns=~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/gencode.v13.annotation.gtf.introns.bed
-#introns=~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/gencode.v13.annotation.gtf.introns.bed
+dbSNP=$GENOME/Annotation/Variation/snp137.bed.groupped.SNP
+rRNA=$GENOME/Annotation/Genes/rRNA.bed
+LINE=$GENOME/Annotation/Genes/LINE.bed
+exons=$GENOME/Annotation/Genes/gencode.v13.annotation.gtf.exons.bed
+introns=$GENOME/Annotation/Genes/gencode.v13.annotation.gtf.introns.bed
 
 input_sam=$1
 
-# split large file into split
-size=`ls -sH $input_sam | cut -f1 -d' '`
-echo "filesize is $size";
-if [ "$size" -gt 10000000 ] # if larger than 10G
-then
-    split -b 1000M  $input_sam tmp_sampiece_
-    > .paraFile;
-    for i in tmp_sampiece_*; do echo "awk -f $pipeline_path/modules/_sam2variation.awk $i > tmp_snp.$i" >> .paraFile; done
-    rm -f .paraFile.completed
-    ParaFly -c .paraFile -CPU 8
-    # merge all snp pieces
-    # Note: chimeric alignment may be included, which means one read may occur multiple times in the same position. For that case, we can only count once per SNP per read. 
-    cat tmp_snp* | sort -u > ${input_sam/sam/snp}
-    rm tmp_snp* tmp_sampiece_*
-else
-    awk -f $pipeline_path/modules/_sam2variation.awk $input_sam | sort -u > ${input_sam/sam/snp}
-fi
+## split large file into split
+#size=`ls -sH $input_sam | cut -f1 -d' '`
+#echo "filesize is $size";
+#if [ "$size" -gt 10000000 ] # if larger than 10G
+#then
+#    split -b 1000M  $input_sam tmp_sampiece_
+#    > .paraFile;
+#    for i in tmp_sampiece_*; do echo "awk -f $pipeline_path/modules/_sam2variation.awk $i > tmp_snp.$i" >> .paraFile; done
+#    rm -f .paraFile.completed
+#    ParaFly -c .paraFile -CPU 8
+#    # merge all snp pieces
+#    # Note: chimeric alignment may be included, which means one read may occur multiple times in the same position. For that case, we can only count once per SNP per read. 
+#    cat tmp_snp* | sort -u > ${input_sam/sam/snp}
+#    rm tmp_snp* tmp_sampiece_*
+#else
+#    awk -f $pipeline_path/modules/_sam2variation.awk $input_sam | sort -u > ${input_sam/sam/snp}
+#fi
+#
+## check the relative postion of SNP on the read
+#textHistogram -col=4 -maxBinCount=100 ${input_sam/sam/snp} > ${input_sam/sam/snp}.relpos.hist
+#
+## exclude SNPs located in the [0-10] region of two ends (due to the low quality)
+## NOTE: even though the sam is "sorted" by Tophat, but actualy Mt hits seems not sorted. Need to double check
+#awk '{if($4>=10 && $4<=40) print}' ${input_sam/sam/snp} | cut -f1-2 | sed 's/:/\t/;s/-/\t/' | bedtools groupby -g 1-4 -c 4 -o count | sort -k5,5nr > ${input_sam/sam/snp.depth}
+#    
+### histogram of sequence depth of SNP loci
+##textHistogram -col=1 -minVal=10 -maxBinCount=1000 -binSize=10 ${input_sam/sam/snp.depth} > ${input_sam/sam/snp.depth.hist}
 
-# check the relative postion of SNP on the read
-textHistogram -col=4 -maxBinCount=100 ${input_sam/sam/snp} > ${input_sam/sam/relpos.hist}
-
-# exclude SNPs located in the [0-10] region of two ends (due to the low quality)
-# NOTE: even though the sam is "sorted" by Tophat, but actualy Mt hits seems not sorted. Need to double check
-awk '{if($4>=10 && $4<=40) print}' ${input_sam/sam/snp} | cut -f1-2 | sed 's/:/\t/;s/-/\t/' | bedtools groupby -g 1-4 -c 4 -o count | sort -k5,5nr > ${input_sam/sam/snp.depth}
-    
-## histogram of sequence depth of SNP loci
-#textHistogram -col=1 -minVal=10 -maxBinCount=1000 -binSize=10 ${input_sam/sam/snp.depth} > ${input_sam/sam/snp.depth.hist}
-
-# exclude SNP with <16 depth and annotate the rest
-awk '{if($5>15) print; else exit;}' ${input_sam/sam/snp}.depth >  ${input_sam/sam/snp}.depth_gt_15
+## exclude SNP with <16 depth and annotate the rest
+#awk '{if($5>15) print; else exit;}' ${input_sam/sam/snp}.depth | sortBed >  ${input_sam/sam/snp}.depth_gt_15
 
 # annotate SNP
-intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $dbSNP -wo | cut -f1-5,9 | groupBy -g 1,2,3,4,5 -c 6 -o collapse | awk '{OFS="\t"; print $0, "known"}' > ${input_sam/sam/snp_known}
+intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $dbSNP   -sorted -wao | cut -f1-5,9 | groupBy -g 1,2,3,4,5 -c 6 -o collapse > ${input_sam/sam/snp}_dbSNP
+#intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $rRNA    -sorted -wao | cut -f1-5,9 | groupBy -g 1,2,3,4,5 -c 6 -o collapse > ${input_sam/sam/snp}_rRNA
+#intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $LINE    -sorted -wao | cut -f1-5,9 | groupBy -g 1,2,3,4,5 -c 6 -o collapse > ${input_sam/sam/snp}_LINE
+#intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $exons   -sorted -wao | sed 's/___/\t/g' | cut -f1-5,9 | uniq | groupBy -g 1,2,3,4,5 -c 6 -o collapse > ${input_sam/sam/snp}_exon
+#intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $introns -sorted -wao | cut -f1-5,9 | uniq | groupBy -g 1,2,3,4,5 -c 6 -o collapse > ${input_sam/sam/snp}_intron
+
+paste ${input_sam/sam/snp}_* | awk '{OFS="\t"; printf "%s\t%s\t%s\t%s\t%s", $1,$2,$3,$4,$5; for(i=6;i<=NF;i=i+6) printf "\t%s", $i; printf "\n";}' > ${input_sam/sam/snp}.annotation
+
+exit
+
+## NOTE:  old version
+intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $dbSNP -sorted -wao | cut -f1-5,9 | groupBy -g 1,2,3,4,5 -c 6 -o collapse | awk '{OFS="\t"; print $0, "known"}' > ${input_sam/sam/snp_known}
 cut -f1-5 ${input_sam/sam/snp_known} | sort - ${input_sam/sam/snp}.depth_gt_15 | uniq -u | intersectBed -a stdin -b $rRNA -wo | cut -f1-5,9 | groupBy -g 1,2,3,4,5 -c 6 -o collapse | sort -k5,5nr | awk '{OFS="\t"; print $0, "rRNA"}' > ${input_sam/sam/snp_rRNA}
 cut -f1-5 ${input_sam/sam/snp_known} | sort - ${input_sam/sam/snp}.depth_gt_15 | uniq -u | intersectBed -a stdin -b $LINE -wo | cut -f1-5,9 | groupBy -g 1,2,3,4,5 -c 6 -o collapse | sort -k5,5nr | awk '{OFS="\t"; print $0, "LINE"}' > ${input_sam/sam/snp_LINE}
 # exons

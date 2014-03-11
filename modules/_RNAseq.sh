@@ -9,7 +9,7 @@
 #!/bin/bash
 
 ###########################################
-############## 1. Configuring
+echo "["`date`"] STEP 1. Configuring"
 ###########################################
 
 modulename=`basename $0`
@@ -30,7 +30,9 @@ index=hg19
 # adaptorfile=/data/neurogen/referenceGenome/adaptor_core.fa
 ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
 Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
+exons=$ANNOTATION/gencode.v13.annotation.gtf.exons.bed
 Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
+
 export BOWTIE2_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/
 pipeline_path=$HOME/neurogen/pipeline/RNAseq/
 export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
@@ -50,21 +52,22 @@ outputdir=$inputdir/../run_output
 [ -d $outputdiri/$samplename ] || mkdir -p $outputdir/$samplename
 
 ###########################################
-echo "###############  2. quality filter: adaptor removal/clip"
+echo "["`date`"] STEP  2. quality filter: adaptor removal/clip"
 ###########################################
 
 ##### adaptor removal
 [ -d $inputdir/../filtered ] || mkdir $inputdir/../filtered
 
+[ -e $inputdir/../filtered/adaptor.fa ] || echo -e ">Truseq_complementary_part\nAGATCGGAAGAGC" > $inputdir/../filtered/adaptor.fa
+
 [ ! -f $outputdir/$samplename/.status.$modulename.adaptorremoval ] && \
-[ -e $inputdir/../filtered/adaptor.fa ] || echo -e ">Truseq_complementary_part\nAGATCGGAAGAGC" > $inputdir/../filtered/adaptor.fa && \
 fastq-mcf -o $inputdir/../filtered/$R1 -o $inputdir/../filtered/$R2 -x 10 -l 15 -w 4 -u $inputdir/../filtered/adaptor.fa <(zcat $R1) <(zcat $R2) && \
 touch $outputdir/$samplename/.status.$modulename.adaptorremoval 
 
 cd $inputdir/../filtered
 
 #############################################
-echo "################ 3. QC"
+echo "["`date`"] STEP 3. QC"
 ############################################
 
 [ ! -f $outputdir/$samplename/.status.$modulename.fastqc ] && \
@@ -73,17 +76,22 @@ rm $outputdir/$samplename/*fastqc.zip && \
 touch $outputdir/$samplename/.status.$modulename.fastqc 
 
 ############################################
-echo "############### 4. mapping to the genome"
+echo "["`date`"] STEP 4. mapping"
 ############################################
 ## tophat (output accepted_hits.sam, allow up to 100 multiple hits)
 ## TODO: 1) use offrated index genome_offrate3;
 ## Note: GATK requires @RG group has fields of ID, SM, PL, LB, PU
+
 [ ! -f $outputdir/$samplename/.status.$modulename.mapping ] && \
 tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2 && \
 touch $outputdir/$samplename/.status.$modulename.mapping
 
+#[ ! -f $outputdir/$samplename/.status.$modulename.smallRNAmapping ] && \
+#tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2 && \
+#touch $outputdir/$samplename/.status.$modulename.smallRNAmapping
+
 ###########################################
-echo "############### 5. post-processing, format converting"
+echo "["`date`"] STEP 5. post-processing, format converting"
 ###########################################
 
 cd $outputdir/$samplename
@@ -104,7 +112,7 @@ echo "## generating bigwig files for UCSC display"
 #bamToBed -i $samplename.accepted_hits.bam -bed12 | awk '{if($1!~/_/)print}' > $samplename.accepted_hits.bed ## Note: may take more time in converting bam to sam
 [ ! -f .status.$modulename.sam2bw ] && \
 sam2bed -v bed12=T -v sCol=NH accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
-sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > accepted_hits.bedGraph && \
+sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g'> accepted_hits.bedGraph && \
 bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
 touch .status.$modulename.sam2bw 
 
@@ -112,14 +120,27 @@ touch .status.$modulename.sam2bw
 [ ! -f .status.$modulename.sam2normalizedbw ] && \
 total_mapped_reads=`cat logs/bowtie.*t_kept_reads.log | grep -P "1\stime" | awk '{s=$1+s;}END{print s}'` && \
 echo "total_mapped_reads:$total_mapped_reads" && \
-awk -v tmr=$total_mapped_reads 'BEGIN{print "#total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
+awk -v tmr=$total_mapped_reads 'BEGIN{print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch .status.$modulename.sam2normalizedbw
+
+# % of genome coverage vs. RNAseq density (e.g. >1rpm)
+[ ! -f .status.$modulename.rpm_vs_coverage ] && \
+awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' accepted_hits.normalized.bedGraph > accepted_hits.normalized.rpm_vs_coverage.txt && \
+touch .status.$modulename.rpm_vs_coverage
+
+# eRNA (non-generic regions with depth >10rpm and length >50bp)
+#1. intersect bedGraph with all exons
+#2. filter the remained region with depth cutoff
+#3. filter the remained region with length cutoff
+[ ! -f .status.$modulename.eRNA ] && \
+intersectBed -a accepted_hits.normalized.bedGraph -b $exons -v | awk '$4>=1' | sortBed | uniq | mergeBed | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
+touch .status.$modulename.eRNA
 
 #rm accepted_hits.bed accepted_hits.*bedGraph
 
 ###########################################
-echo "############### 6. call variation"
+echo "["`date`"] STEP 6. call variation"
 ###########################################
 
 cd $outputdir/$samplename
@@ -134,7 +155,7 @@ touch .status.$modulename.callSNP
 #touch .status.$modulename.callSNP_GATK
 
 ###########################################
-echo "################# 7. assembly and quantification"
+echo "["`date`"] STEP 7. assembly and quantification"
 ###########################################
 
 cd $outputdir/$samplename
@@ -162,11 +183,11 @@ htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam
 touch .status.$modulename.htseqcount
 
 ############################################
-echo "############### 8. for uniq"
+echo "["`date`"] STEP 8. for uniq"
 ############################################
 
 ## extract the unique mapper only
-mkdir $outputdir/$samplename/uniq
+[ -d $outputdir/$samplename/uniq ] || mkdir $outputdir/$samplename/uniq
 cd $outputdir/$samplename/uniq
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq ] && \
@@ -178,20 +199,31 @@ samtools index accepted_hits.bam && \
 cufflinks --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF --compatible-hits-norm accepted_hits.bam && \
 htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 sam2bed -v bed12=T -v sCol=NH accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
-_callSNP.sh accepted_hits.sam && \
-sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > accepted_hits.bedGraph && \
+sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g' > accepted_hits.bedGraph && \
 mv $samplename.accepted_hits.bedGraph accepted_hits.bedGraph && \
 bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
 total_mapped_reads=`wc -l accepted_hits.bed | cut -f1 -d' '` && \
 echo "total_mapped_reads:$total_mapped_reads" && \
-awk -v tmr=$total_mapped_reads 'BEGIN{print "#total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
+awk -v tmr=$total_mapped_reads 'BEGIN{print "# total_mapped_reads_in_million="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch $outputdir/$samplename/.status.$modulename.uniq
+
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP ] && \
+_callSNP.sh accepted_hits.sam && \
+touch $outputdir/$samplename/.status.$modulename.uniq.callSNP
+
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage ] && \
+awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' accepted_hits.normalized.bedGraph > accepted_hits.normalized.rpm_vs_coverage.txt && \
+touch $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage
+
+[ ! -f .status.$modulename.uniq.eRNA ] && \
+intersectBed -a accepted_hits.normalized.bedGraph -b $exons -v | awk '$4>=1' | sortBed | uniq | mergeBed | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
+touch .status.$modulename.uniq.eRNA
 
 #rm accepted_hits.bed accepted_hits.*bedGraph
 
 ############################################
-echo "############### 9. prepare for tracks files to display on UCSC / IGV"
+echo "["`date`"] STEP 9. prepare for tracks files to display on UCSC / IGV"
 ############################################
 #
 [ -d $inputdir/../for_display ] || mkdir $inputdir/../for_display
@@ -230,4 +262,4 @@ ln -fs $outputdir/$samplename/$samplename.R2_fastqc $samplename.R2_fastqc && \
 
 touch $outputdir/$samplename/.status.$modulename.makelinks
 
-echo "!! $modulename job for sample $samplename is done !!"
+echo "["`date`"] DONE: $modulename job for sample $samplename is done !!"

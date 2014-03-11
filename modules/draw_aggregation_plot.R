@@ -72,4 +72,39 @@ for(tag in sort(names(mergedMP))){
 }
 dev.off()
 
+
+GENES=list();
+for(fname in filenames){
+    print(fname)
+    genes=read.table(fname, header=F)
+    genes=data.frame(genes[,-1], row.names=genes[,1])
+    if(ncol(genes)!=81) next;
+    GENES[[gsub(".*_of_(.*).uniq.*", "\\1", fname)]]=genes;
+}
+
+# make the plot for specific gene
+queryGene="ENST00000394989" # e.g. SNCA genes
+
+df=data.frame()        
+for(n in names(GENES)){
+    print(n)
+    genes=GENES[[n]];
+    d=genes[grep(queryGene,rownames(genes)),]
+    rownames(d)=n #paste(n, gsub("(.*)__.*","\\1",rownames(d)), sep="___")
+    df=rbind(df, d)
+}
+
+rownames(df)=gsub("(.*)___.*","\\1",rownames(df))
+
+x=df[,21:61]
+    #d <- dist(x, method = "euclidean")
+    d <- as.dist(1-cor(t(x)))
+    hc <- hclust(d, method="average")
+    pdf(paste(queryGene, "tree.pdf", sep="."), width=5, height=15)
+    par(mar=c(4,2,2,9)); plot(as.dendrogram(hc),horiz=T, cex=.4)
+    #plot(hc, hang=-1)
+    
+    image(d[[hc$order]])
+    
+plotClassification(df[,21:])
 # 
