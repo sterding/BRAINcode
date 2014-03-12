@@ -31,7 +31,7 @@ export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
 cpu="-n 4"
-memory="-M 5000 -R rusage[mem=5000]" # unit in Kb, e.g. 20000=20G
+memory="-M 10000 -R rusage[mem=10000]" # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
 # bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
@@ -67,7 +67,7 @@ do
     samplename=${R1/.R1*/}
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q normal $cpu $memory $email _RNAseq.sh $R1 $R2;
+    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi $cpu $memory $email _RNAseq.sh $R1 $R2;
 
     gtflist="$gtflist;$output_dir/$samplename/transcripts.gtf"
     samlist="$samlist;$output_dir/$samplename/accepted_hits.sam"

@@ -150,9 +150,9 @@ _callSNP.sh accepted_hits.sam && \
 touch .status.$modulename.callSNP
 
 # shuilin's GATK
-#[ ! -f .status.$modulename.callSNP_GATK ] && \
-#_bam2vcf.sh accepted_hits.sam && \
-#touch .status.$modulename.callSNP_GATK
+[ ! -f .status.$modulename.callSNP_GATK ] && \
+_bam2vcf.sh accepted_hits.sam && \
+touch .status.$modulename.callSNP_GATK
 
 ###########################################
 echo "["`date`"] STEP 7. assembly and quantification"
@@ -211,6 +211,11 @@ touch $outputdir/$samplename/.status.$modulename.uniq
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP ] && \
 _callSNP.sh accepted_hits.sam && \
 touch $outputdir/$samplename/.status.$modulename.uniq.callSNP
+
+# shuilin's GATK
+[ ! -f .status.$modulename.uniq.callSNP_GATK ] && \
+_bam2vcf.sh accepted_hits.sam && \
+touch .status.$modulename.uniq.callSNP_GATK
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage ] && \
 awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' accepted_hits.normalized.bedGraph > accepted_hits.normalized.rpm_vs_coverage.txt && \

@@ -54,10 +54,10 @@ java -Xmx50g -jar $gatk_path/GenomeAnalysisTK.jar -T VariantRecalibrator -R $GEN
 echo "#Apply the desired level of recalibration to the SNPs in the call set"
 java -Xmx50g -jar $gatk_path/GenomeAnalysisTK.jar -T ApplyRecalibration -R $GENOME/Sequence/WholeGenomeFasta/genome.fa --input gatk_accepted_hits_BQSR.vcf -mode SNP --ts_filter_level 99.0 -recalFile gatak_recalibrate.SNP.recal -tranchesFile gatak_recalibrate.SNP.tranches -o accepted_hits_GATK_SNPs.vcf
 
+# remove intermediate files
+rm gatk_*
+
 ## TODO:
 # 1. generatet a summary table for this sample, with one row and N columns (N=number of SNPs found in this sample) with SNP ID in the header 
-
-# remove intermediate files
-# rm gatk_*
 
 echo "GATK done!"
