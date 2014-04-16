@@ -58,13 +58,30 @@ echo "["`date`"] STEP  2. quality filter: adaptor removal/clip"
 ##### adaptor removal
 [ -d $inputdir/../filtered ] || mkdir $inputdir/../filtered
 
-[ -e $inputdir/../filtered/adaptor.fa ] || echo -e ">Truseq_complementary_part\nAGATCGGAAGAGC" > $inputdir/../filtered/adaptor.fa
+[ -e $inputdir/../filtered/adaptor.fa ] || echo -e ">Truseq_complementary_part_3p\nAGATCGGAAGAGC" > $inputdir/../filtered/adaptor.fa
 
 [ ! -f $outputdir/$samplename/.status.$modulename.adaptorremoval ] && \
-fastq-mcf -o $inputdir/../filtered/$R1 -o $inputdir/../filtered/$R2 -x 10 -l 15 -w 4 -u $inputdir/../filtered/adaptor.fa <(zcat $R1) <(zcat $R2) && \
+fastq-mcf -o $inputdir/../filtered/$R1 -o $inputdir/../filtered/$R2 -t 0 -x 10 -l 15 -w 4 -u $inputdir/../filtered/adaptor.fa <(zcat $R1) <(zcat $R2) && \
 touch $outputdir/$samplename/.status.$modulename.adaptorremoval 
 
 cd $inputdir/../filtered
+
+#############################################
+echo "["`date`"] STEP 2.1. extract short reads (e.g. <=37nt, R1/R2 same length and reverse complementary)"
+############################################
+[ -d $inputdir/../filtered/shortReads ] || mkdir $inputdir/../filtered/shortReads
+
+[ ! -f $outputdir/$samplename/.status.$modulename.shortReadsExtract ] && \
+#zcat $R1 | perl -ne '$h=$_; $s=<>; $a=<>; $ss=<>; print "$h$s$a$ss" if(length($s)<=31);' | gzip > shortReads/$R1 
+#zcat $R2 | perl -ne '$h=$_; $s=<>; $a=<>; $ss=<>; print "$h$s$a$ss" if(length($s)<=31);' | gzip > shortReads/$R2 
+join -j 1 <(zcat $R1 | perl -ne 'chomp;$h=$_;chomp($s=<>);chomp($a=<>);$ss=<>; print "$h\t$s\t$a\t$ss" if(length($s)<=37);' | sort -k1,1) <(zcat $R2 | perl -ne 'chomp;$h=$_;chomp($s=<>);chomp($a=<>);$ss=<>; print "$h\t$s\t$a\t$ss" if(length($s)<=37);' | sort -k1,1) | perl -ne '@a=split;$rcs=reverse($a[2]);$rcs=~tr/ACGTacgt/TGCAtgca/; print ">$a[0]\n$a[2]\n" if($rcs eq $a[6]);' | gzip > shortReads/${R1/R1.fastq/fasta} && \
+touch $outputdir/$samplename/.status.$modulename.shortReadsExtract 
+
+[ ! -f $outputdir/$samplename/.status.$modulename.shortReadsExtract_stemloop ] && \
+zcat shortReads/${R1/R1.fastq/fasta} | perl -ne '$h=$_; $s=<>; chomp($s); $sub=reverse(substr($s,-6)); $sub=~tr/ACGTacgt/TGCAtgca/; print "$h$s\n" if($s!~/GCGCGCGCGC/ && (substr($s,0,6) eq $sub));' | gzip > shortReads/${R1/R1.fastq/fasta.stemloop} && \
+touch $outputdir/$samplename/.status.$modulename.shortReadsExtract_stemloop
+
+exit;
 
 #############################################
 echo "["`date`"] STEP 3. QC"
@@ -213,17 +230,19 @@ _callSNP.sh accepted_hits.sam && \
 touch $outputdir/$samplename/.status.$modulename.uniq.callSNP
 
 # shuilin's GATK
-[ ! -f .status.$modulename.uniq.callSNP_GATK ] && \
+[ ! -f $outputdir/.status.$modulename.uniq.callSNP_GATK ] && \
+samtools view -SH $outputdir/$samplename/accepted_hits.sam > accepted_hits.sam && \
+fgrep -w NH:i:1 $outputdir/$samplename/accepted_hits.sam >> accepted_hits.sam && \
 _bam2vcf.sh accepted_hits.sam && \
-touch .status.$modulename.uniq.callSNP_GATK
+touch $outputdir/.status.$modulename.uniq.callSNP_GATK
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage ] && \
 awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' accepted_hits.normalized.bedGraph > accepted_hits.normalized.rpm_vs_coverage.txt && \
 touch $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage
 
-[ ! -f .status.$modulename.uniq.eRNA ] && \
+[ ! -f $outputdir/.status.$modulename.uniq.eRNA ] && \
 intersectBed -a accepted_hits.normalized.bedGraph -b $exons -v | awk '$4>=1' | sortBed | uniq | mergeBed | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
-touch .status.$modulename.uniq.eRNA
+touch $outputdir/.status.$modulename.uniq.eRNA
 
 #rm accepted_hits.bed accepted_hits.*bedGraph
 

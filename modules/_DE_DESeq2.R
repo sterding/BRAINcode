@@ -50,7 +50,7 @@ sampleTable=cbind(sampleTable, covarianceTable)
 ###########################################
 dds <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
                                        directory = input_dir,
-                                       design= ~ condition + RIN + PMI + batch + age + sex)
+                                       design= ~ condition + batch + cellType + age + sex + RIN + PMI)
 
 #colData(dds)$condition <- factor(colData(dds)$condition, levels=c("ILB", "PD"))
 colData(dds)$condition <- factor(colData(dds)$condition, levels=c("HC","ILB", "PD"))
@@ -59,28 +59,34 @@ colData(dds)$condition <- factor(colData(dds)$condition, levels=c("HC","ILB", "P
 # step3: diagnosis of the data [optional]
 ###########################################
 
+##--------------------------------------
+## 3.1: normalization method comparison
+##--------------------------------------
+
 # note: instead of using rank, use mean directly
 vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
 
 pdf("diagnosis.pdf", width=15, height=5)
 par(mfrow=c(1,3))
-plot(rank(rowMeans(counts(dds))), genefilter::rowVars(counts(dds)),
-main="no transformation", ylim=c(0,3000))
-plot(rank(rowMeans(counts(dds))), genefilter::rowVars(log2(counts(dds)+1)),
-main="log2(x+1) transform")
-plot(rank(rowMeans(assay(vsd))), genefilter::rowVars(assay(vsd)),
-main="VST")
-
+plot(rank(rowMeans(counts(dds))), genefilter::rowVars(counts(dds)), main="no transformation", ylim=c(0,3000))
+plot(rank(rowMeans(counts(dds))), genefilter::rowVars(log2(counts(dds)+1)), main="log2(x+1) transform")
+plot(rank(rowMeans(assay(vsd))), genefilter::rowVars(assay(vsd)), main="VST")
 dev.off()
 
+##--------------------------------------
+## 3.2: save normalized reads count
+##--------------------------------------
 cds=dds
 design(cds) <- ~ 1
 cds <- estimateSizeFactors( cds )
 cds <- estimateDispersions( cds )
-vsd <- getVarianceStabilizedData( cds )
+vsd <- getVarianceStabilizedData( cds )  # Note: equal to the above assay(vsd)
+
+# save workspace into ".RData" file
+save.image("DESeq2.RData")
 
 ## save the variance-stabilized data
-write.table(vsd, "htseqcount.vst.allsamples.xls", sep="\t", quote = F, col.names = NA, row.names = TRUE)
+write.table(format(vsd, digits=2,  nsmall = 4), "htseqcount.vst.allsamples.xls", sep="\t", quote = F, col.names = NA, row.names = TRUE)
 
 pdf("hist.allsample.pdf")
 #sapply(1:ncol(vsd), function(x) {hist(vsd[,x], main=colnames(vsd)[x])})
@@ -92,7 +98,10 @@ pdf("hist2.allsample.pdf")
 t=sapply(1:ncol(vsd), function(x) {xx=vsd[,x]; hist(xx[xx>4], xlab="variance stabilized count", main=colnames(vsd)[x], breaks=100)})
 dev.off()
 
-## scatterplot of all sample pairs
+##--------------------------------------
+## 3.3: scatterplot of all sample pairs [WARNING: time consuming if large sample size]
+##--------------------------------------
+
 ## put histograms on the diagonal
 ## put (absolute) correlations on the upper panels,
 ## with size proportional to the correlations.
@@ -124,19 +133,22 @@ panel.smooth2 <- function (x, y)
 
 #pairs(vsd[,1:3], lower.panel=panel.smooth2, upper.panel=panel.cor)
 
-pdf("scatterplot.pdf", height=30, width=30)
 library(gclus)
-dta <- vsd
+dta <- vsd[, grep("HC.*_4", colnames(vsd))]  # test example: only batch4 HC samples
 dta.r <- abs(cor(dta)) # get correlations
 dta.col <- dmat.color(dta.r) # get colors
 # reorder variables so those with highest correlation
 # are closest to the diagonal
 dta.o <- order.single(dta.r) 
+#pdf("scatterplot.pdf", height=30, width=30)
+png("scatterplot.png", height=3000, width=3000)
 #cpairs(dta, dta.o, panel.colors=dta.col, gap=.5, main="Variables Ordered and Colored by Correlation" )
 cpairs(dta, dta.o, lower.panel=panel.smooth2, upper.panel=panel.cor, panel.colors=dta.col, gap=.5, main="Variables Ordered and Colored by Correlation" )
 dev.off()
 
-## Hierarchical clustering of samples, using correlations between variables "as distance"
+##--------------------------------------
+## 3.4: Hierarchical clustering of samples, using correlations between variables "as distance"
+##--------------------------------------
 
 pdf("clustering.tree.pdf", width=15, height=5)
 plot(hclust(as.dist((1 - cor(vsd))),method = "single"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=1-correlation, linkage=single)") 
@@ -149,35 +161,56 @@ plot(hclust(dist(t(vsd)),method = "average"), cex=0.7, xlab='', main="Cluster De
 plot(hclust(dist(t(vsd)),method = "ward"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=ward)")
 dev.off()
 
-# heatmap
+##--------------------------------------
+## 3.5: heatmap [WARNING: time consuming for large data]
+##--------------------------------------
+
 library("gplots")
-heatmap.2(vsd[1:100,1:10],
-dendrogram="column",
-Rowv=NULL,
-Colv=TRUE,
-distfun = function(x) as.dist(1 - cor(x)),
-hclustfun = function(x) hclust(x,method = 'ave'))
+heatmap.2(
+    vsd[1:200,grep("HC.*_4", colnames(vsd))],
+    dendrogram="column",
+    Rowv=NULL,
+    Colv=TRUE,
+    distfun = function(x) as.dist(1 - cor(x)),
+    hclustfun = function(x) hclust(x,method = 'ave')
+)
 
-heatmap.2(mat,
-dendrogram="column",
-Rowv=NULL,
-Colv=TRUE,
-distfun = function(x) as.dist(1 - cor(x)),
-hclustfun = function(x) hclust(x,method = 'ave'))
 
 ###########################################
-# step3: call differential expressed genes
+# step4: call differential expressed genes
 ###########################################
+
+design(dds) = ~ condition
 
 dds <- DESeq(dds)
+resultsNames(dds)
+
+save.image("DESeq2.RData")
+
 res <- results(dds)
 res <- res[order(res$padj),]
+
+# replacing outliers with trimmed mean, rather than removing outliers (DEseq2 default)
+ddsClean <- replaceOutliersWithTrimmedMean(dds)
+ddsClean <- DESeq(ddsClean)
+tab <- table(initial = results(dds)$padj < .1, cleaned = results(ddsClean)$padj < .1)
+
 head(res)
 
 ###########################################
-# step4:  Exploring and exporting results
+# step5:  Exploring and exporting results
 ###########################################
 plotMA(dds, main="DESeq2", ylim=c(-2,2))
-write.csv(as.data.frame(res), file="condition_treated_results.csv")
 
 
+res <- results(dds, 'condition_PD_vs_HC')
+res <- res[order(res$padj),]
+write.csv(as.data.frame(res), file="condition_PD_vs_HC.csv")
+
+res <- results(dds, 'condition_ILB_vs_HC')
+res <- res[order(res$padj),]
+write.csv(as.data.frame(res), file="condition_ILB_vs_HC.csv")
+
+res <- results(dds, contrast=c('condition', 'PD','ILB'))
+res <- res[order(res$padj),]
+write.csv(as.data.frame(res), file="condition_PD_vs_ILB.csv")

@@ -2,6 +2,8 @@
 # bash ~/neurogen/pipeline/RNAseq/modules/_make_trackDb.sh > ~/neurogen/rnaseq_PD/for_display/trackDb.RNAseq.txt
 # scp ~/neurogen/rnaseq_PD/for_display/trackDb.RNAseq.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
 # to get the sample list: ls -1 ~/neurogen/rnaseq_PD/run_output/ | sed 's/_/\t/g' | sort -k3,3 -k1,1 | awk '{printf $2"="$2" "}'
+#
+# color selected from: http://colorbrewer2.org/
 
 # output the general header
 
@@ -55,10 +57,12 @@ do
     cell=`echo $i | cut -f3 -d'_'`
     batch=`echo $i | cut -f4 -d'_'`
     
-    color="0,0,0"
+    color="44,162,95"  # HC_SNDA
     [[ "$condition" = "PD" ]] && color="255,0,0"
-    [[ "$condition" = "ILB" ]] && color="0,0,255"
-    [[ "$condition" = "HC" ]] && color="0,0,0"
+    [[ "$condition" = "ILB" ]] && color="254,178,76"
+    [[ "$condition" = "HC" ]] && [[ "$cell" = "MCPY" ]] && color="153,216,201"
+    [[ "$condition" = "HC" ]] && [[ "$cell" = "TCPY" ]] && color="153,216,201"
+    [[ "$condition" = "HC" ]] && [[ "$cell" = "SNDA" ]] && color="44,162,95"
     
     
     for j in multi uniq;
@@ -104,10 +108,12 @@ do
     cell=`echo $i | cut -f3 -d'_'`
     batch=`echo $i | cut -f4 -d'_'`
     
-    color="0,0,0"
+    color="44,162,95"  # HC_SNDA
     [[ "$condition" = "PD" ]] && color="255,0,0"
-    [[ "$condition" = "ILB" ]] && color="0,0,255"
-    [[ "$condition" = "ILB" ]] && color="0,255,0"
+    [[ "$condition" = "ILB" ]] && color="254,178,76"
+    [[ "$condition" = "HC" ]] && [[ "$cell" = "MCPY" ]] && color="153,216,201"
+    [[ "$condition" = "HC" ]] && [[ "$cell" = "TCPY" ]] && color="153,216,201"
+    [[ "$condition" = "HC" ]] && [[ "$cell" = "SNDA" ]] && color="44,162,95"
     
     
     for j in multi uniq;
