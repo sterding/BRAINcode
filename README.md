@@ -43,69 +43,69 @@ Pipeline structure
 --------------
 ### Main script:
 RNAseq.pipeline.sh
-Usage: `$HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`
-Function: Main script for submitting RNAseq data analysis jobs to cluster in batch
-Input: folder path for the raw fastq files
-Output: Tophat/Cufflinks/htseq-count/callSNP etc. runs for each sample using both multiple and unique mappers
+- Usage: `$HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`
+- Function: Main script for submitting RNAseq data analysis jobs to cluster in batch
+- Input: folder path for the raw fastq files
+- Output: Tophat/Cufflinks/htseq-count/callSNP etc. runs for each sample using both multiple and unique mappers
 
 ### Modules:
 #### _RNAseq.sh
-Usage:
-Function:
-Input:
-Output:
+- Usage:
+- Function:
+- Input:
+- Output:
 
 #### _bam2vcf.sh
-Usage:
-Function:
-Input:
-Output:
+- Usage:
+- Function:
+- Input:
+- Output:
 
 #### _callSNP.sh
-Usage:
-Function:
-Input:
-Output:
+- Usage:
+- Function:
+- Input:
+- Output:
 
 #### _sam2variation.awk
-Usage:
-Function:
-Input:
-Output:
+- Usage:
+- Function:
+- Input:
+- Output:
 
 #### _clustComRNASeq.R
-Usage:
-Function: performs sample clustering analysis based on expression values
-Input: genes.fpkm_tracking and/or isoforms.fpkm_tracking from Cufflinks' output
-Output:
+- Usage:
+- Function: performs sample clustering analysis based on expression values
+- Input: genes.fpkm_tracking and/or isoforms.fpkm_tracking from Cufflinks' output
+- Output:
 
 
 #### _cluster.sh
-Usage:
-Function:
-Input:
-Output:
+- Usage:
+- Function:
+- Input:
+- Output:
 
 #### _DE_cuffdiff.sh
-Usage:
-Function:
-Input:
-Output:
+- Usage:
+- Function:
+- Input:
+- Output:
 
 #### _DE_DEseq.R
-Usage:
-Function:
-Input:
-Output:
+- Usage:
+- Function:
+- Input:
+- Output:
 
 #### _eQTL.R
-Usage: `Rscript $PIPELINE_PATH/_eQTL.R`
-Function: Rscript to run eQTL analysis using Matrix eQTL
-Input:
-Output:
+- Usage: `Rscript $PIPELINE_PATH/_eQTL.R`
+- Function: Rscript to run eQTL analysis using Matrix eQTL
+- Input:
+- Output:
 
 #### _factor_analysis.R
-Usage:
-Function:
-Input:
-Output:
+- Usage:
+- Function:
+- Input:
+- Output:
