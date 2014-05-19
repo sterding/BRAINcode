@@ -25,9 +25,9 @@ For each project (e.g. PDMap), it should have a folder named with project short 
  - Filtered files (e.g. adaptor removal/clip)
 - run_output 
  - sample1 (sub-folder per sample)
-        Output of Tophat/Cufflinks/htseq-count runs
-        uniq subfolder for the runs for unique reads only
-        status indication file (.status*) for tracking the progress
+    - Output of Tophat/Cufflinks/htseq-count runs
+    - uniq subfolder for the runs for unique reads only
+    - status indication file (.status*) for tracking the progress
  - sample2 etc. 
 - for_display
  - Files used for display on UCSC / IGV, such as *.bam, *.bam.bai, *.bw, *.gtf etc.
