@@ -4,13 +4,13 @@ RNA-seq Analysis Pipeline
 File naming convention
 ---------------
 To standardlize the process, we strongly suggest to start with universal file naming format. In this pipeline, we will use filename convention as:
-`[PD|AD|HD|HC]_[subjectID]_[cellType]_<bch#>_<rep#>.[R1|R2].<fq|fastq>.gz`
+`[PD|AD|HD|HC]_[subjectID]_[cellType]_<b#>_<rep#>.[R1|R2].<fq|fastq>.gz`
 where,
 - Beginning with patient type, PD="Parkinson's disease", AD="Alzhimer's disease", HD="Huntington's disease" and HC="Healthy controls", in 2-letter abbreviation;
 - Following with subjectID (NOT lane# or sequencing date), which is unique per subject;
 - Following with cell type or tissue short name, e.g. SNDA="Substantial nigra dopamine neuron", MCPY="Motor cortex pyramidal neuron" etc.;
-- `bch#` and `rep#` are optional, in format of (if any);
- - batch number: `bch1`, `bch2` etc.
+- `b#` and `rep#` are optional, in format of (if any);
+ - batch number: `b1`, `b2` etc.
  - replication number (capitalized one for biological rep), e.g. `rep1` is for technique replicate 1, `Rep1` for biological replicate 1
 - Use R1 or R2 to tell the two mates of pair-end sequencing data;
 - Use zipped fastq;
@@ -25,11 +25,10 @@ For each project (e.g. PDMap), it should have a folder named with project short 
 - filtered
  - filtered files (e.g. adaptor removal/clip)
 - run_output 
- - sample1 (sub-folder per sample)
+ - sub-folder per sample (e.g. sample1, sample2 etc.)
     - output of Tophat/Cufflinks/htseq-count runs
     - uniq subfolder for the runs for unique reads only
     - status indication file (.status*) for tracking the progress
- - sample2 etc. 
 - for_display
  - files used for display on UCSC / IGV, such as *.bam, *.bam.bai, *.bw, *.gtf etc.
  - use soft links to the output files
@@ -40,7 +39,7 @@ Pipeline requirement
 --------------------
 1. Install programs: `tophat`, `cufflinks`, `bowtie`, `bedtools`, `samtools`, `fastq-mcf`, `fastqc`, and `htseq-count`;
 2. Install Jim Kent's executable programms: http://hgdownload.cse.ucsc.edu/admin/exe/;
-4. Install R and bioconductor packages: DESeq2, MatrixEQTL, SPIA etc.
+4. Install R and bioconductor packages: `DESeq2`, `MatrixEQTL`, `SPIA` etc.
 3. Add path of the executable programs to the `$PATH`;
 
 Pipeline structure
