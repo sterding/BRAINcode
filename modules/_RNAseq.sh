@@ -81,8 +81,6 @@ touch $outputdir/$samplename/.status.$modulename.shortReadsExtract
 zcat shortReads/${R1/R1.fastq/fasta} | perl -ne '$h=$_; $s=<>; chomp($s); $sub=reverse(substr($s,-6)); $sub=~tr/ACGTacgt/TGCAtgca/; print "$h$s\n" if($s!~/GCGCGCGCGC/ && (substr($s,0,6) eq $sub));' | gzip > shortReads/${R1/R1.fastq/fasta.stemloop} && \
 touch $outputdir/$samplename/.status.$modulename.shortReadsExtract_stemloop
 
-exit;
-
 #############################################
 echo "["`date`"] STEP 3. QC"
 ############################################
@@ -217,11 +215,10 @@ cufflinks --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $M
 htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 sam2bed -v bed12=T -v sCol=NH accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
 sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g' > accepted_hits.bedGraph && \
-mv $samplename.accepted_hits.bedGraph accepted_hits.bedGraph && \
 bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
 total_mapped_reads=`wc -l accepted_hits.bed | cut -f1 -d' '` && \
 echo "total_mapped_reads:$total_mapped_reads" && \
-awk -v tmr=$total_mapped_reads 'BEGIN{print "# total_mapped_reads_in_million="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
+awk -v tmr=$total_mapped_reads 'BEGIN{print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch $outputdir/$samplename/.status.$modulename.uniq
 
@@ -230,19 +227,19 @@ _callSNP.sh accepted_hits.sam && \
 touch $outputdir/$samplename/.status.$modulename.uniq.callSNP
 
 # shuilin's GATK
-[ ! -f $outputdir/.status.$modulename.uniq.callSNP_GATK ] && \
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP_GATK ] && \
 samtools view -SH $outputdir/$samplename/accepted_hits.sam > accepted_hits.sam && \
 fgrep -w NH:i:1 $outputdir/$samplename/accepted_hits.sam >> accepted_hits.sam && \
 _bam2vcf.sh accepted_hits.sam && \
-touch $outputdir/.status.$modulename.uniq.callSNP_GATK
+touch $outputdir/$samplename/.status.$modulename.uniq.callSNP_GATK
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage ] && \
 awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' accepted_hits.normalized.bedGraph > accepted_hits.normalized.rpm_vs_coverage.txt && \
 touch $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage
 
-[ ! -f $outputdir/.status.$modulename.uniq.eRNA ] && \
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.eRNA ] && \
 intersectBed -a accepted_hits.normalized.bedGraph -b $exons -v | awk '$4>=1' | sortBed | uniq | mergeBed | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
-touch $outputdir/.status.$modulename.uniq.eRNA
+touch $outputdir/$samplename/.status.$modulename.uniq.eRNA
 
 #rm accepted_hits.bed accepted_hits.*bedGraph
 

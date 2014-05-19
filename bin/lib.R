@@ -52,7 +52,6 @@ getAGGREGATION <- function(all, subtype,  TRIM=0, meanmedian='mean')
 
     subset=subset[!is.na(rowSums(subset)),] # remove trans with nan values from bigWigAverageBed (e.g. chr1 1 1)
     subset=subset[rowSums(subset)>0,] # Optional: remove genes with all zero (or unexpressed)
-    subset=subset*1e6 # TEMPERAL USE: "uniq" dataset was not properly normalized
 
     # all genes
     p1=subset; n1=nrow(p1)
@@ -69,15 +68,19 @@ draw.plot <- function(p,ylim=range(p,na.rm=T), main="", xax=T, legend="", ylab="
 {
              #plot
              par(mar=c(2,2,1,1), lwd=2/3)
-             plot(p, ylim=ylim, ylab='', xlab='', xaxt='n',yaxt='n', main='', type='n')
+             plot(p, ylim=ylim, ylab='', xlab='', xaxt='n',yaxt='n', main='', type='S', lwd=2, col='red')
+             abline(v=c(20,61), lty=2, col='darkgray')
+             
+             # old version
+             #plot(p, ylim=ylim, ylab='', xlab='', xaxt='n',yaxt='n', main='', type='n')
+             #lines(c(1,81),c(0,0))
+             #abline(v=c(20,61), lty=2, col='darkgray')
+             #polygon(c(1,1:81,81),c(0,p[1:81],0), col='red', border=NA)
+             
              if(xax==T) axis(1, at=c(1,20,61,81), labels=c("-1k bp","5'","3'","+1k bp"), tck=.02, mgp=c(2,0.5,0), lwd=2/3, lwd.ticks=2/3,cex.axis=1.5)
              if(yax==T) axis(4, las=1, tck=.02, mgp=c(2,0.5,0), lwd=2/3, lwd.ticks=2/3,cex.axis=1)
              mtext(ylab, side=2, line=1, cex=1)
              mtext(main, side=3, line=1, cex=1, padj=0)
-             lines(c(1,81),c(0,0))
-             #lines(c(42,81),c(0,0))
-             abline(v=c(20,61), lty=2, col='darkgray')
-             polygon(c(1,1:81,81),c(0,p[1:81],0), col='red', border=NA)
              if(legend!="") legend("topleft",legend, bty='n', cex=1.5)
 }
 

@@ -33,9 +33,19 @@ for i in */accepted_hits.normalized.rpm_vs_coverage.txt; do echo -ne "\t"${i/\/*
 echo '' >> ../results/coverage/rpm_vs_coverage.allsamples.txt
 paste */accepted_hits.normalized.rpm_vs_coverage.txt | grep -v "#" | awk '{printf("%s", $1);i=2; while(i<=NF) {printf("\t%s",$i);i=i+2;} printf("\n");}' >> ../results/coverage/rpm_vs_coverage.allsamples.txt
 
-pdf("~/neurogen/rnaseq_PD/results/coverage/rpm_vs_coverage.pdf", width=6, height=6)
 RPM=read.table("/PHShome/xd010/neurogen/rnaseq_PD/results/coverage/rpm_vs_coverage.allsamples.txt", header=T);
 rownames(RPM)=RPM[,1]; RPM=RPM[,-1, drop=F]
+
+rpm=sapply(colnames(RPM), function(x) cumsum(RPM[,x])*100/3e9)
+rownames(rpm)=rownames(RPM)
+> summary(rpm["0.05",])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.9494  5.9520  6.9810  6.8110  8.2490 10.1500 
+> summary(rpm["0",])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  2.706  12.840  17.330  16.610  20.510  30.210 
+
+pdf("~/neurogen/rnaseq_PD/results/coverage/rpm_vs_coverage.pdf", width=6, height=6)
 plot(RPM[,1], xlab="RPM", ylab="% of cummulative base pairs covered", xaxt='n',yaxt='n', main="all together", type="n", log="y", ylim=c(.005,100))
 #sapply(1:ncol(RPM), function(x) lines(cumsum(RPM[,x])*100/3e9, col=x))
 #legend("topleft", paste(colnames(RPM), "(",format(apply(RPM, 2, sum)*100/3e9,digits=3), ")"), col=1:ncol(RPM), lty=1, cex=.5, bty='n')
@@ -85,10 +95,32 @@ unionBedGraphs -i `ls ../../run_output/ILB*_SNDA_[234]/uniq/*normalized.bedGraph
 
 ParaFly -c .paraFile -CPU 8
 
-for i in *uniq*bedGraph; do echo $i; awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' $i >${i/bedGraph/rpm_vs_coverage.txt} &  done
+#################################
+# calculate rpm vs. coverage for individual sample
+#################################
+cd ~/neurogen/rnaseq_PD/results/coverage
 
-for i in *txt; do echo $i; awk '{s=s+$2}END{print s*100/3095693983}' $i; done
- 
-unionBedGraphs -i `ls *_merged.normalized.bedGraph` | awk '{OFS="\t"; s=0; for(i=4;i<=NF;i++) s=s+$i; s=s/(NF-3); print $1,$2,$3,s}' > ALL.merged.normalized.bedGraph
-awk 'BEGIN{max=100; UNIT=0.1; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x];}' ALL.merged.normalized.bedGraph > ALL.merged.normalized.rpm_vs_coverage.txt
+ls ../../run_output/ | rowsToCols stdin all.uniq.accepted_hits.normalized.rpm_vs_coverage.txt
+> tmp; for i in ../../run_output/*/uniq/accepted_hits.normalized.rpm_vs_coverage.txt; do echo $i; sed 's/#.*=/\t/' $i | cut -f2 | paste - tmp> tmp2; mv tmp2 tmp; done
+cat tmp >> all.uniq.accepted_hits.normalized.rpm_vs_coverage.txt
 
+> merge.pt05.bed
+>merged.cov.txt
+for i in ../../run_output/*/uniq/accepted_hits.normalized.*ph; do awk '$4>=0.05' $i | sed 's/ /\t/g' | cut -f1-3 | cat - merge.pt05.bed | sortBed | mergeBed > $i.merged.bed; cp $i.merged.bed merge.pt05.bed; echo $i; echo $i `awk 'BEGIN{s=0}{s=s+($3-$2);}END{ print s*100/3e9}' merge.pt05.bed` >> merged.cov.txt; done
+
+> merge.5reads.bed
+>merged.cov.5reads.txt
+for i in ../../run_output/*/uniq/accepted_hits.bedGraph; do awk '$4>=5' $i | cut -f1-3 | cat - merge.5reads.bed | sortBed | mergeBed > $i.merged.bed; ln -f $i.merged.bed merge.5reads.bed; echo $i; echo $i `awk 'BEGIN{s=0}{s=s+($3-$2);}END{ print s}' merge.5reads.bed` >> merged.cov.5reads.txt; done
+
+rm merge.pt05.bed merge.5reads.bed
+
+## Rscript
+pdf("merged.cov.rpm0.05.pdf", width=7,height=5)
+par(mar=c(6,4,2,2))
+df2=read.table("merged.cov.5reads.txt");
+df=read.table("merged.cov.txt")
+plot(df$V2,pch=16,cex=.6, xlab="", ylab="Percentage(%) of coverage by union of samples", xaxt = "n", ylim=range(df$V2, df2$V2*100/3e9));
+points(df2$V2*100/3e9, pch=1, cex=.6)
+axis(1, 1:nrow(df), gsub(".*run_output/(.*)/uniq.*", "\\1", df$V1), las=2, cex.axis=.5)
+legend("topleft", c("RPM>=0.05", "at least 5 reads"),pch=c(16,1))
+dev.off()

@@ -30,7 +30,7 @@ export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
-cpu="-n 4"
+cpu="-n 8"
 memory="-M 4000 -R rusage[mem=4000]" # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
@@ -60,7 +60,7 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *.R1.fastq.gz;
+for i in *_4.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
