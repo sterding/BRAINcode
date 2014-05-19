@@ -1,9 +1,9 @@
 RNA-seq Analysis Pipeline
 =========================
 
-File convention
+File naming convention
 ---------------
-To standardlize the process, we suggest to start with conventional file name format. In this pipeline, we will use filename convention as:
+To standardlize the process, we strongly suggest to start with universal file naming format. In this pipeline, we will use filename convention as:
 `[PD|AD|HD|HC]_[subjectID]_[cellType]_<bch#>_<rep#>.[R1|R2].<fq|fastq>.gz`
 where,
 - Beginning with patient type, PD="Parkinson's disease", AD="Alzhimer's disease", HD="Huntington's disease" and HC="Healthy controls", in 2-letter abbreviation;
@@ -36,9 +36,12 @@ For each project (e.g. PDMap), it should have a folder named with project short 
 - results
  - result files for integrative analysis, e.g. differential analysis by combining all samples. 
  
-Pipeline Requirement
+Pipeline requirement
 --------------------
-1. Install programs: `tophat`, `cufflinks`, `bowtie`, `bedtools`, `samtools`, `fastq-mcf`, `fastqc`, and `htseq-count`; and add their executable programs in the `$PATH`
+1. Install programs: `tophat`, `cufflinks`, `bowtie`, `bedtools`, `samtools`, `fastq-mcf`, `fastqc`, and `htseq-count`;
+2. Install Jim Kent's execuative programms: http://hgdownload.cse.ucsc.edu/admin/exe/;
+3. Add all the executable programs in the `$PATH`;
+4. Install R and bioconductor packages: DESeq2, MatrixEQTL, SPIA etc.
 
 Pipeline structure
 --------------
