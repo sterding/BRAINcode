@@ -47,7 +47,7 @@ Pipeline structure
 --------------
 ### Main script:
 RNAseq.pipeline.sh
-- Usage: `$HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`
+- Usage: `RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`
 - Function: Main script for submitting RNAseq data analysis jobs to high-properformance computing cluster in batch. For now, it's configured to support only HPC environment with LSF job scheduler.
 - Input: absolute path of folder for the raw fastq files
 - Output: Tophat/Cufflinks/htseq-count/callSNP etc. runs for each sample using both multiple and unique mappers
