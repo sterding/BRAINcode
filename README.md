@@ -39,17 +39,17 @@ For each project (e.g. PDMap), it should have a folder named with project short 
 Pipeline requirement
 --------------------
 1. Install programs: `tophat`, `cufflinks`, `bowtie`, `bedtools`, `samtools`, `fastq-mcf`, `fastqc`, and `htseq-count`;
-2. Install Jim Kent's execuative programms: http://hgdownload.cse.ucsc.edu/admin/exe/;
-3. Add all the executable programs in the `$PATH`;
+2. Install Jim Kent's executable programms: http://hgdownload.cse.ucsc.edu/admin/exe/;
 4. Install R and bioconductor packages: DESeq2, MatrixEQTL, SPIA etc.
+3. Add path of the executable programs to the `$PATH`;
 
 Pipeline structure
 --------------
 ### Main script:
 RNAseq.pipeline.sh
 - Usage: `$HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`
-- Function: Main script for submitting RNAseq data analysis jobs to cluster in batch
-- Input: folder path for the raw fastq files
+- Function: Main script for submitting RNAseq data analysis jobs to high-properformance computing cluster in batch. For now, it's configured to support only HPC environment with LSF job scheduler.
+- Input: absolute path of folder for the raw fastq files
 - Output: Tophat/Cufflinks/htseq-count/callSNP etc. runs for each sample using both multiple and unique mappers
 
 ### Modules:
