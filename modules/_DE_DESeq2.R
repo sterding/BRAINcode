@@ -85,8 +85,11 @@ vsd <- getVarianceStabilizedData( cds )  # Note: equal to the above assay(vsd)
 # save workspace into ".RData" file
 save.image("DESeq2.RData")
 
+## save the raw reads count 
+write.table(counts(dds), "htseqcount.raw.allsamples.xls", sep="\t", quote = F, col.names = NA, row.names = TRUE)
 ## save the variance-stabilized data
 write.table(format(vsd, digits=2,  nsmall = 4), "htseqcount.vst.allsamples.xls", sep="\t", quote = F, col.names = NA, row.names = TRUE)
+
 
 pdf("hist.allsample.pdf")
 #sapply(1:ncol(vsd), function(x) {hist(vsd[,x], main=colnames(vsd)[x])})

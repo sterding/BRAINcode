@@ -118,7 +118,8 @@ samtools index accepted_hits.bam && \
 touch .status.$modulename.sam2bam
 
 [ ! -f .status.$modulename.bam2stat ] && \
-samtools flagstat accepted_hits.bam > accepted_hits.bam.stat && \
+echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
+samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
 touch .status.$modulename.bam2stat
 
 ### bigwig for UCSC
@@ -135,7 +136,7 @@ touch .status.$modulename.sam2bw
 [ ! -f .status.$modulename.sam2normalizedbw ] && \
 total_mapped_reads=`cat logs/bowtie.*t_kept_reads.log | grep -P "1\stime" | awk '{s=$1+s;}END{print s}'` && \
 echo "total_mapped_reads:$total_mapped_reads" && \
-awk -v tmr=$total_mapped_reads 'BEGIN{print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
+awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch .status.$modulename.sam2normalizedbw
 
@@ -149,7 +150,7 @@ touch .status.$modulename.rpm_vs_coverage
 #2. filter the remained region with depth cutoff
 #3. filter the remained region with length cutoff
 [ ! -f .status.$modulename.eRNA ] && \
-intersectBed -a accepted_hits.normalized.bedGraph -b $exons -v | awk '$4>=1' | sortBed | uniq | mergeBed | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
+awk '$4>1' accepted_hits.normalized.bedGraph | mergeBed | intersectBed -a - -b $exons -v | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
 touch .status.$modulename.eRNA
 
 #rm accepted_hits.bed accepted_hits.*bedGraph
@@ -179,6 +180,8 @@ cd $outputdir/$samplename
 #cufflinks --no-update-check $strandoption -o ./denovo -p $cpu -g $Annotation_GTF -M $Mask_GTF accepted_hits.bam
 ##echo "## run trinity to do de-novo discovery"
 #Trinity.pl --output denovo --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
+#echo "## run Scripture to do de-novo discovery"
+# see demo at: http://garberlab.umassmed.edu/data/RNASeqCourse/analysis.workshop.pdf
 #echo "## run STAR to do de-novo discovery"
 ## TODO: STAR
 
@@ -218,13 +221,18 @@ sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANN
 bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
 total_mapped_reads=`wc -l accepted_hits.bed | cut -f1 -d' '` && \
 echo "total_mapped_reads:$total_mapped_reads" && \
-awk -v tmr=$total_mapped_reads 'BEGIN{print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
+awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch $outputdir/$samplename/.status.$modulename.uniq
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP ] && \
 _callSNP.sh accepted_hits.sam && \
 touch $outputdir/$samplename/.status.$modulename.uniq.callSNP
+
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2stat ] && \
+echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
+samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
+touch $outputdir/$samplename/.status.$modulename.uniq.bam2stat
 
 # shuilin's GATK
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP_GATK ] && \
@@ -238,7 +246,7 @@ awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UN
 touch $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.eRNA ] && \
-intersectBed -a accepted_hits.normalized.bedGraph -b $exons -v | awk '$4>=1' | sortBed | uniq | mergeBed | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
+awk '$4>0.5' accepted_hits.normalized.bedGraph | mergeBed | intersectBed -a - -b $exons -v | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
 touch $outputdir/$samplename/.status.$modulename.uniq.eRNA
 
 #rm accepted_hits.bed accepted_hits.*bedGraph

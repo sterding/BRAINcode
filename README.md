@@ -43,7 +43,7 @@ Pipeline requirement
 3. Add path of the executable programs to the `$PATH`;
 
 Pipeline structure
---------------
+------------------
 ### Main script:
 RNAseq.pipeline.sh
 - Usage: `RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`

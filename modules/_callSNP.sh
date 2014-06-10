@@ -49,14 +49,14 @@ textHistogram -col=4 -maxBinCount=100 ${input_sam/sam/snp} > ${input_sam/sam/snp
 
 
 # get read length
-readslength=`grep -v -m 1 "^@" $input_sam | awk '{print length($10)}'`
+readslength=`grep -v -m 10 "^@" $input_sam | awk '{print length($10)}' | sort -nr | head -n1`
 
 # exclude SNPs located in the [0-10) region of two ends (due to the low quality)  --- a "brute force" method; GATK using a statistic model to handle this
 # NOTE: even though the sam is "sorted" by Tophat, but actualy Mt hits seems not sorted. Need to double check
 awk -vRL=$readslength '$4>=10 && $4<=(RL-10)' ${input_sam/sam/snp} | cut -f1-2 | sed 's/:/\t/;s/-/\t/' | bedtools groupby -g 1-4 -c 4 -o count | sort -k5,5nr > ${input_sam/sam/snp.depth}
     
 # histogram of sequence depth of SNP loci
-textHistogram -col=1 -minVal=10 -maxBinCount=1000 -binSize=10 ${input_sam/sam/snp.depth} > ${input_sam/sam/snp.depth.hist}
+textHistogram -col=5 -minVal=10 -maxBinCount=100 -binSize=10 ${input_sam/sam/snp.depth} > ${input_sam/sam/snp.depth.hist}
 
 # exclude SNP with <16 depth and annotate the rest
 awk '{if($5>15) print; else exit;}' ${input_sam/sam/snp}.depth | sortBed >  ${input_sam/sam/snp}.depth_gt_15
@@ -69,6 +69,7 @@ intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $exons   -sorted -wao | sed 
 intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $introns -sorted -wao | cut -f1-5,9 | uniq | groupBy -g 1,2,3,4,5 -c 6 -o collapse > ${input_sam/sam/snp}_intron
 
 paste ${input_sam/sam/snp}_* | awk '{OFS="\t"; printf "%s\t%s\t%s\t%s\t%s", $1,$2,$3,$4,$5; for(i=6;i<=NF;i=i+6) printf "\t%s", $i; printf "\n";}' > ${input_sam/sam/snp}.annotation
+
 
 exit
 
