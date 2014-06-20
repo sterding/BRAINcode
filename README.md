@@ -44,7 +44,7 @@ Pipeline requirement
 
 Pipeline structure
 ------------------
-![Flowchart of RNAseq pipeline](https://www.dropbox.com/s/zxaaqcfd3xhiviq/flowchart_rnaseq.png "Flowchart of RNAseq pipeline")
+[flowchart_rnaseq]: https://www.dropbox.com/s/zxaaqcfd3xhiviq/flowchart_rnaseq.png "Flowchart of RNAseq pipeline"
 ### Main script:
 RNAseq.pipeline.sh
 - Usage: `RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`
