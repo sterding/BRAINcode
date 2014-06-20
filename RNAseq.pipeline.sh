@@ -31,7 +31,7 @@ export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
 cpu="-n 8"
-memory="-M 8000 -R rusage[mem=8000]" # unit in Kb, e.g. 20000=20G
+memory="-M 40000 -R rusage[mem=40000]" # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
 # bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
@@ -60,7 +60,7 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *_1.R1.fastq.gz;
+for i in *.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};

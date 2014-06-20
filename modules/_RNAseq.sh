@@ -182,6 +182,14 @@ cd $outputdir/$samplename
 #Trinity.pl --output denovo --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
 #echo "## run Scripture to do de-novo discovery"
 # see demo at: http://garberlab.umassmed.edu/data/RNASeqCourse/analysis.workshop.pdf
+# "Scripture initially transforms the genome into a graph topology, which represents all possible connections of bases in the transcriptome either when they occur consecutively or when they are connected by a spliced read. Scripture uses this graph topology to reduce the transcript reconstruction problem to a statistical segmentation problem of identifying significant transcript paths across the graph" (http://www.nature.com.ezp-prod1.hul.harvard.edu/nmeth/journal/v8/n6/full/nmeth.1613.html)
+[ ! -f .status.$modulename.scripture ] && \
+> .scripture.paraFile && \
+for i in `seq 1 22` X Y M; do echo "java -Xmx40000m -jar $pipeline_path/bin/scripture-beta2.jar -alignment accepted_hits.bam -out scripture.segments.$i -sizeFile $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size -chr chr$i -chrSequence $GENOME/Sequence/Chromosomes/chr$i.fa &>>scripture.log" >> .scripture.paraFile; done && \
+rm -f .scripture.paraFile.completed && \
+ParaFly -c .scripture.paraFile -CPU 8 && \
+touch .status.$modulename.scripture
+
 #echo "## run STAR to do de-novo discovery"
 ## TODO: STAR
 
