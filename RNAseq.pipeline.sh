@@ -11,6 +11,66 @@ modulename=`basename $0`
 set +o posix  #  enables the execution of process substitution e.g. http://www.linuxjournal.com/content/shell-process-redirection
 STEP=0
 
+function Usage()
+{
+cat <<-ENDOFMESSAGE
+Pipeline for RNAseq data Analysis
+####################################
+# Authors: Bioinformatics Team @ Scherzer's lab 
+# Email: xdong@rics.bwh.harvard.edu
+# Date: 9/16/2013
+# Version: 1.0
+####################################
+Usage:
+    $0 [OPTION] <input_dir_with_FASTQ_files>
+
+Options:
+    -g -genome  reference genome to use                 [ default: hg19 ]
+    -u -email   email to get result notification        [ default: sterding.hpcc@gmail.com ]
+    -n -cpu     number of processor                     [ default: 4 ]
+    
+    -h --help   display this message
+
+ENDOFMESSAGE
+    exit 1
+}
+
+function Die()
+{
+    echo "$*"
+    exit 1
+}
+
+function GetOpts() {
+    branch=""
+    argv=()
+    while [ $# -gt 0 ]
+    do
+        opt=$1
+        shift
+        case ${opt} in
+            -b|--branch)
+                if [ $# -eq 0 -o "${1:0:1}" = "-" ]; then
+                    Die "The ${opt} option requires an argument."
+                fi
+                branch="$1"
+                shift
+                ;;
+            -h|--help)
+                Usage;;
+            *)
+                if [ "${opt:0:1}" = "-" ]; then
+                    Die "${opt}: unknown option."
+                fi
+                argv+=(${opt});;
+        esac
+    done 
+}
+
+GetOpts $*
+echo "branch ${branch}"
+echo "argv ${argv[@]}"
+
 if [ $# -ne 1 ]
 then
   echo "Usage: $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles"
@@ -30,8 +90,8 @@ export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
-cpu="-n 8"
-memory="-M 40000 -R rusage[mem=40000]" # unit in Kb, e.g. 20000=20G
+cpu="-n 4"
+memory="-M 10000 -R rusage[mem=10000]" # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
 # bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
@@ -51,6 +111,21 @@ fordisplay_dir=$input_dir/../for_display
 
 result_dir=$input_dir/../results 
 [ -d $result_dir ] || mkdir $result_dir
+
+# load modules
+module load vcftools_0.1.9
+module load gatk-2.2-4
+module load jre7.7
+module load cufflinks/cufflinks-2.1.1
+module load bowtie-0.12.8
+module load bowtie2-2.1.0
+module load tophat-2.0.8
+module load python-2.7.3
+module load zlib-1.2.7
+
+module use /apps/modulefiles/test
+module load bedtools2/2.18.2
+module load samtools-0.1.18
 
 
 ########################

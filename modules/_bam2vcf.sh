@@ -54,7 +54,7 @@ echo "#Apply the desired level of recalibration to the SNPs in the call set"
 java -Xmx40g -jar $gatk_path/GenomeAnalysisTK.jar -T ApplyRecalibration -R $GENOME/Sequence/WholeGenomeFasta/genome.fa --input gatk_accepted_hits_BQSR.vcf -mode SNP --ts_filter_level 99.0 -recalFile gatk_recalibrate.SNP.recal -tranchesFile gatk_recalibrate.SNP.tranches -o accepted_hits_GATK_SNPs.vcf
 
 # remove intermediate files
-#rm gatk_*
+rm gatk_*
 
 
 #vcf2table

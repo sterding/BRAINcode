@@ -54,10 +54,10 @@ RNAseq.pipeline.sh
 
 ### Modules:
 #### _RNAseq.sh
-- Usage:
-- Function:
-- Input:
-- Output:
+- Usage: _RNAseq.sh HC_BN10-39_2.R1.fastq.gz HC_BN10-39_2.R2.fastq.gz
+- Function: Routine steps for pair-end RNAseq data
+- Input: a pair of fastq files from PE RNAsequencing
+- Output: BAM/SAM (from alignment), BED/GTF (from assembly) etc. 
 
 #### _bam2vcf.sh
 - Usage:

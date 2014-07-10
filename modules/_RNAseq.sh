@@ -117,6 +117,11 @@ mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
 touch .status.$modulename.sam2bam
 
+
+[ ! -f .status.$modulename.rehead ] && \
+_header_change.sh && \
+touch .status.$modulename.rehead
+
 [ ! -f .status.$modulename.bam2stat ] && \
 echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
 samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
@@ -134,7 +139,8 @@ touch .status.$modulename.sam2bw
 
 # normalized bigwig (rpm)
 [ ! -f .status.$modulename.sam2normalizedbw ] && \
-total_mapped_reads=`cat logs/bowtie.*t_kept_reads.log | grep -P "1\stime" | awk '{s=$1+s;}END{print s}'` && \
+#total_mapped_reads=`cat logs/bowtie.*t_kept_reads.log | grep -P "1\stime" | awk '{s=$1+s;}END{print s}'` && 
+total_mapped_reads=`samtools view -cF 0x100 accepted_hits.bam` && \
 echo "total_mapped_reads:$total_mapped_reads" && \
 awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
@@ -149,9 +155,9 @@ touch .status.$modulename.rpm_vs_coverage
 #1. intersect bedGraph with all exons
 #2. filter the remained region with depth cutoff
 #3. filter the remained region with length cutoff
-[ ! -f .status.$modulename.eRNA ] && \
-awk '$4>1' accepted_hits.normalized.bedGraph | mergeBed | intersectBed -a - -b $exons -v | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
-touch .status.$modulename.eRNA
+#[ ! -f .status.$modulename.eRNA ] && \
+#awk '$4>1' accepted_hits.normalized.bedGraph | mergeBed | intersectBed -a - -b $exons -v | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
+#touch .status.$modulename.eRNA
 
 #rm accepted_hits.bed accepted_hits.*bedGraph
 
