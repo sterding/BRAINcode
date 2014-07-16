@@ -229,8 +229,7 @@ samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sor
 mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
 cufflinks --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF --compatible-hits-norm accepted_hits.bam && \
-htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
-sam2bed -v bed12=T -v sCol=NH accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
+sam2bed -v bed12=T accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
 sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g' > accepted_hits.bedGraph && \
 bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
 total_mapped_reads=`wc -l accepted_hits.bed | cut -f1 -d' '` && \
@@ -238,6 +237,11 @@ echo "total_mapped_reads:$total_mapped_reads" && \
 awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch $outputdir/$samplename/.status.$modulename.uniq
+
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.htseqcount ] && \
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
+touch $outputdir/$samplename/.status.$modulename.uniq.htseqcount
+
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP ] && \
 _callSNP.sh accepted_hits.sam && \
