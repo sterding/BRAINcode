@@ -1,6 +1,8 @@
 ###########################################
 # Rscript to plot the expression of specific gene(s) along the stages/categories
-# Usage: Rscript $PIPELINE_PATH/_plotTrend.R genes.fpkm.allSamples.uniq.xls SNCA
+# Usage: Rscript $PIPELINE_PATH/_plotTrend.R SNCA.fpkm.allSamples.uniq.xls SNCA.pdf
+# or
+# grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.allSamples.uniq.xls | Rscript ~/neurogen/pipeline/RNAseq/modules/_plotTrend.R stdin SCNA.pdf
 # Author: Xianjun Dong
 # Version: 0.0
 # Date: 2014-Jul-15
@@ -16,9 +18,11 @@ fpkm=read.table(file(FPKMfile), header=T);  # table with header (1st row) and ID
 library('reshape2')
 df=melt(fpkm, measure.vars=grep("FPKM", colnames(fpkm)))
 df$variable=gsub("FPKM.(.*)_.*_(.*)_.*", "\\1_\\2", df$variable)
+df$tracking_id=paste(df$tracking_id, " (", df$gene_short_name, ")", sep="")
 
 # plot
 library('ggplot2')
+require(grid)
 p <- ggplot(df, aes(colour=tracking_id, y=value, x=variable))
 p +  geom_boxplot() +
      ylab("FPKM") +
@@ -27,9 +31,11 @@ p +  geom_boxplot() +
            legend.title=element_blank(),
            axis.title.x=element_blank(),
            legend.background = element_rect(fill="transparent"),
-           legend.key = element_blank()
+           legend.key = element_blank(),
+           legend.text = element_text(size=6),
+           legend.key.size =  unit(.4, "cm")
         )
-ggsave(file=outputfile)
+ggsave(file=outputfile, width = nrow(fpkm)/10*par("din")[1])
 
 
 

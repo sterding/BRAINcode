@@ -157,15 +157,23 @@ cd $result_dir/merged
 # multi mapper
 Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/genes.fpkm_tracking` genes.fpkm.allSamples.multi.xls
 Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.multi.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.multi.xls
 
 # uniq mapper
 Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/genes.fpkm_tracking` genes.fpkm.allSamples.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.uniq.xls
 
-
+#########################
 ### expression trend of specific gene(s) along the stages (e.g. HC,ILB,PD)
-grep -w -P "tracking_id|SNCA" isoforms.fpkm.allSamples.uniq.xls | Rscript ~/neurogen/pipeline/RNAseq/modules/_plotTrend.R stdin SCNA.tx.pdf
-grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.allSamples.uniq.xls | Rscript ~/neurogen/pipeline/RNAseq/modules/_plotTrend.R stdin SCNA.pdf
+#########################
+grep -w -P "tracking_id|SNCA" isoforms.fpkm.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.tx.pdf
+grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.pdf
+
+#########################
+### use RLE and NUSe to detect outlier
+#########################
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.allSamples.uniq.xls genes.fpkm.allSamples.uniq.QC.pdf
 
 ########################
 ## 3. draw aggregation plot for the RNAseq density in the genetic region
