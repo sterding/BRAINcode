@@ -48,9 +48,13 @@ sampleTable=cbind(sampleTable, covarianceTable)
 ###########################################
 # step2: load HTSeq output
 ###########################################
+
+# Note: With no arguments to results, the results will be for the last variable in the design formula, and if this is a factor, the comparison will be the last level of this variable over the first level.
+# Ref: http://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.pdf
+
 dds <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
                                        directory = input_dir,
-                                       design= ~ condition + batch + cellType + age + sex + RIN + PMI)
+                                       design= ~ batch + cellType + age + sex + RIN + PMI + condition)
 
 #colData(dds)$condition <- factor(colData(dds)$condition, levels=c("ILB", "PD"))
 colData(dds)$condition <- factor(colData(dds)$condition, levels=c("HC","ILB", "PD"))
@@ -183,7 +187,9 @@ heatmap.2(
 # step4: call differential expressed genes
 ###########################################
 
-design(dds) = ~ condition
+#design(dds) = ~ condition  # without any covariates
+# OR
+design(dds) = ~ batch + age + sex + RIN + PMI + condition  # with covariates
 
 dds <- DESeq(dds)
 resultsNames(dds)
