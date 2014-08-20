@@ -28,7 +28,6 @@ Options:
     -g -genome  reference genome to use                 [ default: hg19 ]
     -u -email   email to get result notification        [ default: sterding.hpcc@gmail.com ]
     -n -cpu     number of processor                     [ default: 4 ]
-    
     -h --help   display this message
 
 ENDOFMESSAGE
@@ -90,7 +89,7 @@ export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 
 ## hpcc cluster setting
 email="-u sterding.hpcc@gmail.com -N"
-cpu="-n 4"
+cpu="-n 8"
 memory="-M 10000 -R rusage[mem=10000]" # unit in Kb, e.g. 20000=20G
 
 ##TODO: test if the executable program are installed 
@@ -135,7 +134,7 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *.R1.fastq.gz;
+for i in *_5_*.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};

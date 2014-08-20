@@ -32,17 +32,17 @@ grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/permissive_enhancers.
 #cat $ANNOTATION/SINE.bed $ANNOTATION/LINE.bed | cut -f1-3 >> /tmp/bg.bed  # LINE and SINE
 cat /tmp/bg.bed | sortBed | mergeBed > blacklist.bed
 
-#1b: 
+#1b:
 grep -v chrM $GENOME/Annotation/Genes/ChromInfo.txt > ChromInfo.nochrM.txt
-ls ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw ~/neurogen/rnaseq_PD/results/merged/*trimmedmean.uniq.normalized.bw | \
-    parallel 'echo {};  bedtools random -g ChromInfo.nochrM.txt -l 300 -n 500000 | bedtools intersect -a - -b blacklist.bed -v | head -n100000 | bigWigAverageOverBed {} stdin {}.rdbg'
+ls ~/neurogen/rnaseq_PD/run_output/HC*/uniq/accepted_hits.normalized.bw ~/neurogen/rnaseq_PD/results/merged/*trimmedmean.uniq.normalized.bw | \
+    parallel 'echo {};  bedtools random -g ChromInfo.nochrM.txt -l 300 -n 500000 | grep -v chrM | bedtools intersect -a - -b blacklist.bed -v | head -n100000 | bigWigAverageOverBed {} stdin {}.rdbg'
 
 #2: distribution of random background, in order to define the cutoff with p=0.0001 significance
 
 R
 path="~/neurogen/rnaseq_PD/results/merged/*trimmedmean.uniq.normalized.bw.rdbg"; filename="background_merged.pdf"
 
-path="~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw.rdbg"; filename="background.pdf"
+path="~/neurogen/rnaseq_PD/run_output/HC*/uniq/accepted_hits.normalized.bw.rdbg"; filename="background.pdf"
 
 pdf(filename)
 DF=c()
@@ -72,12 +72,27 @@ text(g(0.999), 0.999, round(g(0.999),2), cex=5, adj=c(0,1))
 
 dev.off()
 
+# add p-values for eRNA regions
+eRNA=read.table("HC_SNDA.trimmedmean.uniq.normalized.eRNA.measured", header=F)
+colnames(eRNA)=c('chr','start', 'end', 'summit', 'sum', 'mean')
+eRNA=cbind(eRNA, pvalue=1-Fn0(eRNA$mean), qvalue=round(p.adjust(1-Fn0(eRNA$mean), "BH"), 3))
+write.table(eRNA, "HC_SNDA.trimmedmean.uniq.normalized.eRNA.measured.xls", sep="\t", quote = F, col.names = T, row.names = F)
+
+pdf("HC_SNDA.trimmedmean.uniq.normalized.eRNA.measured.pdf", width=8, height=6)
+hist(eRNA$pvalue, breaks=50, main="p-value")
+hist(eRNA$qvalue, breaks=50, main="Benjamini-Hochberg adjusted p-value")
+dev.off()
+
+
 # significance
 path="~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw"
 EXP=data.frame()
 PV=data.frame()
 QV=data.frame()
+id="locus"
 for(i in Sys.glob(path)){
+    ii=gsub(".*run_output/(.*)/uniq.*","\\1", i);
+    id=c(id, ii)
     print(i)
     
     # read background
@@ -94,19 +109,40 @@ for(i in Sys.glob(path)){
     if(ncol(EXP)==0) { EXP=expression; expression[,2]=pvalue; PV=expression; expression[,2]=qvalue; QV=expression; }
     else {EXP=cbind(EXP, expression[,2]); PV=cbind(PV, pvalue); QV=cbind(QV, qvalue); }
 }
-        
+
+colnames(EXP)=id; colnames(PV)=id; colnames(QV)=id;
+rownames(EXP)=EXP[,1]; EXP=EXP[,-1]; rownames(PV)=PV[,1]; PV=PV[,-1]; rownames(QV)=QV[,1]; QV=QV[,-1];
+
+write.table(EXP, "eRNA.allsamples.expression.tab", col.names=id, row.names=F, sep="\t", quote=F)
+write.table(PV, "eRNA.allsamples.pvalue.tab", col.names=id, row.names=F, sep="\t", quote=F)
+write.table(QV, "eRNA.allsamples.qvalue.tab", col.names=id, row.names=F, sep="\t", quote=F)
 
 
-# add p-values for eRNA regions
-eRNA=read.table("HC_SNDA.trimmedmean.uniq.normalized.eRNA.measured", header=F)
-colnames(eRNA)=c('chr','start', 'end', 'summit', 'sum', 'mean')
-eRNA=cbind(eRNA, pvalue=1-Fn0(eRNA$mean), qvalue=round(p.adjust(1-Fn0(eRNA$mean), "BH"), 3))
-write.table(eRNA, "HC_SNDA.trimmedmean.uniq.normalized.eRNA.measured.xls", sep="\t", quote = F, col.names = T, row.names = F)
+## 
+QV=read.table("eRNA.allsamples.qvalue.tab", header=T)
+rownames(QV)=QV[,1]; QV=QV[,-1]
+QVhc=QV[,grep("HC.*SNDA_[234]",colnames(QV))] # 42 HC SNDA samples in batch2-4
+rM=rowMeans(QVhc<=0.05)
+write.table(round(rM[rM>0.5],3), "eRNA.QV0.05.50pc.txt", row.names=T, col.names=F, sep="\t", quote=F)
+write.table(round(rM[rM>0.6],3), "eRNA.QV0.05.60pc.txt", row.names=T, col.names=F, sep="\t", quote=F)
 
-pdf("HC_SNDA.trimmedmean.uniq.normalized.eRNA.measured.pdf")
-hist(eRNA$pvalue, breaks=50, main="p-value")
-hist(eRNA$qvalue, breaks=50, main="Benjamini– Hochberg adjusted p-value")
+pdf("eRNA.allsamples.qvalue.hist.pdf", width=8, height=6)
+hist(rowMeans(QVhc<=0.05), breaks=50, xlim=c(0,1), main="",xlab="Percentage of HC SNDA samples (out of 42) with q-value <= 0.05", ylab="Count of eRNAs", freq=T)
 dev.off()
+
+## R end
+
+awk '{OFS="\t"; split($1,a,"_"); print a[1],a[2],a[3],$1,$2*1000}' eRNA.QV0.05.60pc.txt > eRNA.QV0.05.60pc.bed
+awk '{OFS="\t"; split($1,a,"_"); print a[1],a[2],a[3],$1,$2*1000}' eRNA.QV0.05.50pc.txt > eRNA.QV0.05.50pc.bed
+rsync -azv eRNA.QV0.05.*bed xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/results/
+
+###### how much RNA-defined eRNA overlap with other enhancers
+#############################################################
+
+# Roadmap Epigenomics: https://sites.google.com/site/anshulkundaje/projects/epigenomeroadmap
+curl -c http://www.broadinstitute.org/~anshul/projects/roadmap/segmentations/models/coreMarks/parallel/set2/final/E074_15_coreMarks_segments.bed | awk '$4~/E6|E7|E12/' | intersectBed -a ../RNAseq/eRNA.bed -b stdin
+
+
 
 # RPM with p=0.001 in all samples is: 0.64
 # RPM with p=0.001 in HC_SNDA.trimmedmean.uniq.normalized is: 0.17
