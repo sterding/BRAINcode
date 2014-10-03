@@ -134,7 +134,7 @@ cd $input_dir
 
 c=0;h=0;gtflist="";samlist=""; labels=""
 
-for i in *_5_*.R1.fastq.gz;
+for i in *.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -146,6 +146,11 @@ do
 done
 
 exit
+
+## mapping statistics for all samples
+[ -d $result_dir/mapping_stat ] || mkdir $result_dir/mapping_stat
+cd $result_dir/mapping_stat/
+for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation; do ii=${i/*run_output\//}; ii=${ii/\/uniq*/}; Rscript ~/neurogen/pipeline/RNAseq/modules/_bam2annotation.r $i $ii.uniq.accepted_hits.bam2annotation.pdf; done 
 
 ########################
 ## 2. merge all samples to get big matrix for expression (e.g. one row per gene/Tx, one col per sample)

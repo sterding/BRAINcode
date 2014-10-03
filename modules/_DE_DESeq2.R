@@ -158,14 +158,14 @@ dev.off()
 ##--------------------------------------
 
 pdf("clustering.tree.pdf", width=15, height=5)
-plot(hclust(as.dist((1 - cor(vsd))),method = "single"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=1-correlation, linkage=single)") 
-plot(hclust(as.dist((1 - cor(vsd))),method = "complete"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=1-correlation, linkage=complete)")
-plot(hclust(as.dist((1 - cor(vsd))),method = "ave"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=1-correlation, linkage=average)")
+#plot(hclust(as.dist((1 - cor(vsd))),method = "single"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=1-correlation, linkage=single)") 
+#plot(hclust(as.dist((1 - cor(vsd))),method = "complete"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=1-correlation, linkage=complete)")
+#plot(hclust(as.dist((1 - cor(vsd))),method = "ave"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=1-correlation, linkage=average)")
 plot(hclust(as.dist((1 - cor(vsd))),method = "ward"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=1-correlation, linkage=ward)")
-plot(hclust(dist(t(vsd)),method = "single"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=single)")
-plot(hclust(dist(t(vsd)),method = "complete"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=complete)")
-plot(hclust(dist(t(vsd)),method = "average"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=average)")
-plot(hclust(dist(t(vsd)),method = "ward"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=ward)")
+#plot(hclust(dist(t(vsd)),method = "single"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=single)")
+#plot(hclust(dist(t(vsd)),method = "complete"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=complete)")
+#plot(hclust(dist(t(vsd)),method = "average"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=average)")
+#plot(hclust(dist(t(vsd)),method = "ward"), cex=0.7, xlab='', main="Cluster Dendrogram (dis=euclidean, linkage=ward)")
 dev.off()
 
 ##--------------------------------------

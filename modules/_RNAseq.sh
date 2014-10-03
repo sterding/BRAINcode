@@ -52,7 +52,7 @@ outputdir=$inputdir/../run_output
 [ -d $outputdiri/$samplename ] || mkdir -p $outputdir/$samplename
 
 ###########################################
-echo "["`date`"] STEP  2. quality filter: adaptor removal/clip"
+echo "["`date`"] STEP 2. quality filter: adaptor removal/clip"
 ###########################################
 
 ##### adaptor removal
@@ -151,14 +151,6 @@ touch .status.$modulename.sam2normalizedbw
 awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' accepted_hits.normalized.bedGraph > accepted_hits.normalized.rpm_vs_coverage.txt && \
 touch .status.$modulename.rpm_vs_coverage
 
-# eRNA (non-generic regions with depth >10rpm and length >50bp)
-#1. intersect bedGraph with all exons
-#2. filter the remained region with depth cutoff
-#3. filter the remained region with length cutoff
-#[ ! -f .status.$modulename.eRNA ] && \
-#awk '$4>1' accepted_hits.normalized.bedGraph | mergeBed | intersectBed -a - -b $exons -v | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
-#touch .status.$modulename.eRNA
-
 #rm accepted_hits.bed accepted_hits.*bedGraph
 
 ###########################################
@@ -171,10 +163,10 @@ cd $outputdir/$samplename
 _callSNP.sh accepted_hits.sam && \
 touch .status.$modulename.callSNP
 
-# shuilin's GATK
-[ ! -f .status.$modulename.callSNP_GATK ] && \
-_bam2vcf.sh accepted_hits.sam && \
-touch .status.$modulename.callSNP_GATK
+## shuilin's GATK
+#[ ! -f .status.$modulename.callSNP_GATK ] && \
+#_bam2vcf.sh accepted_hits.sam && \
+#touch .status.$modulename.callSNP_GATK
 
 ###########################################
 echo "["`date`"] STEP 7. assembly and quantification"
@@ -182,19 +174,23 @@ echo "["`date`"] STEP 7. assembly and quantification"
 
 cd $outputdir/$samplename
 
-#echo "## run cufflinks to assembly (including do de-novo discovery)"
-#cufflinks --no-update-check $strandoption -o ./denovo -p $cpu -g $Annotation_GTF -M $Mask_GTF accepted_hits.bam
+echo "## run cufflinks to assembly (including do de-novo discovery)"
+[ ! -f .status.$modulename.cufflinks.denovo ] && \
+cufflinks --no-update-check $strandoption -o ./denovo -p $cpu -g $Annotation_GTF -M $Mask_GTF accepted_hits.bam && \
+touch .status.$modulename.cufflinks.denovo
+
 ##echo "## run trinity to do de-novo discovery"
 #Trinity.pl --output denovo --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
-#echo "## run Scripture to do de-novo discovery"
-# see demo at: http://garberlab.umassmed.edu/data/RNASeqCourse/analysis.workshop.pdf
-# "Scripture initially transforms the genome into a graph topology, which represents all possible connections of bases in the transcriptome either when they occur consecutively or when they are connected by a spliced read. Scripture uses this graph topology to reduce the transcript reconstruction problem to a statistical segmentation problem of identifying significant transcript paths across the graph" (http://www.nature.com.ezp-prod1.hul.harvard.edu/nmeth/journal/v8/n6/full/nmeth.1613.html)
-[ ! -f .status.$modulename.scripture ] && \
-> .scripture.paraFile && \
-for i in `seq 1 22` X Y M; do echo "java -Xmx40000m -jar $pipeline_path/bin/scripture-beta2.jar -alignment accepted_hits.bam -out scripture.segments.$i -sizeFile $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size -chr chr$i -chrSequence $GENOME/Sequence/Chromosomes/chr$i.fa &>>scripture.log" >> .scripture.paraFile; done && \
-rm -f .scripture.paraFile.completed && \
-ParaFly -c .scripture.paraFile -CPU 8 && \
-touch .status.$modulename.scripture
+
+#echo "## run Scripture to do de-novo discovery" [TURN OFF due to the possible memory leak]
+## see demo at: http://garberlab.umassmed.edu/data/RNASeqCourse/analysis.workshop.pdf
+## "Scripture initially transforms the genome into a graph topology, which represents all possible connections of bases in the transcriptome either when they occur consecutively or when they are connected by a spliced read. Scripture uses this graph topology to reduce the transcript reconstruction problem to a statistical segmentation problem of identifying significant transcript paths across the graph" (http://www.nature.com.ezp-prod1.hul.harvard.edu/nmeth/journal/v8/n6/full/nmeth.1613.html)
+#[ ! -f .status.$modulename.scripture ] && \
+#> .scripture.paraFile && \
+#for i in `seq 1 22` X Y M; do echo "java -Xmx40000m -jar $pipeline_path/bin/scripture-beta2.jar -alignment accepted_hits.bam -out scripture.segments.$i -sizeFile $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size -chr chr$i -chrSequence $GENOME/Sequence/Chromosomes/chr$i.fa &>>scripture.log" >> .scripture.paraFile; done && \
+#rm -f .scripture.paraFile.completed && \
+#ParaFly -c .scripture.paraFile -CPU 8 && \
+#touch .status.$modulename.scripture
 
 #echo "## run STAR to do de-novo discovery"
 ## TODO: STAR
@@ -238,6 +234,15 @@ awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch $outputdir/$samplename/.status.$modulename.uniq
 
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2stat ] && \
+echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
+samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
+touch $outputdir/$samplename/.status.$modulename.uniq.bam2stat
+
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
+_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
+touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
+
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.htseqcount ] && \
 htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 touch $outputdir/$samplename/.status.$modulename.uniq.htseqcount
@@ -247,17 +252,12 @@ touch $outputdir/$samplename/.status.$modulename.uniq.htseqcount
 _callSNP.sh accepted_hits.sam && \
 touch $outputdir/$samplename/.status.$modulename.uniq.callSNP
 
-[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2stat ] && \
-echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
-samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
-touch $outputdir/$samplename/.status.$modulename.uniq.bam2stat
-
-# shuilin's GATK
-[ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP_GATK ] && \
-samtools view -SH $outputdir/$samplename/accepted_hits.sam > accepted_hits.sam && \
-fgrep -w NH:i:1 $outputdir/$samplename/accepted_hits.sam >> accepted_hits.sam && \
-_bam2vcf.sh accepted_hits.sam && \
-touch $outputdir/$samplename/.status.$modulename.uniq.callSNP_GATK
+## shuilin's GATK
+#[ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP_GATK ] && \
+#samtools view -SH $outputdir/$samplename/accepted_hits.sam > accepted_hits.sam && \
+#fgrep -w NH:i:1 $outputdir/$samplename/accepted_hits.sam >> accepted_hits.sam && \
+#_bam2vcf.sh accepted_hits.sam && \
+#touch $outputdir/$samplename/.status.$modulename.uniq.callSNP_GATK
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage ] && \
 awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' accepted_hits.normalized.bedGraph > accepted_hits.normalized.rpm_vs_coverage.txt && \

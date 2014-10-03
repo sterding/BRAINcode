@@ -12,7 +12,7 @@ cat $ANNOTATION/gencode.v19.annotation.bed12 $ANNOTATION/knownGene.bed12 | bed12
 #============================================================
 # Enhancers defined by FANTOM5 CAGE
 #============================================================
-cd ../CAGE
+cd ~/projects/PD/results/eRNA/externalData/CAGE
 curl -s http://enhancer.binf.ku.dk/presets/permissive_enhancers.bed | awk '{OFS="\t"; peak=$8; if(peak>500) print $1, peak-500, peak+500;}' > CAGE.distal.bed
 
 wget http://fantom.gsc.riken.jp/5/datahub/hg19/ctss/human.cell_line.hCAGE/epitheloid%20carcinoma%20cell%20line:%20HelaS3%20ENCODE,%20biol_rep1.CNhs12325.10815-111B5.hg19.ctss.fwd.bw
@@ -20,15 +20,15 @@ wget http://fantom.gsc.riken.jp/5/datahub/hg19/ctss/human.cell_line.hCAGE/epithe
 wget http://fantom.gsc.riken.jp/5/datahub/hg19/ctss/human.tissue.hCAGE/substantia%20nigra,%20adult,%20donor10252.CNhs12318.10158-103A5.hg19.ctss.fwd.bw
 wget http://fantom.gsc.riken.jp/5/datahub/hg19/ctss/human.tissue.hCAGE/substantia%20nigra,%20adult,%20donor10252.CNhs12318.10158-103A5.hg19.ctss.rev.bw
 
-ln -fs substantia*ctss.fwd.bw CAGE.fwd.bigwig
-ln -fs substantia*ctss.rev.bw CAGE.rev.bigwig
+ln -fs substantia*ctss.fwd.bw ../CAGE.fwd.bigwig
+ln -fs substantia*ctss.rev.bw ../CAGE.rev.bigwig
 
 #============================================================
 # Enhancers defined by ENCODE histone modifications
 # e.g. active enhancers = H3K4me1 + H3k27ac - H3K27me3
 # silent enhancers = H3K4me1 - H3k27ac + H3K27me3
 #============================================================
-cd ENCODE
+cd ~/projects/PD/results/eRNA/externalData/ENCODE
 url=http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone
 for i in K562 Gm12878 H1hesc;
 do
@@ -62,15 +62,20 @@ ln -s wgEncodeBroadHistoneHelas3H3k27me3StdSig.bigWig ENCODE.H3k27me3.bigwig
 ln -s wgEncodeBroadHistoneHelas3H3k4me3StdSig.bigWig ENCODE.H3k4me3.bigwig
 
 # use Brain_Substantia_Nigra data
+# download from: http://www.ncbi.nlm.nih.gov/geo/roadmap/epigenomics/?search=substantia+nigra&display=50
 
-wget ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM772nnn/GSM772898/suppl/GSM772898_BI.Brain_Substantia_Nigra.H3K4me1.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM772898_BI.Brain_Substantia_Nigra.H3K4me1.149.bw;
-ln -s !$ Histone.H3K4me1.bigwig
-wget ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM772nnn/GSM772901/suppl/GSM772901_BI.Brain_Substantia_Nigra.H3K4me3.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM772901_BI.Brain_Substantia_Nigra.H3K4me3.149.bw;
-ln -s !$ Histone.H3K4me3.bigwig
-curl -s ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM772nnn/GSM772937/suppl/GSM772937_BI.Brain_Substantia_Nigra.H3K27me3.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM772937_BI.Brain_Substantia_Nigra.H3K27me3.149.bw;
-ln -s !$ Histone.H3K27me3.bigwig
-curl -s ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM1112nnn/GSM1112778/suppl/GSM1112778_BI.Brain_Substantia_Nigra.H3K27ac.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM1112778_BI.Brain_Substantia_Nigra.H3K27ac.149.bw;
-ln -s !$ Histone.H3K27ac.bigwig
+wget ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM772nnn/GSM772898/suppl/GSM772898_BI.Brain_Substantia_Nigra.H3K4me1.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM772898_BI.Brain_Substantia_Nigra.H3K4me1.149.bw
+ln -s !$ Histone.SN.H3K4me1.bigwig
+wget ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM772nnn/GSM772901/suppl/GSM772901_BI.Brain_Substantia_Nigra.H3K4me3.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM772901_BI.Brain_Substantia_Nigra.H3K4me3.149.bw
+ln -s !$ Histone.SN.H3K4me3.bigwig
+curl -s ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM772nnn/GSM772937/suppl/GSM772937_BI.Brain_Substantia_Nigra.H3K27me3.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM772937_BI.Brain_Substantia_Nigra.H3K27me3.149.bw
+ln -s !$ Histone.SN.H3K27me3.bigwig
+curl -s ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM1112nnn/GSM1112778/suppl/GSM1112778_BI.Brain_Substantia_Nigra.H3K27ac.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM1112778_BI.Brain_Substantia_Nigra.H3K27ac.149.bw
+ln -s !$ Histone.SN.H3K27ac.bigwig
+curl -s ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM916nnn/GSM916015/suppl/GSM916015_BI.Brain_Substantia_Nigra.H3K36me3.149.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM916015_BI.Brain_Substantia_Nigra.H3K36me3.149.bw
+ln -s !$ Histone.SN.H3K36me3.bigwig
+curl -s ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM669nnn/GSM669977/suppl/GSM669977_BI.Brain_Substantia_Nigra.H3K9ac.112.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size GSM669977_BI.Brain_Substantia_Nigra.H3K9ac.112.bw
+ln -s !$ Histone.SN.H3K9ac.bigwig
 
 #============================================================
 # Enhancers defined by TFBS HOT region

@@ -61,7 +61,7 @@ do
     [[ "$condition" = "PD" ]] && color="255,0,0"
     [[ "$condition" = "ILB" ]] && color="254,178,76"
     [[ "$condition" = "HC" ]] && [[ "$cell" = "MCPY" ]] && color="153,216,201"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "TCPY" ]] && color="153,216,201"
+    [[ "$condition" = "HC" ]] && [[ "$cell" = "TCPY" ]] && color="229,245,249"
     [[ "$condition" = "HC" ]] && [[ "$cell" = "SNDA" ]] && color="44,162,95"
     
     

@@ -19,14 +19,15 @@ rownames(fpkm)=fpkm[,1]; fpkm=fpkm[,-1]; fpkm=fpkm[,grep("FPKM",colnames(fpkm))]
 
 #Two effects may characterize arrays with lower quality: 1) the spread is greater than that of other arrays from this experiment, and 2) the box is not centered near 0.
 
-pdf(outputfile, width=15, height=5)
+pdf(outputfile, width=15, height=6)
 fpkm=log10(fpkm+0.01)  # so row value of 0 will be -2 in the transformed value
 fpkm=fpkm/apply(fpkm, 1, median)
 colnames(fpkm)=gsub("FPKM.","",colnames(fpkm))
 require(reshape2)
 fpkm=melt(cbind(ID=rownames(fpkm), fpkm), variable.name = "Sample",value.name ="FPKM", id="ID")
 bymedian <- with(fpkm, reorder(Sample, FPKM, IQR))  # sort by IQR
-boxplot(FPKM ~ bymedian, data=fpkm, outline=F, las=2, boxwex=1, col='gray', cex.axis=0.5, main="RLE (Relative Log Expression) plot", xlab="Sample ID", )
+par(mar=c(7,3,3,1))
+boxplot(FPKM ~ bymedian, data=fpkm, outline=F, las=2, boxwex=1, col='gray', cex.axis=0.5, main="RLE (Relative Log Expression) plot", xlab="")
 
 #The other graphical representation (NUSE) represents normalized standard error (SE) estimates from the PLM fit. The SE estimates are normalized such that for each probe set, the median standard error across all arrays is equal to 1. A box plot of NUSE values is drawn for each array. On the NUSE plot, arrays with lower quality will have boxes that are centered higher and/or have a larger spread than the other good quality arrays from the same experiment. Typically, boxes centered above 1.1 represent arrays that have quality problems which are often detected in several of the other QC measures presented in this chapter.
 
