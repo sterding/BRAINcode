@@ -2,73 +2,14 @@
 # Pipeline for RNAseq data Analysis
 # Authors: Bioinformatics Team @ Scherzer's lab 
 # Email: xdong@rics.bwh.harvard.edu
-# Date: 9/16/2013
-# Version: 1.0
+# Date: 10/6/2014
+# Version: 2.0
 ####################################
 #!/bin/bash
 
 modulename=`basename $0`
 set +o posix  #  enables the execution of process substitution e.g. http://www.linuxjournal.com/content/shell-process-redirection
 STEP=0
-
-function Usage()
-{
-cat <<-ENDOFMESSAGE
-Pipeline for RNAseq data Analysis
-####################################
-# Authors: Bioinformatics Team @ Scherzer's lab 
-# Email: xdong@rics.bwh.harvard.edu
-# Date: 9/16/2013
-# Version: 1.0
-####################################
-Usage:
-    $0 [OPTION] <input_dir_with_FASTQ_files>
-
-Options:
-    -g -genome  reference genome to use                 [ default: hg19 ]
-    -u -email   email to get result notification        [ default: sterding.hpcc@gmail.com ]
-    -n -cpu     number of processor                     [ default: 4 ]
-    -h --help   display this message
-
-ENDOFMESSAGE
-    exit 1
-}
-
-function Die()
-{
-    echo "$*"
-    exit 1
-}
-
-function GetOpts() {
-    branch=""
-    argv=()
-    while [ $# -gt 0 ]
-    do
-        opt=$1
-        shift
-        case ${opt} in
-            -b|--branch)
-                if [ $# -eq 0 -o "${1:0:1}" = "-" ]; then
-                    Die "The ${opt} option requires an argument."
-                fi
-                branch="$1"
-                shift
-                ;;
-            -h|--help)
-                Usage;;
-            *)
-                if [ "${opt:0:1}" = "-" ]; then
-                    Die "${opt}: unknown option."
-                fi
-                argv+=(${opt});;
-        esac
-    done 
-}
-
-GetOpts $*
-echo "branch ${branch}"
-echo "argv ${argv[@]}"
 
 if [ $# -ne 1 ]
 then
@@ -79,21 +20,8 @@ fi
 ########################
 ## 0. setting 
 ########################
-reference_version=hg19
-ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
-Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
-Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
-BOWTIE_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/BowtieIndex
-pipeline_path=$HOME/neurogen/pipeline/RNAseq/
-export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
-
-## hpcc cluster setting
-email="-u sterding.hpcc@gmail.com -N"
-cpu="-n 8"
-memory="-M 10000 -R rusage[mem=10000]" # unit in Kb, e.g. 20000=20G
-
-##TODO: test if the executable program are installed 
-# bowtie, tophat, cufflinks, htseq-count, bedtools, samtools, RNA-seQC ... 
+pipeline_path=$HOME/neurogen/pipeline/RNAseq
+source $pipeline_path/config.txt
 
 # project folders
 input_dir=$1  # input_dir=/data/neurogen/rnaseq_PD/rawfiles
@@ -111,24 +39,8 @@ fordisplay_dir=$input_dir/../for_display
 result_dir=$input_dir/../results 
 [ -d $result_dir ] || mkdir $result_dir
 
-# load modules
-module load vcftools_0.1.9
-module load gatk-2.2-4
-module load jre7.7
-module load cufflinks/cufflinks-2.1.1
-module load bowtie-0.12.8
-module load bowtie2-2.1.0
-module load tophat-2.0.8
-module load python-2.7.3
-module load zlib-1.2.7
-
-module use /apps/modulefiles/test
-module load bedtools2/2.18.2
-module load samtools-0.1.18
-
-
 ########################
-## 1. QC/mapping/assembly/quantification for all samples in the input dir  (Tophat/Cufflink/Htseq-count)
+## 1. Processing per sample 
 ########################
 cd $input_dir
 
@@ -141,16 +53,33 @@ do
     samplename=${R1/.R1*/}
     
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q big-multi $cpu $memory $email _RNAseq.sh $R1 $R2;
+    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -u $EMAIL -N _RNAseq.sh $R1 $R2;
+    #bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _RNAseq.sh $R1 $R2;
 
 done
 
 exit
 
-## mapping statistics for all samples
-[ -d $result_dir/mapping_stat ] || mkdir $result_dir/mapping_stat
-cd $result_dir/mapping_stat/
-for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation; do ii=${i/*run_output\//}; ii=${ii/\/uniq*/}; Rscript ~/neurogen/pipeline/RNAseq/modules/_bam2annotation.r $i $ii.uniq.accepted_hits.bam2annotation.pdf; done 
+########################
+## [test] (merge all reads and then call assembly once) vs. (call assembly individually and then run cuffmerge)
+########################
+samtools merge -1r all124samples.uniq.accepted_hits.bam `ls */uniq/accepted_hits.bam.non-rRNA-mt.bam`
+
+
+########################
+## [test] total-rRNA-chrM vs. total, which one is better to be used for normalization?
+########################
+
+echo "sampleID" `rowsToCols /PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_2/uniq/accepted_hits.bam.bam2annotation stdout | sed 's/://g' | head -n1` | sed 's/ /\t/g' > allsamples.bam2annotation.tab
+paste <(ls -1 ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2* | sed 's/.*run_output\///g;s/\/uniq.*//g') <(paste ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2* | sed 's/[^[:space:]]*: //g' | rowsToCols stdin stdout) >> allsamples.bam2annotation.tab
+#R
+pdf("allsamples.bam2annotation.pdf")
+df=read.table("allsamples.bam2annotation.tab", header=T)
+rownames(df)=df[,1]; df=df[,-1]; df=df/1e6
+plot(total_non.rRNA.mt~total, df, asp=1, xlim=c(0,300), ylim=c(0,300), col=gsub(".*_([1-5]).*","\\1",rownames(df)), xlab="total reads (in million)", ylab="total-rRNA-chrM (in million)")
+abline(a=0,b=1,lty=2)
+legend("topleft", paste("batch", 1:5), col=1:5, bty='n', pch=1)
+dev.off()
 
 ########################
 ## 2. merge all samples to get big matrix for expression (e.g. one row per gene/Tx, one col per sample)
@@ -164,20 +93,55 @@ Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/isoforms.fpkm_t
 Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.multi.xls
 
 # uniq mapper
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/genes.fpkm_tracking` genes.fpkm.allSamples.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.uniq.xls
 
-#########################
+#--------------------------
+# 2.2 combined bigwig into 
+#--------------------------
+for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA;
+do
+    [ "$i" = "HC_TCPY" ]  && pattern="(HC|ND)_.*_TCPY_[2345]";
+    [ "$i" = "HC_MCPY" ]  && pattern="(HC|ND)_.*_MCPY_[2345]";
+    [ "$i" = "HC_SNDA" ]  && pattern="(HC|ND)_.*_SNDA_[2345]";
+    [ "$i" = "ILB_SNDA" ] && pattern="ILB_.*_SNDA_[2345]";
+    [ "$i" = "PD_SNDA" ]  && pattern="PD_.*_SNDA_[2345]";
+    
+    echo $i, $pattern;
+    
+    bsub -J combine_bw -oo _combin_bw.log -eo _combin_bw.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_bigwig.sh $i $pattern
+done
+
+#--------------------------
+## 2.3 make UCSC track hub
+#--------------------------
+_make_trackDb.sh > $fordisplay_dir/trackDb.RNAseq.txt
+rsync -azvL $fordisplay_dir/trackDb.RNAseq.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
+rsync -azvL $fordisplay_dir/*uniq.accepted_hits.normalized2.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/
+rsync -azv *.xls *.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/merged
+
+#--------------------------
 ### expression trend of specific gene(s) along the stages (e.g. HC,ILB,PD)
-#########################
+#--------------------------
 grep -w -P "tracking_id|SNCA" isoforms.fpkm.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.tx.pdf
 grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.pdf
 
 #########################
-### use RLE and NUSe to detect outlier
+### 3. use RLE to detect outlier
 #########################
 Rscript $pipeline_path/modules/_normQC.R genes.fpkm.allSamples.uniq.xls genes.fpkm.allSamples.uniq.QC.pdf
+
+########################
+## 4. factor analysis to identify the hidden covariates (PEER)
+########################
+Rscript _factor_analysis.R
+
+#########################
+### 5. post-normalization QC (use RLE to detect outlier)
+#########################
+## TODO:
+# 
 
 ########################
 ## 3. draw aggregation plot for the RNAseq density in the genetic region
@@ -193,29 +157,6 @@ done
 
 # set break point here to wait until all samples are completedly processed.
 Rscript $pipeline_path/src/draw_aggregation_plot.R
-
-########################
-## 4. Added cluster procedure -- by Bin
-########################
-bsub Rscript _clustComRNASeq.R $output_dir $result_dir
-
-###########
-# RNA-SeQC
-#
-# make samplelist_file.txt
-
-./makeSamplelistFile.sh "$output_dir/*/acce*.bam" > $result_dir/RNA-SEQCfolder/samplelist_file.txt
-
-# gencodePlusMask.v13.annotation.gtf is a combination of 
-# gencode.v13.annotation.karotyped.gtf and chrM.rRNA.tRNA.gtf
-
-bsub -J runRnaSeqc -q big-multi -n 4 -R 'rusage[mem=10000]' "java -jar -Xmx64g RNA-SeQC_v1.1.7.jar -s $result_dir/RNA-SEQCfolder/samplelist_file.txt -t $result_dir/RNA-SEQCfolder/gencodePlusMask.v13.annotation.gtf -r $GENOME/Sequence/Bowtie2Index/genome.fa -o $result_dir/RNA-SEQCfolder/RNASeQCoutput"
-
-
-########################
-## 5. factor analysis to identify the hidden covariates (PEER)
-########################
-bsub Rscript _factor_analysis.R
 
 ########################
 ## 6. identify differentially expressed genes (cuffdiff and DEseq), incoperating the hidden covariates from PEER

@@ -11,12 +11,12 @@ args<-commandArgs(TRUE)
 n=length(args)
 outputfile=args[n]
 
-fpkm=read.table(args[1], header=T);
-fpkm=subset(fpkm, select=c('tracking_id', 'class_code', 'nearest_ref_id', 'gene_id', 'gene_short_name', 'tss_id', 'locus', 'length'))
+fpkm=read.table(args[1], header=F);
+colnames(fpkm)=c("tracking_id", "FPKM")
 
-for(i in 1:(n-1)){
+for(i in 2:(n-1)){
     message(paste("[Merging file", args[i], "...] %", round(100*i/(n-1), 1), "Done"));
-    df=read.table(args[i], header=T)
+    df=read.table(args[i], header=F); colnames(df)=c("tracking_id", "FPKM");
     fpkm=cbind(fpkm, FPKM=df[match(fpkm$tracking_id, df$tracking_id), 'FPKM'])
 }
 

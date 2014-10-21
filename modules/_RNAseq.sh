@@ -3,10 +3,16 @@
 # author: Xianjun Dong
 # email: xdong@rics.bwh.harvard.edu
 # date: 9/16/2013
-# version: 1.0
+# version: 2.0
 # Note: call this script in the folder of fastq file
 ###########################################
 #!/bin/bash
+
+if [ $# -ne 2 ]
+then
+  echo "Usage: $0 HC_BN10-39_2.R1.fastq.gz HC_BN10-39_2.R2.fastq.gz"
+  exit
+fi
 
 ###########################################
 echo "["`date`"] STEP 1. Configuring"
@@ -15,37 +21,12 @@ echo "["`date`"] STEP 1. Configuring"
 modulename=`basename $0`
 set +o posix  #  enables the execution of process substitution e.g. http://www.linuxjournal.com/content/shell-process-redirection
 
-if [ $# -ne 2 ]
-then
-  echo "Usage: `basename $0` HC_BN10-39_2.R1.fastq.gz HC_BN10-39_2.R2.fastq.gz"
-  exit
-fi
-
 R1=$1  # filename of R1 
 R2=$2  # filename of R2 (for paired-end reads)
-
 samplename=${R1/[.|_]R1*/}
-cpu=8
-index=hg19
-# adaptorfile=/data/neurogen/referenceGenome/adaptor_core.fa
-ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
-Annotation_GTF=$ANNOTATION/gencode.v13.annotation.gtf
-exons=$ANNOTATION/gencode.v13.annotation.gtf.exons.bed
-Mask_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
 
-export BOWTIE2_INDEXES=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/
-pipeline_path=$HOME/neurogen/pipeline/RNAseq/
-export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
-
-#============= mapping options
-#phred
-bowtie="--phred33-quals"; bowtie2="--phred33"; tophat=""; far="fastq-sanger"; fastqmcf="33"; trimmomatic="-phred33"
-#mismatch
-mm=2
-#PE option
-PE_option="--mate-inner-dist 50 --mate-std-dev 20"  ## Shuijin found that 50/20 can get higher mappability
-#strand
-strand_option="--library-type fr-unstranded"
+pipeline_path=$HOME/neurogen/pipeline/RNAseq
+source $pipeline_path/config.txt
 
 inputdir=$PWD
 outputdir=$inputdir/../run_output
@@ -97,13 +78,22 @@ echo "["`date`"] STEP 4. mapping"
 ## TODO: 1) use offrated index genome_offrate3;
 ## Note: GATK requires @RG group has fields of ID, SM, PL, LB, PU
 
+## NOTE: this was done for all batch 1-5 samples with tophat version 2.0.8
 [ ! -f $outputdir/$samplename/.status.$modulename.mapping ] && \
-tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2 && \
+tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits $MAX_HIT --no-coverage-search genome $R1 $R2 && \
 touch $outputdir/$samplename/.status.$modulename.mapping
 
 #[ ! -f $outputdir/$samplename/.status.$modulename.smallRNAmapping ] && \
-#tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $cpu --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits 100 --no-coverage-search genome $R1 $R2 && \
+#tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strand_option --max-multihits $MAX_HIT --no-coverage-search genome $R1 $R2 && \
 #touch $outputdir/$samplename/.status.$modulename.smallRNAmapping
+
+# circular RNA calling and quantification (see: https://github.com/YangLab/CIRCexplorer/blob/master/README.md)
+## using tophat-2.0.10 as suggested by CIRCexplorer
+[ ! -f $outputdir/$samplename/.status.$modulename.circRNA ] && \
+#bamToFastq -i $outputdir/$samplename/unmapped.bam -fq $outputdir/$samplename/unmapped.fastq && 
+tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome $outputdir/$samplename/unmapped.fastq && \
+CIRCexplorer.py -f $outputdir/$samplename/tophat_fusion/accepted_hits.bam -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -r $GENOME/Annotation/Genes/refFlat.txt && \
+touch $outputdir/$samplename/.status.$modulename.circRNA
 
 ###########################################
 echo "["`date`"] STEP 5. post-processing, format converting"
@@ -117,10 +107,10 @@ mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
 touch .status.$modulename.sam2bam
 
-
-[ ! -f .status.$modulename.rehead ] && \
-_header_change.sh && \
-touch .status.$modulename.rehead
+## ONLY NEEDED FOR GTEx PROJECT (which has different chromosome names)
+#[ ! -f .status.$modulename.rehead ] && \
+#_header_change.sh && \
+#touch .status.$modulename.rehead
 
 [ ! -f .status.$modulename.bam2stat ] && \
 echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
@@ -154,7 +144,7 @@ touch .status.$modulename.rpm_vs_coverage
 #rm accepted_hits.bed accepted_hits.*bedGraph
 
 ###########################################
-echo "["`date`"] STEP 6. call variation"
+echo "["`date`"] STEP 6. call variation [OFF]"
 ###########################################
 
 cd $outputdir/$samplename
@@ -163,10 +153,10 @@ cd $outputdir/$samplename
 _callSNP.sh accepted_hits.sam && \
 touch .status.$modulename.callSNP
 
-## shuilin's GATK
-#[ ! -f .status.$modulename.callSNP_GATK ] && \
-#_bam2vcf.sh accepted_hits.sam && \
-#touch .status.$modulename.callSNP_GATK
+### shuilin's GATK
+##[ ! -f .status.$modulename.callSNP_GATK ] && \
+##_bam2vcf.sh accepted_hits.sam && \
+##touch .status.$modulename.callSNP_GATK
 
 ###########################################
 echo "["`date`"] STEP 7. assembly and quantification"
@@ -174,13 +164,13 @@ echo "["`date`"] STEP 7. assembly and quantification"
 
 cd $outputdir/$samplename
 
-echo "## run cufflinks to assembly (including do de-novo discovery)"
-[ ! -f .status.$modulename.cufflinks.denovo ] && \
-cufflinks --no-update-check $strandoption -o ./denovo -p $cpu -g $Annotation_GTF -M $Mask_GTF accepted_hits.bam && \
-touch .status.$modulename.cufflinks.denovo
+#echo "## run cufflinks to assembly (including do de-novo discovery)" [PAUSED becaused of memory issue]
+#[ ! -f .status.$modulename.cufflinks.denovo ] && \
+#cufflinks --no-update-check $strandoption -o ./denovo -p $CPU -g $ANNOTATION_GTF -M $MASK_GTF accepted_hits.bam 2> cufflinks.denovo.log && \
+#touch .status.$modulename.cufflinks.denovo
 
 ##echo "## run trinity to do de-novo discovery"
-#Trinity.pl --output denovo --seqType fq --JM 100G --left $R1 --right $R2 --CPU $cpu
+#Trinity.pl --output denovo --seqType fq --JM 100G --left $R1 --right $R2 --CPU $CPU
 
 #echo "## run Scripture to do de-novo discovery" [TURN OFF due to the possible memory leak]
 ## see demo at: http://garberlab.umassmed.edu/data/RNASeqCourse/analysis.workshop.pdf
@@ -192,22 +182,19 @@ touch .status.$modulename.cufflinks.denovo
 #ParaFly -c .scripture.paraFile -CPU 8 && \
 #touch .status.$modulename.scripture
 
-#echo "## run STAR to do de-novo discovery"
-## TODO: STAR
-
 echo "## run cufflinks to get FPKM"
 # Using gtf from deno assembly
 # Note: "-b" option (for bias correction) can lead to segementation fault error.
 [ ! -f .status.$modulename.cufflinks ] && \
-cufflinks --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF --compatible-hits-norm --multi-read-correct accepted_hits.bam && \
+cufflinks --no-update-check $strandoption -o ./ -p $CPU -G $ANNOTATION_GTF -M $MASK_GTF --compatible-hits-norm --multi-read-correct accepted_hits.bam && \
 touch .status.$modulename.cufflinks 
 
 #echo "## run cufflinks without -M option"
-#cufflinks -q --no-update-check $strandoption -o ./cufflink_wo_M -p $cpu -G $Annotation_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
+#cufflinks -q --no-update-check $strandoption -o ./cufflink_wo_M -p $CPU -G $ANNOTATION_GTF -b $BOWTIE_INDEXES/genome.fa --multi-read-correct accepted_hits.bam
 
 echo "## run htseq for reads count"
 [ ! -f .status.$modulename.htseqcount ] && \
-htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 touch .status.$modulename.htseqcount
 
 ############################################
@@ -224,7 +211,7 @@ fgrep -w NH:i:1 $outputdir/$samplename/accepted_hits.sam >> accepted_hits.sam &&
 samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted && \
 mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
-cufflinks --no-update-check $strandoption -o ./ -p $cpu -G $Annotation_GTF -M $Mask_GTF --compatible-hits-norm accepted_hits.bam && \
+cufflinks --no-update-check $strandoption -o ./ -p $CPU -G $ANNOTATION_GTF -M $MASK_GTF --compatible-hits-norm accepted_hits.bam && \
 sam2bed -v bed12=T accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
 sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g' > accepted_hits.bedGraph && \
 bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
@@ -234,19 +221,36 @@ awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch $outputdir/$samplename/.status.$modulename.uniq
 
+#[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
+#_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
+#_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
+#touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
+
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2stat ] && \
 echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
 samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
 touch $outputdir/$samplename/.status.$modulename.uniq.bam2stat
 
-[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
-_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
-touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
+#echo "## run cufflinks to assembly (including do de-novo discovery)"  #[PAUSED becaused of memory issue]
+#[ ! -f $outputdir/$samplename/.status.$modulename.uniq.cufflinks.denovo ] && \
+#cufflinks --no-update-check $strandoption -o ./denovo -p $CPU -g $ANNOTATION_GTF accepted_hits.bam.non-rRNA-mt.bam 2> cufflinks.denovo.log && \
+#touch $outputdir/$samplename/.status.$modulename.uniq.cufflinks.denovo
+
+echo "## normalizing: instead of using total reads, use reads only mapped to non-rRNA-mtRNA for normalization"
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.normalize ] && \
+total_mapped_reads2=`grep total_non-rRNA-mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
+awk -v tmr=$total_mapped_reads2 'BEGIN{OFS="\t"; print "# total-rRNA-chrM="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized2.bedGraph && \
+bedGraphToBigWig accepted_hits.normalized2.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized2.bw && \
+touch $outputdir/$samplename/.status.$modulename.uniq.normalize
+
+echo "## calcualte RPKM (based on TOTAL reads mapped to nuclear genome)"
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.cufflinks.rpkm ] && \
+cufflinks --no-update-check $strandoption -o ./rpkm -p $CPU -G $ANNOTATION_GTF accepted_hits.bam.non-rRNA-mt.bam 2> cufflinks.rpkm.log && \
+touch $outputdir/$samplename/.status.$modulename.uniq.cufflinks.rpkm
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.htseqcount ] && \
-htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $Annotation_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 touch $outputdir/$samplename/.status.$modulename.uniq.htseqcount
-
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP ] && \
 _callSNP.sh accepted_hits.sam && \
@@ -262,10 +266,6 @@ touch $outputdir/$samplename/.status.$modulename.uniq.callSNP
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage ] && \
 awk 'BEGIN{max=100; UNIT=0.01; OFS="\t";}{if($0~/^#/) {print; next;} i=int($4/UNIT);if(i>max) i=max; rpm[i]+=($3-$2);}END{for(x=max;x>=0;x--) print x*UNIT, rpm[x]?rpm[x]:0;}' accepted_hits.normalized.bedGraph > accepted_hits.normalized.rpm_vs_coverage.txt && \
 touch $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage
-
-[ ! -f $outputdir/$samplename/.status.$modulename.uniq.eRNA ] && \
-awk '$4>0.5' accepted_hits.normalized.bedGraph | mergeBed | intersectBed -a - -b $exons -v | awk '($3-$2)>=50' > accepted_hits.normalized.eRNA.bed && \
-touch $outputdir/$samplename/.status.$modulename.uniq.eRNA
 
 #rm accepted_hits.bed accepted_hits.*bedGraph
 
@@ -295,6 +295,7 @@ ln -fs $outputdir/$samplename/uniq/genes.fpkm_tracking $samplename.uniq.genes.fp
 ln -fs $outputdir/$samplename/uniq/hgseqcount.by.gene.tab $samplename.uniq.hgseqcount.by.gene.tab && \
 ln -fs $outputdir/$samplename/uniq/accepted_hits.bw $samplename.uniq.accepted_hits.bw && \
 ln -fs $outputdir/$samplename/uniq/accepted_hits.normalized.bw $samplename.uniq.accepted_hits.normalized.bw && \
+ln -fs $outputdir/$samplename/uniq/accepted_hits.normalized2.bw $samplename.uniq.accepted_hits.normalized2.bw && \
 # gtf of assembly
 echo "track name=$samplename.multi.gtf description=$samplename.multi.gtf visibility=pack colorByStrand='200,100,0 0,100,200'" > $samplename.multi.transcripts.gtf && \
 cat $outputdir/$samplename/transcripts.gtf >> $samplename.multi.transcripts.gtf && \

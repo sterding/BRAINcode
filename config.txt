@@ -1,0 +1,68 @@
+### configuration file for the pipeline
+
+# ==============================
+# for hpcc cluster
+# ==============================
+
+CPU=4
+EMAIL=sterding.hpcc@gmail.com
+QUEUE=big-multi
+MEMORY=4000 # unit in megabase
+
+# ==============================
+# to pre-load the needed tools
+# ==============================
+
+# load modules
+module use /apps/modulefiles/test
+module load jre7.7
+module load zlib-1.2.7
+
+module load vcftools_0.1.9
+module load gatk-2.2-4
+module load cufflinks/cufflinks-2.1.1
+#module load bowtie/1.0.0
+module load bowtie2-2.1.0
+module load tophat-2.0.8
+module load bedtools2/2.18.2
+module load samtools-0.1.18
+
+export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
+
+# ==============================
+# for genome and its annotation
+# ==============================
+
+index=hg19
+GENOME=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/$index
+ANNOTATION=$GENOME/Annotation/Genes
+ANNOTATION_GTF=$ANNOTATION/gencode.v19.annotation.gtf
+ANNOTATION_EXON=$ANNOTATION/gencode.v19.annotation.gtf.exons.bed
+ANNOTATION_INTRON=$ANNOTATION/gencode.v19.annotation.gtf.introns.bed
+ANNOTATION_5UTR=$ANNOTATION/gencode.v19.annotation.gtf.5utr.bed
+ANNOTATION_3UTR=$ANNOTATION/gencode.v19.annotation.gtf.3utr.bed
+ANNOTATION_INTERGENIC=$ANNOTATION/gencode.v19.annotation.intergenic.bed
+
+CRHOME_SIZE=$ANNOTATION/ChromInfo.txt
+
+MASK_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
+
+# ==============================
+# index for mapper
+# ==============================
+export BOWTIE_INDEXES=$GENOME/Sequence/BowtieIndex
+export BOWTIE2_INDEXES=$GENOME/Sequence/Bowtie2Index
+
+#phred score
+bowtie="--phred33-quals"; bowtie2="--phred33"; tophat=""; far="fastq-sanger"; fastqmcf="33"; trimmomatic="-phred33"
+#mismatch
+mm=2
+#PE option
+PE_option="--mate-inner-dist 50 --mate-std-dev 20"  ## Shuijin found that 50/20 can get higher mappability
+#strand
+strand_option="--library-type fr-unstranded"
+# maximal mapper
+MAX_HIT=100
+
+
+
