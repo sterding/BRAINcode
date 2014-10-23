@@ -7,7 +7,7 @@
 CPU=4
 EMAIL=sterding.hpcc@gmail.com
 QUEUE=big-multi
-MEMORY=4000 # unit in megabase
+MEMORY=5000 # unit in megabase
 
 # ==============================
 # to pre-load the needed tools

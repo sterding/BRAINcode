@@ -102,15 +102,7 @@ Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgse
 #--------------------------
 for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA;
 do
-    [ "$i" = "HC_TCPY" ]  && pattern="(HC|ND)_.*_TCPY_[2345]";
-    [ "$i" = "HC_MCPY" ]  && pattern="(HC|ND)_.*_MCPY_[2345]";
-    [ "$i" = "HC_SNDA" ]  && pattern="(HC|ND)_.*_SNDA_[2345]";
-    [ "$i" = "ILB_SNDA" ] && pattern="ILB_.*_SNDA_[2345]";
-    [ "$i" = "PD_SNDA" ]  && pattern="PD_.*_SNDA_[2345]";
-    
-    echo $i, $pattern;
-    
-    bsub -J combine_bw -oo _combin_bw.log -eo _combin_bw.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_bigwig.sh $i $pattern
+    bsub -J combine_bw -oo _combin_bw.$i.log -eo _combin_bw.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_bigwig.sh $i
 done
 
 #--------------------------
