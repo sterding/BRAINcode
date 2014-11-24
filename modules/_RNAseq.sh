@@ -69,7 +69,7 @@ echo "["`date`"] STEP 3. QC"
 [ ! -f $outputdir/$samplename/.status.$modulename.fastqc ] && \
 fastqc --outdir $outputdir/$samplename --extract -t 2 $R1 $R2 && \
 rm $outputdir/$samplename/*fastqc.zip && \
-touch $outputdir/$samplename/.status.$modulename.fastqc 
+touch $outputdir/$samplename/.status.$modulename.fastqc
 
 ############################################
 echo "["`date`"] STEP 4. mapping"
@@ -91,8 +91,8 @@ touch $outputdir/$samplename/.status.$modulename.mapping
 ## using tophat-2.0.10 as suggested by CIRCexplorer
 [ ! -f $outputdir/$samplename/.status.$modulename.circRNA ] && \
 #bamToFastq -i $outputdir/$samplename/unmapped.bam -fq $outputdir/$samplename/unmapped.fastq && 
-tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome $outputdir/$samplename/unmapped.fastq && \
-CIRCexplorer.py -f $outputdir/$samplename/tophat_fusion/accepted_hits.bam -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -r $GENOME/Annotation/Genes/refFlat.txt && \
+#tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome $outputdir/$samplename/unmapped.fastq && 
+CIRCexplorer.py -f $outputdir/$samplename/tophat_fusion/accepted_hits.bam -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -r $GENOME/Annotation/Genes/refFlat.txt -o $outputdir/$samplename/circ.txt && \
 touch $outputdir/$samplename/.status.$modulename.circRNA
 
 ###########################################
@@ -197,6 +197,13 @@ echo "## run htseq for reads count"
 htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 touch .status.$modulename.htseqcount
 
+echo "## quantification for meta exons"
+# script to generate meta exons
+# sed 's/__ENST[^\t]*//g;' exons.bed | sort -k4,4 -k1,1 -k2,2n -k3,3n | awk '{OFS="\t"; if(id!=$4 || $2>e) {if(id!="") print chr,s,e,id,1,str; chr=$1;s=$2;e=$3;id=$4;str=$6;} else if($3>e) e=$3;}END{print chr,s,e,id,1,str;}' > exons.meta.bed
+[ ! -f .status.$modulename.metaexon ] && \
+coverageBed -abam accepted_hits.bam -b $ANNOTATION/exons.meta.bed -s -counts > readscount.by.metaexon.tab 2> readscount.by.metaexon.tab.stderr && \
+touch .status.$modulename.metaexon
+
 ############################################
 echo "["`date`"] STEP 8. for uniq"
 ############################################
@@ -221,10 +228,10 @@ awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr
 bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 touch $outputdir/$samplename/.status.$modulename.uniq
 
-#[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
-#_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
-#_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
-#touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
+_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
+_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
+touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2stat ] && \
 echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
@@ -251,6 +258,10 @@ touch $outputdir/$samplename/.status.$modulename.uniq.cufflinks.rpkm
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.htseqcount ] && \
 htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 touch $outputdir/$samplename/.status.$modulename.uniq.htseqcount
+
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.metaexon ] && \
+coverageBed -abam accepted_hits.bam.non-rRNA-mt.bam -b $ANNOTATION/exons.meta.bed -s -counts > readscount.by.metaexon.tab 2> readscount.by.metaexon.tab.stderr && \
+touch $outputdir/$samplename/.status.$modulename.uniq.metaexon
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP ] && \
 _callSNP.sh accepted_hits.sam && \

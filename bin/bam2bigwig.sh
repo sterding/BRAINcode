@@ -10,7 +10,7 @@
 # 2) require sam2bed awk script and set its path in $PATH
 # 3) Download Annotation and set the path of $ANNOTATION (recommend to use annotation files downloaded from iGenome)
 
-# current usage: bam2bigwig <in.bam|sam|bed> [-split|-nosplit]
+# current usage: bam2bigwig <in.bam|sam|bed> <-split|-nosplit>
 # optimal usage: bam2bigwig [-sB] -I <mm9> -i <in.bam|sam> -o <out.bw>
 # -B: output bedGraph (instead of bigWig)
 # -I: index for annnotated genome (e.g. hg19, mm8 etc.)
@@ -20,7 +20,8 @@
 ## Log:
 #1. change to use "bamToBed -bed12" and "bedItemOverlapCount -bed12", instead of "bamToBed -split"
 #2. 10/10/13: change to use hg19 as default reference 
-#2. 10/15/13: allow to convert reads from specific region (only works for BAM format now)
+#3. 10/15/13: allow to convert reads from specific region (only works for BAM format now)
+#4. 11/21/14: also generate RPM normalized bigwig
  
 species=hg19
 
@@ -62,8 +63,11 @@ case $ext in
 esac
 
 # remove reads mapped to contigs other than chr1/2/.../22/M/X/Y
-awk '{if($1!~/_/)print}' $bname.bed > $bname.bed2
+awk '{if($1!~/_/) {n++; print}}END{print "#total_mapped_reads="n;}' $bname.bed > $bname.bed2
 mv $bname.bed2 $bname.bed
+
+# get total mapped reads
+total_mapped_reads=`tail -n1 $bname.bed | cut -f2 -d'='`
 
 if [ "$2" == "-split" ]
 then
@@ -86,6 +90,12 @@ then
     bedGraphToBigWig $bname.plus.bedGraph $ANNOTATION/ChromInfo.txt $bname.plus.bw
     bedGraphToBigWig $bname.minus.bedGraph $ANNOTATION/ChromInfo.txt $bname.minus.bw
     
+    echo "generated normalized bg..."
+    awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.plus.bedGraph > $bname.plus.normalized.bedGraph
+    awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.minus.bedGraph > $bname.minus.normalized.bedGraph
+    bedGraphToBigWig $bname.plus.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.plus.normalized.bw
+    bedGraphToBigWig $bname.minus.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.minus.normalized.bw
+
     #echo "removing temp files..."
     #rm $bname.*.bedGraph $bname.bed?
 fi
@@ -106,6 +116,10 @@ then
     echo "bedGraph2bw..."
     bedGraphToBigWig $bname.bedGraph $ANNOTATION/ChromInfo.txt $bname.bw
 
+    echo "generated normalized bg..."
+    awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.bedGraph > $bname.normalized.bedGraph
+    bedGraphToBigWig $bname.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.normalized.bw
+    
     #echo "removing temp files..."
     #rm $bname.bedGraph
 fi

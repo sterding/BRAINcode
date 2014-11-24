@@ -24,5 +24,6 @@ echo "mtRNA:" `samtools view $inputbam -c chrM`
 
 #echo -e "chrM\t0\t16571" | cat - $ANNOTATION/rRNA.bed | cut -f1-3 | sortBed | mergeBed | bedtools complement -g $ANNOTATION/ChromInfo.txt > $ANNOTATION/gencode.v19.annotation.non_rRNA_mt.bed
 samtools view $inputbam -b -1 -L $ANNOTATION/gencode.v19.annotation.non_rRNA_mt.bed -o $inputbam.non-rRNA-mt.bam
+samtools index $inputbam.non-rRNA-mt.bam
 echo "total_non_rRNA_mt:" `samtools view $inputbam.non-rRNA-mt.bam -c`
 echo -e "intergenic\nintergenic_notneargene\nintrons\nexons\nutr5\nutr3\nLINE\nSINE" | parallel 'echo {}: `samtools view $inputbam.non-rRNA-mt.bam -c -L $ANNOTATION/{}.bed`'

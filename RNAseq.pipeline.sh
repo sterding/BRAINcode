@@ -82,25 +82,55 @@ legend("topleft", paste("batch", 1:5), col=1:5, bty='n', pch=1)
 dev.off()
 
 ########################
+# 2.2 calculatinng coverage of RNAseq 
+########################
+[ -d $result_dir/coverage ] || mkdir $result_dir/coverage
+cd $result_dir/coverage
+for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA;
+do
+    bsub -J combine_coverage -oo _combine_cov.$i.log -eo _combine_cov.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 5
+    #bsub -J combine_coverage -oo _combine_cov.$i.rpm.log -eo _combine_cov.$i.rpm.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 0.05
+done
+
+# R
+pdf("coverage.barplot.pdf")
+df=read.table("coverage.txt")
+colnames(df)=c("Classical view", "BRAINCODE view")
+d=barplot(as.matrix(df), ylim=c(0,3137161264), col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
+text(x=d, y=apply(df,2,sum),pos=3, offset=.2, c("2.8%","42.5%"), cex=4)
+axis(2, at=c(0:3)*1e9, labels=0:3)
+legend("topleft",col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), rownames(df), bty='n', pch=15)
+dev.off()
+
+## body coverage
+ls ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.non-rRNA-mt.bam > bam_path.txt
+bsub -J RseQC_body_coverage -oo _RseQC_body_coverage.log -eo _RseQC_body_coverage -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i bam_path.txt  -o RseQC_body_coverage
+
+########################
 ## 2. merge all samples to get big matrix for expression (e.g. one row per gene/Tx, one col per sample)
 ########################
 [ -d $result_dir/merged ] || mkdir $result_dir/merged
 cd $result_dir/merged
 
-# multi mapper
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/genes.fpkm_tracking` genes.fpkm.allSamples.multi.xls
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.multi.xls
-Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.multi.xls
+## multi mapper
+#Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/genes.fpkm_tracking` genes.fpkm.allSamples.multi.xls
+#Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.multi.xls
+#Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.multi.xls
 
 # uniq mapper
 Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.allSamples.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.uniq.xls
 
+# HC/ILB only
+Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking | grep -v PD_` genes.fpkm.HCILB.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking | grep -v PD_` isoforms.fpkm.HCILB.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab | grep -v PD_` genes.htseqcount.HCILB.uniq.xls
+
 #--------------------------
 # 2.2 combined bigwig into 
 #--------------------------
-for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA;
+for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HCILB_SNDA;
 do
     bsub -J combine_bw -oo _combin_bw.$i.log -eo _combin_bw.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_bigwig.sh $i
 done
@@ -119,21 +149,40 @@ rsync -azv *.xls *.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/vers
 grep -w -P "tracking_id|SNCA" isoforms.fpkm.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.tx.pdf
 grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.pdf
 
+
 #########################
-### 3. use RLE to detect outlier
+### 3. detect outlier
 #########################
-Rscript $pipeline_path/modules/_normQC.R genes.fpkm.allSamples.uniq.xls genes.fpkm.allSamples.uniq.QC.pdf
+cd $result_dir/merged
+#Rscript $pipeline_path/modules/_normQC.R genes.fpkm.allSamples.uniq.xls QC.genes.fpkm.allSamples.uniq.pdf
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.HCILB.uniq.xls QC.genes.fpkm.HCILB.uniq.pdf
+
+## k-mer distance
+cd $filtered_dir/
+for i in *_[12]_*fastq.gz; do echo $i;  [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HWI-ST' $i fa/${i/fastq.gz/fa};  done
+for i in *_[3-5]_*fastq.gz; do echo $i; [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HISEQ' $i fa/${i/fastq.gz/fa};  done
+cd fa
+echo kMer count -k 9 [!PD]*.R1.fa R1.k9 >   kmer.sh
+echo kMer count -k 9 [!PD]*.R2.fa R2.k9 >>  kmer.sh
+echo kMer merge R1.k9 R2.k9 merged.k9 >> kmer.sh
+echo kMer matrix merged.k9 matrix.txt >> kmer.sh
+bsub -J kmer -oo _kmer.log -eo _kmer.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N bash kmer.sh
+
+#########################
+### 3. check consistency of replicates
+#########################
+cd $result_dir/merged
+Rscript $pipeline_path/modules/_replicates.R genes.fpkm.HCILB.uniq.xls QCrep.genes.fpkm.HCILB.uniq.pdf
 
 ########################
 ## 4. factor analysis to identify the hidden covariates (PEER)
 ########################
-Rscript _factor_analysis.R
+Rscript $pipeline_path/modules/_factor_analysis.R genes.fpkm.HCILB.uniq.xls 
 
 #########################
-### 5. post-normalization QC (use RLE to detect outlier)
+### 5. post-normalization QC
 #########################
-## TODO:
-# 
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.HCILB.uniq.xls QC.genes.fpkm.HCILB.uniq.pdf
 
 ########################
 ## 3. draw aggregation plot for the RNAseq density in the genetic region

@@ -9,7 +9,7 @@
 
 echo "track RNAseq_PD
 shortLabel RNA-seq
-longLabel PD BrainMap RNA-seq (version 2)
+longLabel BRAINCODE RNA-seq (version 2)
 dataVersion Version 2 (Oct 2014)
 type bed 3
 visibility full
@@ -22,7 +22,7 @@ superTrack on show
 
 echo "track merged_by_trimmedmean
     shortLabel combined_track
-    longLabel PDBrainMap RNA-seq combined tracks by trimmed mean (5%)
+    longLabel BRAINCODE RNA-seq combined tracks by trimmed mean (5%)
     container multiWig
     aggregate none
     showSubtrackColorOnUi on
@@ -88,7 +88,7 @@ echo "track merged_by_trimmedmean
 echo "
     track RNAseq_PD_individual
     shortLabel individual_track
-    longLabel PDBrainMap RNA-seq tracks for all samples
+    longLabel BRAINCODE RNA-seq tracks for all samples
     visibility full
     boxedCfg on
     priority 24
@@ -140,7 +140,6 @@ do
     
     # format
     [ "$condition" = "ND" ] && condition='HC'
-    [ "$rep" = "" ] && rep='rep1'
     
     sampleID=$condition"_"$sample"_"$cell"_"$batch"_"$rep
     

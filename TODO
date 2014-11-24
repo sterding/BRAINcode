@@ -1,8 +1,11 @@
+[Thu Nov  6 14:04:20 EST 2014]
+1. to check the bayesembler run in both hms and hpc server
+2. integrate http://rseqc.sourceforge.net/#
+
+[Sat Nov  1 12:52:16 EDT 2014]
+1. to remake the coviance table: /PHShome/xd010/neurogen/rnaseq_PD/rawfiles/covariances.tab  (CHECK with ZL: BN11-54 miss sex	age	PMI)
+2. to test PEER
+
 [Tue Oct 21 18:33:47 EDT 2014]
-running Circle RNA module...
-to make UCSC track hub and send email to labmates
 to make QC merits for all samples, including fastqc etc. 
-[Sat Oct 18 23:56:27 EDT 2014]
-running .status.$modulename.uniq.normalize module, to check result by Monday
-e.g. [xd010@eris1n2 run_output]$ ll */uniq/accepted_hits.normalized2.bedGraph
-making UCSC track hub by Tuesday
+

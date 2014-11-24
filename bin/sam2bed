@@ -25,7 +25,7 @@ BEGIN{
 {
     if($0~/^@/) next;
     chr=$3;
-    if(chr=="*") next;  # skip the unaligned
+    if(and($2,0x4)) next;  # skip the unaligned. Note that bit 0x4 is the only reliable place to tell whether the read is unmapped.
     if(chr~/^[0-9]+$/) chr="chr"chr;
     if(chr~/^MT|Mt|mt$/) chr="chr"chr;
     start12=$4-1;
