@@ -154,7 +154,6 @@ grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.allSamples.uniq.xls | Rscript
 ### 3. detect outlier
 #########################
 cd $result_dir/merged
-#Rscript $pipeline_path/modules/_normQC.R genes.fpkm.allSamples.uniq.xls QC.genes.fpkm.allSamples.uniq.pdf
 Rscript $pipeline_path/modules/_normQC.R genes.fpkm.HCILB.uniq.xls QC.genes.fpkm.HCILB.uniq.pdf
 
 ## k-mer distance
@@ -162,11 +161,14 @@ cd $filtered_dir/
 for i in *_[12]_*fastq.gz; do echo $i;  [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HWI-ST' $i fa/${i/fastq.gz/fa};  done
 for i in *_[3-5]_*fastq.gz; do echo $i; [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HISEQ' $i fa/${i/fastq.gz/fa};  done
 cd fa
-echo kMer count -k 9 [!PD]*.R1.fa R1.k9 >   kmer.sh
-echo kMer count -k 9 [!PD]*.R2.fa R2.k9 >>  kmer.sh
-echo kMer merge R1.k9 R2.k9 merged.k9 >> kmer.sh
-echo kMer matrix merged.k9 matrix.txt >> kmer.sh
-bsub -J kmer -oo _kmer.log -eo _kmer.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N bash kmer.sh
+for i in [!PD]*.R1.fa; do
+    sample=${i/.R1.fa/}
+    bsub -J $sample -oo _$sample.log -eo _$sample.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _kmer.sh $sample
+done
+
+kpal cat *rep?.k9 mergedHCILB_k9
+kpal matrix mergedHCILB_k9 mergedHCILB_k9.matrix.txt
+Rscript $pipeline_path/modules/_kmer.R mergedHCILB_k9.matrix.txt
 
 #########################
 ### 3. check consistency of replicates

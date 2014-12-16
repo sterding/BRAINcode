@@ -1,4 +1,4 @@
-## script to analyse eRNA defined by RNA-seq
+## script to analyse eRNA defined by HCILB RNA-seq
 
 cd ~/projects/PD/results/eRNA/externalData/RNAseq
 
@@ -12,7 +12,8 @@ cd ~/projects/PD/results/eRNA/externalData/RNAseq
 # 6) q-value<0.05 when comparing with random non-functional background
 ################################################
 
-for i in /data/neurogen/rnaseq_PD/results/merged/*.trimmedmean.uniq.normalized.bedGraph;
+#for i in /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.*.bedGraph;
+for i in /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph;
 do
     basalLevel=`tail -n1 $i | cut -f2 -d'=' | cut -f1 -d' '`
     echo $i, $basalLevel;

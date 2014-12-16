@@ -35,6 +35,9 @@ echo "
     dragAndDrop subTracks
     type bigWig 0 100
     autoScale on
+    alwaysZero on
+    yLineOnOff on
+    yLineMark 0
     viewLimits 0:100
     visibility full
     maxHeightPixels 64:64:11
@@ -80,6 +83,9 @@ echo "
     dragAndDrop subTracks
     type bigWig 0 100
     autoScale on
+    alwaysZero on
+    yLineOnOff on
+    yLineMark 0
     viewLimits 0:100
     visibility full
     maxHeightPixels 64:64:11
