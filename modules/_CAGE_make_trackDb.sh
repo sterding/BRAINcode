@@ -1,6 +1,6 @@
 # Uage:
 # bash ~/neurogen/pipeline/RNAseq/modules/_CAGE_make_trackDb.sh > ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.txt
-# scp ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
+# rsync -azv ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
 # to get the sample list: ls -1 ~/neurogen/cage_PD/run_output/ | sed 's/_/\t/g' | cut -f2 | sort -u | awk '{printf $1"="$1" "}'
 #
 # color selected from: http://colorbrewer2.org/
@@ -10,15 +10,54 @@
 echo "track CAGE_BRAINCODE
 shortLabel CAGE
 longLabel BRAINCODE CAGE (version 1)
-dataVersion Version 1 (Nov 2014)
+dataVersion Version 1 (Dec 2014)
 type bed 3
 visibility full
 boxedCfg on
 priority 24
 superTrack on show
-subGroup1 signal Signal RPM=RPM raw=Raw
-
 "
+
+# output the combined track [container multiWig]
+
+echo "track merged_by_trimmedmean_CAGE
+    shortLabel CAGE_combined
+    longLabel BRAINCODE CAGE combined tracks
+    configurable on
+    container multiWig
+    aggregate solidOverlay
+    dragAndDrop subTracks
+    type bigWig 0 100
+    autoScale on
+    alwaysZero on
+    yLineOnOff on
+    yLineMark 0
+    viewLimits 0:100
+    visibility full
+    maxHeightPixels 100:64:11
+    showSubtrackColorOnUi on
+    priority 1.3
+    parent CAGE_BRAINCODE
+    
+        track merged_multiwig_fwd
+        shortLabel CAGE tags count for merged samplename (fwd)
+        longLabel CAGE tags count for merged samplename forward
+        type bigWig 
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/trimmedmean.plus.normalized.bw
+        color 255,0,0
+        parent merged_by_trimmedmean_CAGE
+        
+        
+        track merged_multiwig_rev
+        shortLabel CAGE tags count for merged samplename (rev)
+        longLabel CAGE tags count for merged samplename reverse
+        type bigWig 
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/trimmedmean.minus.normalized.bw
+        color 0,0,255
+        altColor 0,0,255
+        parent merged_by_trimmedmean_CAGE
+"
+
 # output the individual track [container]
 
 for i in ~/neurogen/CAGE_PDBrainMap/processed/*.plus.bw; do
@@ -39,8 +78,8 @@ echo "
     yLineOnOff on
     yLineMark 0
     viewLimits 0:100
-    visibility full
-    maxHeightPixels 64:64:11
+    visibility hide
+    maxHeightPixels 64:50:11
     showSubtrackColorOnUi on
     priority 1.3
     parent CAGE_BRAINCODE
@@ -61,6 +100,7 @@ echo "
         type bigWig 
         bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/$samplename.minus.bw
         color 0,0,255
+        altColor 0,0,255
         parent ${samplename}_multiwig
         
 "
@@ -69,7 +109,7 @@ done
 
 # output the individual track [container] -- normalized
 
-for i in ~/neurogen/CAGE_PDBrainMap/processed/*.plus.normalized.bw; do
+for i in ~/neurogen/CAGE_PDBrainMap/processed/[!trimmmed]*.plus.normalized.bw; do
     i=${i/*\//}
     samplename=${i/.plus*/}
     
@@ -88,7 +128,7 @@ echo "
     yLineMark 0
     viewLimits 0:100
     visibility full
-    maxHeightPixels 64:64:11
+    maxHeightPixels 64:50:11
     showSubtrackColorOnUi on
     priority 1.4
     parent CAGE_BRAINCODE
@@ -109,6 +149,7 @@ echo "
         type bigWig 
         bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/$samplename.minus.normalized.bw
         color 0,0,255
+        altColor 0,0,255
         parent ${samplename}_multiwignormalized
 "
 done

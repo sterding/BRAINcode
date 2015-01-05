@@ -1,5 +1,8 @@
 ## script to analyse eRNA defined by HCILB RNA-seq
 
+pipeline_path=$HOME/neurogen/pipeline/RNAseq
+source $pipeline_path/config.txt
+
 cd ~/projects/PD/results/eRNA/externalData/RNAseq
 
 ################################################
@@ -24,8 +27,8 @@ done
 # TODO:
 # 1. how well the PD-defined eRNAs overlap with HC-defined eRNAs?
 
-# use the HC_SNDA defined eRNAs as the annotation set
-awk '{OFS="\t"; print $1,$2,$3,$1"_"$2"_"$3}' HC_SNDA.trimmedmean.uniq.normalized.eRNA.bed > eRNA.bed
+# use the HCILB_SNDA defined eRNAs as the annotation set
+awk '{OFS="\t"; print $1,$2,$3,$1"_"$2"_"$3}' trimmedmean.uniq.normalized.HCILB_SNDA.eRNA.bed > eRNA.bed
 
 ################################################
 # measure the eRNA expression level (raw reads count, RPKM, intron/exon rate of host gene (if any))
@@ -35,7 +38,7 @@ awk '{OFS="\t"; print $1,$2,$3,$1"_"$2"_"$3}' HC_SNDA.trimmedmean.uniq.normalize
 # mean0: average over bases with non-covered bases counting as zeroes
 #--------
 
-for i in ~/neurogen/rnaseq_PD/results/merged/*trimmedmean.uniq.normalized.bw ~/neurogen/rnaseq_PD/run_output/*_[1-4]/uniq/accepted_hits.normalized.bw; do
+for i in ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw; do
     bigWigAverageOverBed $i eRNA.bed stdout | cut -f1,5 | sort -k1,1 | awk '{OFS="\t"; print $1, $2*1000+0}'> $i.eRNA.RPKM &
 done
 
@@ -109,7 +112,7 @@ dev.off()
 ### ------------------------------------------------------------
 #1a: blacklist region to exclude from background (exons+/-500bp, rRNA, CAGE-defined enhancers)
 ANNOTATION=$GENOME/Annotation/Genes
-cat $ANNOTATION/gencode.v19.annotation.bed12 $ANNOTATION/knownGene.bed12 $ANNOTATION/NONCODEv4u1_human_lncRNA.bed12 | bed12ToBed6 | cut -f1-3 | grep -v "_" |slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 > /tmp/bg.bed
+cat $ANNOTATION/gencode.v19.annotation.bed12 $ANNOTATION/knownGene.bed12 $ANNOTATION/NONCODEv4u1_human_lncRNA.bed12 | bed12ToBed6 | cut -f1-3 | grep -v "_" | slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 > /tmp/bg.bed
 cut -f1-3 $ANNOTATION/rRNA.bed >> /tmp/bg.bed  # rRNA
 grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/permissive_enhancers.bed| cut -f1-3 >> /tmp/bg.bed # CAGE-enhancer
 #cat $ANNOTATION/SINE.bed $ANNOTATION/LINE.bed | cut -f1-3 >> /tmp/bg.bed  # LINE and SINE

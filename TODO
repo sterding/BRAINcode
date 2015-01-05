@@ -1,3 +1,6 @@
+[Sat Dec 20 01:43:01 EST 2014]
+1. continue until the bsub jobs are done in CAGE.pipeline.sh
+
 [Thu Nov  6 14:04:20 EST 2014]
 1. to check the bayesembler run in both hms and hpc server
 2. integrate http://rseqc.sourceforge.net/#

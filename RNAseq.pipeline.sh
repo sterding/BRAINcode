@@ -179,7 +179,8 @@ Rscript $pipeline_path/modules/_replicates.R genes.fpkm.HCILB.uniq.xls QCrep.gen
 ########################
 ## 4. factor analysis to identify the hidden covariates (PEER)
 ########################
-Rscript $pipeline_path/modules/_factor_analysis.R genes.fpkm.HCILB.uniq.xls 
+cd $result_dir/eQTL
+Rscript $pipeline_path/modules/_factor_analysis.R $result_dir/merged/genes.fpkm.HCILB.uniq.xls 
 
 #########################
 ### 5. post-normalization QC

@@ -19,19 +19,21 @@ snps_file_name=args[3]  # snps_file_name="/data/neurogen/genotyping_PDBrainMap/e
 snps_location_file_name=args[4]  # snps_location_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.SNP.ID"
 
 # for test
-expr_file="genes.fpkm.HCILB.uniq.80samples.xls";
+expr_file="genes.fpkm.HCILB.uniq.80samples.xls";  # N=57,816
 covariates_file_name="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/covariances.12152014.80samples.tab";
 snps_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.txt";
 geneloc="genes.loci.txt";
 snpsloc="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.SNP.ID"
 
+if(file.exists("data.RData")) load("data.RData") else{
+    
 message("# loading expression data...")
 ######################
 
 # TODO: remove outlier and replicate
 # TODO: change the sample ID to subject ID
 
-expr = read.table(expr_file, header=T, check.names = F)
+expr = read.table(expr_file, header=T, check.names = F)  # GxN
 rownames(expr) = expr[,1]; expr = expr[, -1];
 #expr=expr[,grep("FPKM", colnames(expr))]
 #colnames(expr)=gsub("FPKM.","",colnames(expr))
@@ -44,11 +46,10 @@ expr=expr[rowMeans(expr==0)<0.9, ]
 # logorithm
 expr=log10(expr+0.01)  # so row value of 0 will be -2 in the transformed value
 
-
 message("loading SNP data...")
 ######################
 
-snps = SlicedData$new();
+snps = SlicedData$new();  # # GxN matrix
 snps$fileDelimiter = "\t";      # the TAB character
 snps$fileOmitCharacters = "NA"; # denote missing values;
 snps$fileSkipRows = 1;          # one row of column labels
@@ -83,9 +84,7 @@ cvrt$fileDelimiter = "\t";      # the TAB character
 cvrt$fileOmitCharacters = "NA"; # denote missing values;
 cvrt$fileSkipRows = 1;          # one row of column labels
 cvrt$fileSkipColumns = 1;       # one column of row labels
-if(length(covariates_file_name)>0) {
-cvrt$LoadFile(covariates_file_name);
-}
+if(length(covariates_file_name)>0) { cvrt$LoadFile(covariates_file_name); }
 
 cvrt_snp=cvrt$Clone()
 cvrt_snp$ColumnSubsample(grep("Genotype_batch",colnames(cvrt_snp)))
@@ -93,6 +92,14 @@ cvrt_snp$ColumnSubsample(grep("Genotype_batch",colnames(cvrt_snp)))
 
 cvrt$ColumnSubsample(grep("Genotype_batch",colnames(cvrt), invert =T))
 cvrt$ColumnSubsample(grep("Diagnosis",colnames(cvrt), invert =T))
+
+message("# loading SNP and gene position files...")
+######################
+snpspos = read.table(snpsloc, header = TRUE, stringsAsFactors = FALSE);
+snpspos=snpspos[,1:3]
+genepos = read.table(geneloc, header = TRUE, stringsAsFactors = FALSE);
+
+save.image("data.RData")
 
 ## TODO: change batch into categorical variables. e..g batch number has to be encoded as indicators, with a different binary variable for each batch, having a value of 1 if the individual was in the batch and a value of 0 otherwise. 
 
@@ -119,13 +126,6 @@ cvrt$ColumnSubsample(grep("Diagnosis",colnames(cvrt), invert =T))
 #d. transform the final quantification to standard normal distribution (by ?)
 #e. eQTL using Matrix-eQTL: linear regression of quantification ~ genotypes + genotype_covariates
 
-
-message("# loading SNP and gene position files...")
-######################
-snpspos = read.table(snpsloc, header = TRUE, stringsAsFactors = FALSE);
-snpspos=snpspos[,1:3]
-genepos = read.table(geneloc, header = TRUE, stringsAsFactors = FALSE);
-
 message("# Run PEER on subset of genes to get best K ...")
 ######################
 # random extract 5000 genes for test
@@ -133,15 +133,17 @@ expr_subset = expr[sample.int(nrow(expr), 5000),]
 
 nCiseqtl = c(); K=c(0,1,3,5,7,10,13,15,20);
 
+#pdf("step1.model.diagnostics.pdf")
+
 for(k in K){
     model = PEER()
     PEER_setNk(model,k)
-    PEER_setPhenoMean(model,as.matrix(t(expr_subset)))
+    PEER_setPhenoMean(model,as.matrix(t(expr_subset)))  # PEER ask NxG matrix, where N=samples and G=genes
     PEER_setAdd_mean(model, TRUE)
-    PEER_setCovariates(model, t(as.matrix(cvrt)))
+    PEER_setCovariates(model, as.matrix(cvrt))  # PEER ask NxC matrix, where N=samples and C=covariates
     PEER_getNk(model)
     PEER_update(model)
-    residuals = t(PEER_getResiduals(model))
+    residuals = t(PEER_getResiduals(model))  # convert to GxN
     rownames(residuals) = rownames(expr_subset)
     colnames(residuals) = colnames(expr_subset)
     
@@ -168,24 +170,29 @@ for(k in K){
         useModel = modelLINEAR, 
         errorCovariance = numeric(), 
         verbose = FALSE,
-        output_file_name.cis = paste0("cis.eQTL.K",k,".txt"),
+        output_file_name.cis = paste0("step1.cis.eQTL.K",k,".xls"),
         pvOutputThreshold.cis = 1e-5,
         snpspos = snpspos, 
         genepos = genepos,
         cisDist = 1e6,
         pvalue.hist = FALSE,
         min.pv.by.genesnp = FALSE,
-        noFDRsaveMemory = FALSE);
+        noFDRsaveMemory = TRUE);
     
     nCiseqtl = cbind(nCiseqtl, nrow(me$cis$eqtls))
     cat(k,":", nrow(me$cis$eqtls),"\n")
 }
+
+#dev.off();
 
 pdf("step1.bestK.pdf")
 plot(K, nCiseqtl, type='b', xlab="PEER K", ylab="cis QTL genes", main="genes FPKM")
 dev.off()
 
 bestK = K[which.max(nCiseqtl)]
+}
+
+bestK=7
 
 message("# now to get covariates ...")
 ######################
@@ -194,7 +201,7 @@ model = PEER()
 PEER_setPhenoMean(model,as.matrix(t(expr_subset)))
 PEER_setNk(model,bestK)
 PEER_setAdd_mean(model, TRUE)
-PEER_setCovariates(model, t(as.matrix(cvrt)))
+#PEER_setCovariates(model, as.matrix(cvrt)) # do we need to include cvrt here?
 PEER_update(model)
 factors = PEER_getX(model)
 
@@ -206,11 +213,11 @@ PEER_setNk(model,bestK)
 PEER_setCovariates(model, as.matrix(factors))
 PEER_setAdd_mean(model, TRUE)
 PEER_update(model)
-residuals = t(PEER_getResiduals(model))
+residuals = t(PEER_getResiduals(model))  # transfer to GxN matrix
 rownames(residuals) = rownames(expr)
 colnames(residuals) = colnames(expr)
 
-write.table(t(residuals), file = paste(expr_file, "peerResiduals.tab",sep="."), col.names=colnames(expr), row.names =F, sep = "\t", quote =F)
+write.table(format(residuals, digits=4,nsmall=4), file = paste(expr_file, "peerResiduals.tab",sep="."), sep="\t", col.names = NA, quote=F,row.names = TRUE)
 
 genes = SlicedData$new();
 genes$CreateFromMatrix(residuals);
@@ -232,59 +239,40 @@ message("# run eQTL with final quantifications")
 me = Matrix_eQTL_main(
     snps = snps,
     gene = genes,
-    cvrt = SlicedData$new(), # or cvrt_snp,
-    output_file_name = "final.trans.eQTL.txt",
+    cvrt = SlicedData$new(),
+    output_file_name = "final.trans.eQTL.xls",
     pvOutputThreshold = 1e-6,
     useModel = modelLINEAR, 
-    errorCovariance = numeric(), , 
+    errorCovariance = numeric(),
     verbose = TRUE,
-    output_file_name.cis = "final.cis.eQTL.txt",
+    output_file_name.cis = "final.cis.eQTL.xls",
     pvOutputThreshold.cis = 1e-5,
     snpspos = snpspos, 
     genepos = genepos,
-    cisDist = cisDist,
+    cisDist = 1e6,
     pvalue.hist = "qqplot",
     min.pv.by.genesnp = FALSE,
-    noFDRsaveMemory = FALSE);
+    noFDRsaveMemory = TRUE);
+
+
+## RLE before and after peer
+######################
+pdf("step.RLE.plot.pdf", width=10, height=5)
+rle=expr/apply(expr, 1, median)
+rle=melt(cbind(ID=rownames(rle), rle), variable.name = "Sample",value.name ="FPKM", id="ID")
+bymedian <- with(rle, reorder(Sample, FPKM, IQR))  # sort by IQR
+par(mar=c(7,3,3,1))
+boxplot(FPKM ~ bymedian, data=rle, outline=F, las=2, boxwex=1, col='gray', cex.axis=0.5, main="RLE plot before PEER", xlab="")
+
 
 ## RLE after peer
 ######################
-rle=as.data.frame(t(residuals))
-colnames(rle)=colnames(expr); rownames(rle)=rownames(expr)
-rle=rle/apply(rle, 1, median)
+res=data.frame(residuals)
+rle=res/apply(res, 1, median)
 rle=melt(cbind(ID=rownames(rle), rle), variable.name = "Sample",value.name ="FPKM", id="ID")
 bymedian <- with(rle, reorder(Sample, FPKM, IQR))  # sort by IQR
 par(mar=c(7,3,3,1))
 boxplot(FPKM ~ bymedian, data=rle, outline=F, las=2, boxwex=1, col='gray', cex.axis=0.5, main="RLE plot after PEER", xlab="")
-
-# PEER with covariates
-######################
-
-# read covariates table
-covs = read.table(covs_file, header=T)
-rownames(covs) = covs[,1]; covs = covs[, -1];
-# TOFINISH: melt to long table  
-covs=melt(cbind(ID=rownames(covs), covs), variable.name = "Sample",value.name ="FPKM", id="ID")
-
-PEER_setCovariates(model, as.matrix(covs))
-PEER_update(model)
-
-plotcor(PEER_getX(model)[,1], PEER_getCovariates(model)[,1])
-factors = PEER_getX(model)
-weights = PEER_getW(model)
-precision = PEER_getAlpha(model)
-residuals = PEER_getResiduals(model)
-plot(precision)
-PEER_plotModel(model)
-
-## RLE after peer
-######################
-rle=as.data.frame(t(residuals))
-colnames(rle)=colnames(expr); rownames(rle)=rownames(expr)
-rle=rle/apply(rle, 1, median)
-rle=melt(cbind(ID=rownames(rle), rle), variable.name = "Sample",value.name ="FPKM", id="ID")
-bymedian <- with(rle, reorder(Sample, FPKM, IQR))  # sort by IQR
-par(mar=c(7,3,3,1))
-boxplot(FPKM ~ bymedian, data=rle, outline=F, las=2, boxwex=1, col='gray', cex.axis=0.5, main="RLE plot after PEER", xlab="")
+abline(h=1, col='red',lty=1)
 
 dev.off()

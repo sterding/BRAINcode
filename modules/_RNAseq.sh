@@ -90,9 +90,10 @@ touch $outputdir/$samplename/.status.$modulename.mapping
 # circular RNA calling and quantification (see: https://github.com/YangLab/CIRCexplorer/blob/master/README.md)
 ## using tophat-2.0.10 as suggested by CIRCexplorer
 [ ! -f $outputdir/$samplename/.status.$modulename.circRNA ] && \
-#bamToFastq -i $outputdir/$samplename/unmapped.bam -fq $outputdir/$samplename/unmapped.fastq && 
-#tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome $outputdir/$samplename/unmapped.fastq && 
+bamToFastq -i $outputdir/$samplename/unmapped.bam -fq $outputdir/$samplename/unmapped.fastq && 
+tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome $outputdir/$samplename/unmapped.fastq && 
 CIRCexplorer.py -f $outputdir/$samplename/tophat_fusion/accepted_hits.bam -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -r $GENOME/Annotation/Genes/refFlat.txt -o $outputdir/$samplename/circ.txt && \
+rm $outputdir/$samplename/unmapped.fastq && \
 touch $outputdir/$samplename/.status.$modulename.circRNA
 
 ###########################################
