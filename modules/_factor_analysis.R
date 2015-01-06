@@ -1,24 +1,23 @@
 ###############################################
 ## Rscript to run factor analysis using PEER
 ## Author: Xianjun Dong
-## Date: 2014-Oct-27
+## Date: 2014-Dec-27
 ## Version: 0.0
 ## Require: R v3.0.2, python etc.
 ## Usage: Rscript ~/neurogen/pipeline/RNAseq/modules/_factor_analysis.R
 ###############################################
 require(reshape2)
 require(peer)
-require('MatrixEQTL') || install.package('MatrixEQTL', repo='http://cran.revolutionanalytics.com');
+require(MatrixEQTL)
 
 args<-commandArgs(TRUE)
 
 expr_file=args[1]  # for example: expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls"
-#gene_location_file_name = 
 covariates_file_name=args[2]  # covariates_file_name="/PHShome/xd010/neurogen/rnaseq_PD/rawfiles/covariances.tab"
 snps_file_name=args[3]  # snps_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.txt"
 snps_location_file_name=args[4]  # snps_location_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.SNP.ID"
 
-# for test
+# for debug
 expr_file="genes.fpkm.HCILB.uniq.80samples.xls";  # N=57,816
 covariates_file_name="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/covariances.12152014.80samples.tab";
 snps_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.txt";
@@ -72,10 +71,6 @@ cat('SNPs before filtering:',nrow(snps), "\n")  # 6109238
 snps$RowReorder(maf>0.05);
 cat('SNPs before filtering:',nrow(snps), "\n")  # 6053947
 
-## check
-#df=read.table(snps_file_name, header=T, sep="\t", na.strings = "NA", check.names = F)
-#rownames(df)=df[,1]; df=df[,-1]; 
-
 message("# Load covariates ...")
 ######################
 
@@ -100,8 +95,7 @@ snpspos=snpspos[,1:3]
 genepos = read.table(geneloc, header = TRUE, stringsAsFactors = FALSE);
 
 save.image("data.RData")
-
-## TODO: change batch into categorical variables. e..g batch number has to be encoded as indicators, with a different binary variable for each batch, having a value of 1 if the individual was in the batch and a value of 0 otherwise. 
+}
 
 ## two marriage strategies of PEER and Matrix-eQTL
 ######################
@@ -147,6 +141,9 @@ for(k in K){
     rownames(residuals) = rownames(expr_subset)
     colnames(residuals) = colnames(expr_subset)
     
+    # add mean
+    residuals = residuals + apply(expr_subset, 1, mean)
+    
     # convert to SlideData format
     genes = SlicedData$new();
     genes$CreateFromMatrix(residuals);
@@ -183,16 +180,11 @@ for(k in K){
     cat(k,":", nrow(me$cis$eqtls),"\n")
 }
 
-#dev.off();
-
 pdf("step1.bestK.pdf")
 plot(K, nCiseqtl, type='b', xlab="PEER K", ylab="cis QTL genes", main="genes FPKM")
 dev.off()
 
 bestK = K[which.max(nCiseqtl)]
-}
-
-bestK=7
 
 message("# now to get covariates ...")
 ######################
@@ -201,21 +193,24 @@ model = PEER()
 PEER_setPhenoMean(model,as.matrix(t(expr_subset)))
 PEER_setNk(model,bestK)
 PEER_setAdd_mean(model, TRUE)
-#PEER_setCovariates(model, as.matrix(cvrt)) # do we need to include cvrt here?
+PEER_setCovariates(model, as.matrix(cvrt)) # include known cvrt as above
 PEER_update(model)
-factors = PEER_getX(model)
+factors = PEER_getX(model)  # now, the getX() factors should include mean + known covariates + learnt hidden factors.
 
 message("# get residual...");
 ######################
 model = PEER()
 PEER_setPhenoMean(model,as.matrix(t(expr)))
-PEER_setNk(model,bestK)
+PEER_setNk(model,0)  #since we use above learnt factors as “known” covariates, we don’t need to set number of hidden factors any more.
 PEER_setCovariates(model, as.matrix(factors))
-PEER_setAdd_mean(model, TRUE)
+PEER_setAdd_mean(model, FALSE)  # mean is already included in the above getX(), so no need to include again.
 PEER_update(model)
 residuals = t(PEER_getResiduals(model))  # transfer to GxN matrix
 rownames(residuals) = rownames(expr)
 colnames(residuals) = colnames(expr)
+
+# add mean
+residuals = residuals + apply(expr, 1, mean)
 
 write.table(format(residuals, digits=4,nsmall=4), file = paste(expr_file, "peerResiduals.tab",sep="."), sep="\t", col.names = NA, quote=F,row.names = TRUE)
 

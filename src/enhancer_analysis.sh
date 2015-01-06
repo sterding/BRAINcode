@@ -5,15 +5,65 @@ source $pipeline_path/config.txt
 
 cd ~/projects/PD/results/eRNA/externalData/RNAseq
 
+inputBG=/data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph
+
 ################################################
 # eRNA definition:
-# 1) density 2x higher than the basal level,
+# 1) density 2x higher than the basal level,  --> p<0.05 comparing to the transcriptional noise
 # 2) summit >0.05 RPM,
 # 3) located in non-generic regions (e.g. 500bp away from any annotated exons),
 # 4) at least 100bp in length,
 # 5) not from highly actively transcribing genes (e.g. pre-mRNA, intronic coverage > 50% & exonic coverage >90%)
 # 6) q-value<0.05 when comparing with random non-functional background
 ################################################
+
+#: background region to measure transcriptional noise: genomic regions excluding the known regions with RNA activities (exons+/-500bp, rRNA, CAGE-defined enhancers, promoters)
+ANNOTATION=$GENOME/Annotation/Genes
+cat $ANNOTATION/gencode.v19.annotation.bed12 $ANNOTATION/knownGene.bed12 $ANNOTATION/NONCODEv4u1_human_lncRNA.bed12 | bed12ToBed6 | cut -f1-3 | grep -v "_" | slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 > /tmp/bg.bed
+cut -f1-3 $ANNOTATION/rRNA.bed >> /tmp/bg.bed  # rRNA
+grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/TSS_human.bed | grep -v "211,211,211" | cut -f1-3 | grep -v "_" | slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 >> /tmp/bg.bed # +/-500bp flanking around the CAGE-predicted TSS (downloaded from: http://fantom.gsc.riken.jp/5/datafiles/latest/extra/TSS_classifier/)
+cat $ANNOTATION/SINE.bed $ANNOTATION/LINE.bed | cut -f1-3 >> /tmp/bg.bed  # LINE and SINE
+cat /tmp/bg.bed | sortBed | mergeBed > ../toExclude.bed
+grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/permissive_enhancers.bed | cut -f1-3 >> /tmp/bg.bed # CAGE-enhancer
+cat /tmp/bg.bed | sortBed | mergeBed > ../blacklist.bed
+
+# RNAseq signal distribution in the background region
+intersectBed -a $inputBG -b ../blacklist.bed -v | awk '{OFS="\t"; print $3-$2, $4}' | shuf > transcriptional.noise.rpm.txt
+intersectBed -a $inputBG -b ../blacklist.bed -v | awk '{OFS="\t"; print $3-$2, $4}' > transcriptional.noise.woLINESINE.rpm.txt
+
+#R
+df=read.table("transcriptional.noise.wo.LINESINE.rpm.txt", comment.char = "", nrows = 2000000)
+df=log10(as.numeric(do.call('c',apply(df, 1, function(x) rep(x[2],x[1])))))
+library(fitdistrplus)
+fitn=fitdist(df,'norm')
+pdf("transcriptional.noise.distribution.pdf", width=8, height=6)
+hist(df, breaks=100, prob=TRUE, xlab='log10(RPM)', main='Distribution of transcriptional noise')
+lines(density(df, bw=0.15))
+m=round(as.numeric(fitn$estimate[1]),digits=3)
+sd=round(as.numeric(fitn$estimate[2]),digits=3)
+lines(density(rnorm(n=2000000, mean=m, sd=sd),bw=0.25), col='blue',lty=2)
+p=round(qnorm(.05, mean=m, sd=sd, lower.tail = F), digits=3)
+lines(y=c(0,0.3),x=c(p,p),col='red')
+text(p,0.2,paste0("P(X>",p,") = 0.05\nRPM=10**",p,"=",round(10**p,digits=3)), adj=c(0,0))
+legend("topright", c("empirical density curve", paste0("fitted normal distribution \n(mean=",m,", sd=",sd,")")), col=c('black','blue'), lty=c(1,2), bty='n')
+dev.off()
+
+# 10**-0.997 == 0.101
+
+# any region with RPM density > 0.101
+basalLevel=0.101
+j=`basename ${inputBG/bedGraph/eRNA.bed}`
+awk -vmin=$basalLevel '{OFS="\t"; if($4>min) print $1,$2,$3,".",$4}' $inputBG | mergeBed -d 100 -scores max | intersectBed -a - -b ../toExclude.bed -v > $j
+#wc -l $j
+#40451 trimmedmean.uniq.normalized.HCILB_SNDA.eRNA.bed
+
+
+# any regions with summit RPM > 0.101 and border > baseLevel
+basalLevel=`tail -n1 $inputBG | cut -f2 -d'=' | cut -f1`
+peakLevel=0.101
+echo $inputBG, $basalLevel;
+j=`basename ${inputBG/bedGraph/eRNA2.bed}`
+awk -vmin=$basalLevel '{OFS="\t"; if($4>=min) print $1,$2,$3,".",$4}' $inputBG | mergeBed -scores max | awk -vmax=$peakLevel '{OFS="\t"; if($4>=max) print $1,$2,$3,".",$4}' | mergeBed -d 100 -scores max | intersectBed -a - -b ../toExclude.bed -v > $j
 
 #for i in /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.*.bedGraph;
 for i in /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph;
@@ -110,13 +160,6 @@ dev.off()
 
 ### 1: create random regions (100,000 regions of 300bp each) for background
 ### ------------------------------------------------------------
-#1a: blacklist region to exclude from background (exons+/-500bp, rRNA, CAGE-defined enhancers)
-ANNOTATION=$GENOME/Annotation/Genes
-cat $ANNOTATION/gencode.v19.annotation.bed12 $ANNOTATION/knownGene.bed12 $ANNOTATION/NONCODEv4u1_human_lncRNA.bed12 | bed12ToBed6 | cut -f1-3 | grep -v "_" | slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 > /tmp/bg.bed
-cut -f1-3 $ANNOTATION/rRNA.bed >> /tmp/bg.bed  # rRNA
-grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/permissive_enhancers.bed| cut -f1-3 >> /tmp/bg.bed # CAGE-enhancer
-#cat $ANNOTATION/SINE.bed $ANNOTATION/LINE.bed | cut -f1-3 >> /tmp/bg.bed  # LINE and SINE
-cat /tmp/bg.bed | sortBed | mergeBed > blacklist.bed
 
 #1b:
 ls ~/neurogen/rnaseq_PD/run_output/HC*/uniq/accepted_hits.normalized.bw ~/neurogen/rnaseq_PD/results/merged/*trimmedmean.uniq.normalized.bw | \
