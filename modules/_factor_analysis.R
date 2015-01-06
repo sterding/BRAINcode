@@ -18,7 +18,7 @@ snps_file_name=args[3]  # snps_file_name="/data/neurogen/genotyping_PDBrainMap/e
 snps_location_file_name=args[4]  # snps_location_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.SNP.ID"
 
 # for debug
-expr_file="genes.fpkm.HCILB.uniq.80samples.xls";  # N=57,816
+expr_file="genes.fpkm.HCILB.uniq.80samples.xls";  # matrix of 57816 x 80
 covariates_file_name="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/covariances.12152014.80samples.tab";
 snps_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.txt";
 geneloc="genes.loci.txt";
@@ -32,11 +32,10 @@ message("# loading expression data...")
 # TODO: remove outlier and replicate
 # TODO: change the sample ID to subject ID
 
-expr = read.table(expr_file, header=T, check.names = F)  # GxN
+expr = read.table(expr_file, header=T, check.names = F)  # GxN where G is number of genes and N is number of samples
 rownames(expr) = expr[,1]; expr = expr[, -1];
 #expr=expr[,grep("FPKM", colnames(expr))]
 #colnames(expr)=gsub("FPKM.","",colnames(expr))
-
 
 message("# filtering out lowly expressed genes...")
 ######################
@@ -45,7 +44,7 @@ expr=expr[rowMeans(expr==0)<0.9, ]
 # logorithm
 expr=log10(expr+0.01)  # so row value of 0 will be -2 in the transformed value
 
-message("loading SNP data...")
+message("# loading SNP data...")
 ######################
 
 snps = SlicedData$new();  # # GxN matrix
@@ -109,8 +108,9 @@ save.image("data.RData")
 #- get residuals from PEER, e.g. residuals = PEER_getResiduals(model), 
 #- use the residual as expression input for Matrix-eQTL, but no more covariates included. ItÕs still OK to include covariates specific for genotypes, I guess.
 
+# GEUVADIS used the #2 strategy, as below:
     
-# Method: http://geuvadiswiki.crg.es/index.php/Basic_methodology
+# Method: http://geuvadiswiki.crg.es/index.php/Basic_methodology#Normalization_of_the_phenotype_data
 #c. for each group, normalize with PEER, adding mean
 #    c1. use subset (e.g. chr20, or chr20- 22) using K=0,1,3,5,7,10,13,15,20 for each dataset
 #    c2. run eQTL and number of genes for each K.
@@ -122,12 +122,10 @@ save.image("data.RData")
 
 message("# Run PEER on subset of genes to get best K ...")
 ######################
-# random extract 5000 genes for test
+# randomly extract 5000 genes for this step
 expr_subset = expr[sample.int(nrow(expr), 5000),]  
 
 nCiseqtl = c(); K=c(0,1,3,5,7,10,13,15,20);
-
-#pdf("step1.model.diagnostics.pdf")
 
 for(k in K){
     model = PEER()
