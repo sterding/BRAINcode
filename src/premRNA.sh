@@ -13,12 +13,14 @@
 cd ~/xd010/eRNAseq
 
 # generate bigwig above the basal line
-bg=/data/neurogen/rnaseq_PD/results/merged/HC_SNDA.trimmedmean.uniq.normalized.bedGraph
-basalLevel=`tail -n1 $bg | cut -f2 -d'=' | cut -f1 -d' '`
+#bg=/data/neurogen/rnaseq_PD/results/merged/HC_SNDA.trimmedmean.uniq.normalized.bedGraph
+bg=/data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph 
+
+basalLevel=`tail -n1 $bg | cut -f2 -d'=' | cut -f1`
 awk -vmin=$basalLevel '$4>=min' $bg > /tmp/bg;
 bedGraphToBigWig /tmp/bg $GENOME/Annotation/Genes/ChromInfo.txt ${bg/bedGraph/aboveBasal.bw}
 
-ln -s /data/neurogen/rnaseq_PD/results/merged/HC_SNDA.trimmedmean.uniq.normalized.aboveBasal.bw RNAseq.aboveBasal.bigwig
+ln -fs ${bg/bedGraph/aboveBasal.bw} RNAseq.aboveBasal.bigwig
 
 bigWigAverageOverBed RNAseq.aboveBasal.bigwig $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.exons.bed12 RNAseq.aboveBasal.bigwig.exons.tab
 bigWigAverageOverBed RNAseq.aboveBasal.bigwig $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.introns.bed12 RNAseq.aboveBasal.bigwig.introns.tab

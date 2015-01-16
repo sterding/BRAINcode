@@ -38,20 +38,20 @@ for(i in 1:nrow(genesnp)){
     df$condition=factor(df$condition, levels=c("HC","ILB","PD"))
     
     #bp=boxplot((1+expression)~condition*SNP, data=df, ylab="Expression (FPKM)", col=c('#2ca25f','#feb24c','#ff0000'),log="y", at=c(1,2,3,5,6,7,9,10,11), xaxt='n', main="")
-    bp=boxplot(expression~condition*SNP, data=df, ylab="Expression (FPKM)", col=c('#2ca25f','#feb24c','#ff0000'),at=c(1,2,3,5,6,7,9,10,11), xaxt='n', main="")
+    bp=boxplot(expression~condition*SNP, data=df, ylab="Rank Normalized Gene Expression", col=c('#2ca25f','#feb24c','#ff0000'),at=c(1,2,3,5,6,7,9,10,11), xaxt='n', main="")
     title(main=paste(paste("SNP:",s),paste("GENE:",g),sep="\n"), cex.main=0.8, line=0.5)
     axis(side=1,at=c(2,6,10),cex = 1, labels=c("0/0","0/1","1/1"), cex=2)
     # count of persons in each category
     mtext(c("N:", bp$n), side=1,line=2,at=c(0, 1,2,3,5,6,7,9,10,11),cex = .8)
 
-    bp=boxplot(expression~SNP, data=df, ylab="Expression (FPKM)", xaxt='n', main="")
+    bp=boxplot(expression~SNP, data=df, ylab="Rank Normalized Gene Expression", xaxt='n', main="")
     title(main=paste(paste("SNP:",s),paste("GENE:",g),sep="\n"), cex.main=0.8, line=0.5)
     axis(side=1,cex = 1, at=1:3, labels=c("0/0","0/1","1/1"), cex=2)
     mtext(c("N:", bp$n), side=1,line=2,at=c(0:3),cex = .8)
 
     df$SNP=ifelse(as.numeric(as.character(df$SNP))==0,0,1)
     df$SNP=factor(df$SNP, levels=0:1)
-    bp=boxplot(expression~condition*SNP, data=df, ylab="Expression (FPKM)", col=c('#2ca25f','#feb24c','#ff0000'),at=c(1,2,3,5,6,7), xaxt='n', main="")
+    bp=boxplot(expression~condition*SNP, data=df, ylab="Rank Normalized Gene Expression", col=c('#2ca25f','#feb24c','#ff0000'),at=c(1,2,3,5,6,7), xaxt='n', main="")
     title(main=paste(paste("SNP:",s),paste("GENE:",g),sep="\n"), cex.main=0.8, line=0.5)
     axis(side=1,at=c(2,6),cex = 1, labels=c("w/ allele","w/o allele"), cex=2)
     mtext(c("N:", bp$n), side=1,line=2,at=c(0,1,2,3,5,6,7),cex = .8)

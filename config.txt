@@ -5,7 +5,8 @@
 # ==============================
 
 CPU=4
-EMAIL=sterding.hpcc@gmail.com
+#EMAIL=sterding.hpcc@gmail.com
+EMAIL=bzheng@partners.org
 QUEUE=normal
 MEMORY=4000 # unit in megabase
 

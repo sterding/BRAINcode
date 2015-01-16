@@ -1,5 +1,8 @@
 #!/usr/bin/perl
 
+## Modified version by Xianjun Dong
+## Date: 2015-Jan-13
+#
 # Copyright (c) 2011 Erik Aronesty (erik@q32.com)
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -41,7 +44,13 @@ while (<IN>) {
         # most ver 3's stick unquoted names in the name field
 		($id) = $f[8]=~ /\bName=([^";]+)/ if !$id && $gff == 3;
 	} else {
-		($id) = $f[8]=~ /transcript_id "([^"]+)"/;
+		#($id) = $f[8]=~ /transcript_id "([^"]+)"/;
+		($transid) = $f[8]=~ /transcript_id "([^"]+)"/;
+		($geneid) = $f[8]=~ /gene_id "([^"]+)"/;
+		($gene_type) = $f[8]=~ /gene_type "([^"]+)"/;
+		($gene_name) = $f[8]=~ /gene_name "([^"]+)"/;
+		($trans_type) = $f[8]=~ /transcript_type "([^"]+)"/;
+		$id="${gene_name}___${geneid}___${transid}___${gene_type}___${trans_type}";
 	}
 
 	next unless $id && $f[0];
