@@ -13,7 +13,9 @@ STEP=0
 
 if [ $# -ne 1 ]
 then
-  echo "Usage: $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles"
+  echo "Usage:
+  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles
+  "
   exit
 fi
 
@@ -44,9 +46,9 @@ result_dir=$input_dir/../results
 ########################
 cd $input_dir
 
-c=0;h=0;gtflist="";samlist=""; labels=""
-
-for i in *.R1.fastq.gz;
+#for i in *.R1.fastq.gz;
+#for i in *_6_rep*amplified.R1.fastq.gz;
+for i in *_6_*.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -54,7 +56,6 @@ do
     
     # run the QC/mapping/assembly/quantification for RNAseq
     bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -u $EMAIL -N _RNAseq.sh $R1 $R2;
-    #bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _RNAseq.sh $R1 $R2;
 
 done
 

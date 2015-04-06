@@ -81,9 +81,6 @@ ln -s !$ Histone.SN.H3K9ac.bigwig
 # Enhancers defined by TFBS HOT region
 #============================================================
 cd ../TFBS
-curl -s http://stanford.edu/~claraya/metrn/data/hot/regions/hs/maphot_hs_selection_reg_cx_occP05_any.bed | cut -f1-6  > maphot_hs_selection_reg_cx_occP05_any.bed6
-# distal HOT regions 
-intersectBed -a maphot_hs_selection_reg_cx_occP05_any.bed6 -b ../toExclude.bed -v | awk '{OFS="\t"; mid=int(($3+$2)/2); if(mid>500) print $1, mid-500, mid+500;}' > TFBS.distal.bed
 
 # clustered TFBS (count all Peaks for 161 transcription factors in 91 cell types)
 wget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeRegTfbsClustered/wgEncodeRegTfbsClusteredV3.bed.gz
@@ -94,6 +91,16 @@ gunzip -c wgEncodeRegTfbsClusteredV3.bed.gz | awk '{OFS="\t"; print $1,$2,$3,$4,
 sort -k1,1 wgEncodeRegTfbsClusteredV3.bed12 | bedItemOverlapCount hg19 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g' > wgEncodeRegTfbsClusteredV3.bg
 bedGraphToBigWig wgEncodeRegTfbsClusteredV3.bg $ANNOTATION/ChromInfo.txt wgEncodeRegTfbsClusteredV3.bw
 ln -fs wgEncodeRegTfbsClusteredV3.bw TFBS.bigwig
+
+### Option1: use the hot region from site below:
+#curl -s http://stanford.edu/~claraya/metrn/data/hot/regions/hs/maphot_hs_selection_reg_cx_occP05_any.bed | cut -f1-6  > maphot_hs_selection_reg_cx_occP05_any.bed6
+#intersectBed -a maphot_hs_selection_reg_cx_occP05_any.bed6 -b ../toExclude.bed -v | awk '{OFS="\t"; mid=int(($3+$2)/2); if(mid>500) print $1, mid-500, mid+500;}' > TFBS.distal.bed
+
+## Option2: use the ENCODE TFBS cluster data, any region with >5 TFs (including P300) in any cell lines
+awk '{OFS="\t"; if($4>5) print $1,$2,$3,".",$4}' wgEncodeRegTfbsClusteredV3.bg | mergeBed -scores max | intersectBed -a stdin -b <( grep P300 wgEncodeRegTfbsClusteredV3.bed12 | cut -f1-3) -u > TFBS.distal.bed
+
+# length check up
+awk '{print $3-$2}' TFBS.distal.bed | textHistogram stdin -binSize=50 -maxBinCount=50
 
 #============================================================
 # Enhancers defined by conservation

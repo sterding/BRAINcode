@@ -63,7 +63,7 @@ case $ext in
 esac
 
 # remove reads mapped to contigs other than chr1/2/.../22/M/X/Y
-awk '{if($1!~/_/) {n++; print}}END{print "#total_mapped_reads="n;}' $bname.bed > $bname.bed2
+awk '{if($1!~/[_#]/ && $1~/^chr/) {n++; print}}END{print "#total_mapped_reads="n;}' $bname.bed > $bname.bed2
 mv $bname.bed2 $bname.bed
 
 # get total mapped reads

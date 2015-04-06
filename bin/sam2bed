@@ -15,7 +15,8 @@
 # Log:
 # Aug 27, 2013: fix a bug for strand when XSstrand==F. RNAseq analysis is not affected.
 # Aug 27, 2013: fix a minor bug for "name". If $1 already has /1 or /2 at the end, do nothing.
- 
+# Apr 4, 2015: change from match($i, sCol) to match($i, "^"sCol":"), since sCol may occur in the middle of other columns
+
 BEGIN{
     OFS="\t";
     if(bed12=="" || bed12=="T") bed12="TRUE";
@@ -41,7 +42,7 @@ BEGIN{
     score=$5;
     if(sCol~/^[0-9]+$/) score=$sCol;
     else {  # e.g. NH:i:9
-        for(i=1;i<=NF;i++) if(match($i, sCol)) {score=substr($i, RSTART+RLENGTH+3);break;}
+        for(i=1;i<=NF;i++) if(match($i, "^"sCol":")) {score=substr($i, RSTART+RLENGTH+2); break;}
     }
     if(score!~/^[0-9]+$/) {print "Score in BED file must be integers. Exit"; exit;}
 

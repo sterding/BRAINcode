@@ -1,5 +1,3 @@
-#!/PHShome/xd010/bin/Rscript
-
 args<-commandArgs(TRUE)
 
 stat_file=args[1]  # for example: stat_file="/PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_BN13-18_SNDA_5b_rep1/uniq/accepted_hits.bam.bam2annotation"
