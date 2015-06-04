@@ -211,10 +211,10 @@ htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam
 touch .status.$modulename.htseqcount
 
 echo "## quantification for meta exons"
-# script to generate meta exons
-# sed 's/__ENST[^\t]*//g;' exons.bed | sort -k4,4 -k1,1 -k2,2n -k3,3n | awk '{OFS="\t"; if(id!=$4 || $2>e) {if(id!="") print chr,s,e,id,1,str; chr=$1;s=$2;e=$3;id=$4;str=$6;} else if($3>e) e=$3;}END{print chr,s,e,id,1,str;}' > exons.meta.bed
+# script to generate meta exons (see README in $ANNOTATION for how to generate meta exons)
+# awk '{OFS="\t"; split($4,a,"___"); split(a[4],b,"."); $4=a[1]"___"a[2]"___"b[1]; print}' exons.bed | sort -k4,4 -k1,1 -k2,2n -k3,3n | awk '{OFS="\t"; if(id!=$4 || $2>e) {if(id!="") print chr,s,e,id,1,str; chr=$1;s=$2;e=$3;id=$4;str=$6;} else if($3>e) e=$3;}END{print chr,s,e,id,1,str;}' > exons.meta.bed
 [ ! -f .status.$modulename.metaexon ] && \
-coverageBed -abam accepted_hits.bam -b $ANNOTATION/exons.meta.bed -s -counts > readscount.by.metaexon.tab 2> readscount.by.metaexon.tab.stderr && \
+awk '{OFS="\t"; $4=$4"__"$1"_"$2"_"$3; print}' $ANNOTATION/exons.meta.bed | coverageBed -abam accepted_hits.bam -b - -s -counts > readscount.by.metaexon.tab 2> readscount.by.metaexon.tab.stderr && \
 touch .status.$modulename.metaexon
 
 ############################################
@@ -247,14 +247,10 @@ touch $outputdir/$samplename/.status.$modulename.uniq
 #touch $outputdir/$samplename/.status.$modulename.sam2bw
 
 split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split" 
-[ ! -f $outputdir/$samplename/.status.$modulename.sam2bw ] && \
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
 bam2bigwig.sh accepted_hits.sam $split && \
-touch $outputdir/$samplename/.status.$modulename.sam2bw
+touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
 
-[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
-_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
-Rscript _bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
-touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2stat ] && \
 echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
@@ -266,9 +262,14 @@ echo "## run cufflinks for do de-novo discovery using uniq mapper only"
 cufflinks --no-update-check --no-faux-reads $strandoption -o ./denovo -p $CPU -g $ANNOTATION_GTF -M $MASK_GTF accepted_hits.bam 2> cufflinks.denovo.log && \
 touch $outputdir/$samplename/.status.$modulename.cufflinks.denovo
 
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
+_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
+Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
+touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
+
 echo "## normalizing: instead of using total reads, use reads only mapped to non-rRNA-mtRNA for normalization"
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.normalize ] && \
-total_mapped_reads2=`grep total_non-rRNA-mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
+total_mapped_reads2=`grep total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
 awk -v tmr=$total_mapped_reads2 'BEGIN{OFS="\t"; print "# total-rRNA-chrM="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized2.bedGraph && \
 bedGraphToBigWig accepted_hits.normalized2.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized2.bw && \
 touch $outputdir/$samplename/.status.$modulename.uniq.normalize
@@ -321,6 +322,7 @@ ln -fs $outputdir/$samplename/genes.fpkm_tracking $samplename.multi.genes.fpkm_t
 ln -fs $outputdir/$samplename/hgseqcount.by.gene.tab $samplename.multi.hgseqcount.by.gene.tab && \
 ln -fs $outputdir/$samplename/accepted_hits.bw $samplename.multi.accepted_hits.bw && \
 ln -fs $outputdir/$samplename/accepted_hits.normalized.bw $samplename.multi.accepted_hits.normalized.bw && \
+ln -fs $outputdir/$samplename/transcripts.gtf $samplename.multi.transcripts.gtf && \
 # uniq
 ln -fs $outputdir/$samplename/uniq/accepted_hits.bam $samplename.uniq.accepted_hits.bam && \
 ln -fs $outputdir/$samplename/uniq/accepted_hits.bam.bai $samplename.uniq.accepted_hits.bam.bai && \
@@ -330,14 +332,8 @@ ln -fs $outputdir/$samplename/uniq/hgseqcount.by.gene.tab $samplename.uniq.hgseq
 ln -fs $outputdir/$samplename/uniq/accepted_hits.bw $samplename.uniq.accepted_hits.bw && \
 ln -fs $outputdir/$samplename/uniq/accepted_hits.normalized.bw $samplename.uniq.accepted_hits.normalized.bw && \
 ln -fs $outputdir/$samplename/uniq/accepted_hits.normalized2.bw $samplename.uniq.accepted_hits.normalized2.bw && \
-# gtf of assembly
-echo "track name=$samplename.multi.gtf description=$samplename.multi.gtf visibility=pack colorByStrand='200,100,0 0,100,200'" > $samplename.multi.transcripts.gtf && \
-cat $outputdir/$samplename/transcripts.gtf >> $samplename.multi.transcripts.gtf && \
-gzip -f $samplename.multi.transcripts.gtf && \
-# for uniq
-echo "track name=$samplename.uniq.gtf description=$samplename.uniq.gtf visibility=pack colorByStrand='200,100,0 0,100,200'" > $samplename.uniq.transcripts.gtf && \
-cat $outputdir/$samplename/uniq/transcripts.gtf >> $samplename.uniq.transcripts.gtf && \
-gzip -f $samplename.uniq.transcripts.gtf && \
+ln -fs $outputdir/$samplename/uniq/transcripts.gtf $samplename.uniq.transcripts.gtf && \
+
 ## QC
 ln -fs $outputdir/$samplename/$samplename.R1_fastqc $samplename.R1_fastqc && \
 ln -fs $outputdir/$samplename/$samplename.R2_fastqc $samplename.R2_fastqc && \

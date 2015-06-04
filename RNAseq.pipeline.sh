@@ -46,9 +46,8 @@ result_dir=$input_dir/../results
 ########################
 cd $input_dir
 
-#for i in *.R1.fastq.gz;
-#for i in *_6_rep*amplified.R1.fastq.gz;
-for i in *_6_*.R1.fastq.gz;
+for i in *.R1.fastq.gz; #ILB*SNDA_2_rep1.R1.fastq.gz;
+#for i in *_6_*.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -71,15 +70,15 @@ samtools merge -1r all124samples.uniq.accepted_hits.bam `ls */uniq/accepted_hits
 ## [test] total-rRNA-chrM vs. total, which one is better to be used for normalization?
 ########################
 
-echo "sampleID" `rowsToCols /PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_2/uniq/accepted_hits.bam.bam2annotation stdout | sed 's/://g' | head -n1` | sed 's/ /\t/g' > allsamples.bam2annotation.tab
-paste <(ls -1 ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2* | sed 's/.*run_output\///g;s/\/uniq.*//g') <(paste ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2* | sed 's/[^[:space:]]*: //g' | rowsToCols stdin stdout) >> allsamples.bam2annotation.tab
+echo "sampleID" `rowsToCols /PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_2_rep1/uniq/accepted_hits.bam.bam2annotation stdout | sed 's/://g' | head -n1` | sed 's/ /\t/g' > allsamples.bam2annotation.tab
+paste <(ls -1 ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation | sed 's/.*run_output\///g;s/\/uniq.*//g') <(paste ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation | sed 's/[^[:space:]]*: //g' | rowsToCols stdin stdout) >> allsamples.bam2annotation.tab
 #R
 pdf("allsamples.bam2annotation.pdf")
 df=read.table("allsamples.bam2annotation.tab", header=T)
 rownames(df)=df[,1]; df=df[,-1]; df=df/1e6
-plot(total_non.rRNA.mt~total, df, asp=1, xlim=c(0,300), ylim=c(0,300), col=gsub(".*_([1-5]).*","\\1",rownames(df)), xlab="total reads (in million)", ylab="total-rRNA-chrM (in million)")
+plot(total_non_rRNA_mt~total, df, asp=1, xlim=c(0,300), ylim=c(0,300), col=gsub(".*_([1-9])_.*","\\1",rownames(df)), xlab="total reads (in million)", ylab="total-rRNA-chrM (in million)")
 abline(a=0,b=1,lty=2)
-legend("topleft", paste("batch", 1:5), col=1:5, bty='n', pch=1)
+legend("topleft", paste("batch", sort(unique(as.numeric(gsub(".*_([1-9])_.*","\\1",rownames(df)))))), col=sort(unique(as.numeric(gsub(".*_([1-9])_.*","\\1",rownames(df))))), bty='n', pch=1)
 dev.off()
 
 ########################
@@ -87,25 +86,93 @@ dev.off()
 ########################
 [ -d $result_dir/coverage ] || mkdir $result_dir/coverage
 cd $result_dir/coverage
-for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA;
+#for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA;
+for i in HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded;
 do
-    bsub -J combine_coverage -oo _combine_cov.$i.log -eo _combine_cov.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 5
-    #bsub -J combine_coverage -oo _combine_cov.$i.rpm.log -eo _combine_cov.$i.rpm.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 0.05
+    #bsub -J combine_coverage -oo _combine_cov.$i.log -eo _combine_cov.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 5
+    bsub -J combine_coverage -oo _combine_cov.$i.rpm.log -eo _combine_cov.$i.rpm.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 0.05
 done
 
+# GENCODE meta-exons (v19)
+cut -f1-3 /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/exons.bed | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}' # 122000567
+# intergenic
+intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed | awk '{s+=($3-$2)}END{print s}'  # 650101182
+# EXONs
+intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed -v | intersectBed -a - -b <(cut -f1-3 /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/exons.bed | sortBed | mergeBed -i -) | awk '{s+=($3-$2)}END{print s}' # 101113507
+# introns
+intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed -v | intersectBed -a - -b $GENOME/Annotation/Genes/exons.meta.bed -v | awk '{s+=($3-$2)}END{print s}' # 1123233053
+
+## coverage.txt
+GENCODE.all.exons   122000567   0
+exons   0   101113507
+introns 0   1123233053
+intergenic  0   650101182
+
+
 # R
-pdf("coverage.barplot.pdf")
-df=read.table("coverage.txt")
-colnames(df)=c("Classical view", "BRAINCODE view")
+pdf("coverage.barplot.pdf", paper='us',width=4.5, height=4)
+df=read.table("coverage.txt");
+rownames(df)=df[,1];df=df[,-1]
+colnames(df)=c("Classical view", "BRAINCODE view");
+par(mar=c(4,4,2,4))
 d=barplot(as.matrix(df), ylim=c(0,3137161264), col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
-text(x=d, y=apply(df,2,sum),pos=3, offset=.2, c("2.8%","42.5%"), cex=4)
+text(x=d, y=apply(df,2,sum),pos=3, offset=.2, paste0(round(100*apply(df,2,sum)/3137161264,1),"%"), cex=2)
 axis(2, at=c(0:3)*1e9, labels=0:3)
 legend("topleft",col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), rownames(df), bty='n', pch=15)
 dev.off()
 
 ## body coverage
-ls ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.non-rRNA-mt.bam > bam_path.txt
-bsub -J RseQC_body_coverage -oo _RseQC_body_coverage.log -eo _RseQC_body_coverage -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i bam_path.txt  -o RseQC_body_coverage
+ls ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA_*rep[1-2]/uniq/accepted_hits.bam.non-rRNA-mt.bam > bam_path.txt
+bsub -J RseQC_body_coverage -oo _RseQC_body_coverage.log -eo _RseQC_body_coverage.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i bam_path.txt  -o RseQC_body_coverage
+
+## cumulative coverage
+for i in ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA_*rep[1-2]/uniq/accepted_hits.bw;
+do
+    echo $i;
+    bigWigToBedGraph $i stdout | awk '$4>=5' > $i.gt5reads.bedGraph &
+done
+bsub -J combine_coverage -oo _combine_cov.HCILB_SNDA.log -eo _combine_cov.HCILB_SNDA.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh HCILB_SNDA 5
+
+> tmp.bed
+> cummulative.cov.txt
+for i in `ls -1 ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA_*rep[1-2]/uniq/accepted_hits.bw.gt5reads.bed -S`;
+do
+    awk -vi=$i '{s+=($3-$2)}END{print i, s, s/3137161264}' $i;
+    cat tmp.bed $i | sortBed | mergeBed -i - > tmp2.bed
+    awk -vi=$i '{s+=($3-$2)}END{print i, s, s/3137161264}' tmp2.bed >> cummulative.cov.txt
+    mv tmp2.bed tmp.bed
+done
+
+R
+pdf("coverage.cummulative.pdf", paper='us',width=5, height=8)
+par(mfrow=c(2,1))
+df=read.table("covered.0.05RPM.HCILB_SNDA.txt", header=F)
+colnames(df)=c("samplecount", "coveredbp")
+df=cbind(df, cumsum=cumsum(df$coveredbp))
+par(mar=c(4,4,2,4))
+plot(df$cumsum, type='l', ylim=c(0,1900000000), xlim=c(1,90),ylab="covered base pairs (in billion)", main="covered.0.05RPM.HCILB_SNDA", yaxt="n", xaxt='n', xlab='')
+points(df$coveredbp, type='h', lwd=4, col=colorRampPalette(c('blue','red'))(100), lend=2)
+abline(h=df$coveredbp[1], lty=2)
+axis(1, c(1,seq(10,90,10)), c(1,seq(10,90,10)), tck=0.01, mgp=c(3,0.2,0))
+axis(2, seq(0,2,.2)*1e9, labels=format(seq(0,2,.2),2), las=2, tck=0.01, mgp=c(3,0.2,0))
+axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10), "%"), las=2, tck=0.01, mgp=c(3,0.2,0))
+mtext("covered percentage", 4, line=2)
+mtext("Sample count", 1, line=2)
+
+df=read.table("covered.5reads.HCILB_SNDA.txt", header=F)
+colnames(df)=c("samplecount", "coveredbp")
+df=cbind(df, cumsum=cumsum(df$coveredbp))
+par(mar=c(4,4,2,4))
+plot(df$cumsum, type='l', ylim=c(0,1900000000), xlim=c(1,90),ylab="covered base pairs (in billion)", main="covered.5reads.HCILB_SNDA", yaxt="n", xaxt='n', xlab='')
+points(df$coveredbp, type='h', lwd=4, col=colorRampPalette(c('blue','red'))(100), lend=2)
+abline(h=df$coveredbp[1], lty=2)
+axis(1, c(1,seq(10,90,10)), c(1,seq(10,90,10)), tck=0.01, mgp=c(3,0.2,0))
+axis(2, seq(0,2,.2)*1e9, labels=format(seq(0,2,.2),2), las=2, tck=0.01, mgp=c(3,0.2,0))
+axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10), "%"), las=2, tck=0.01, mgp=c(3,0.2,0))
+mtext("covered percentage", 4, line=2)
+mtext("Sample count", 1, line=2)
+dev.off()
+
 
 ########################
 ## 2. merge all samples to get big matrix for expression (e.g. one row per gene/Tx, one col per sample)
@@ -131,7 +198,8 @@ Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgse
 #--------------------------
 # 2.2 combined bigwig into 
 #--------------------------
-for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HCILB_SNDA;
+#for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HCILB_SNDA HC_SN HC_PBMC HC_FB HC_SNDAstranded;
+for i in HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SNDAstranded;
 do
     bsub -J combine_bw -oo _combin_bw.$i.log -eo _combin_bw.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_bigwig.sh $i
 done
@@ -177,12 +245,32 @@ Rscript $pipeline_path/modules/_kmer.R mergedHCILB_k9.matrix.txt
 cd $result_dir/merged
 Rscript $pipeline_path/modules/_replicates.R genes.fpkm.HCILB.uniq.xls QCrep.genes.fpkm.HCILB.uniq.pdf
 
+# linear amplification vs. non-amplification
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_M0235-4_PBMC_6_rep1.amplified HC_M0235-4_PBMC_6_rep1.unamplified
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SN_6_rep1.amplified HC_UWA616_SN_6_rep1.unamplified
+
+
+# laser-captured neurons vs. homogeneous brain tissue
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SNDA_2_rep1 HC_UWA616_SN_6_rep1.amplified
+# brain vs. non-brain
+# SN vs. PBMC
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SN_6_rep1.amplified HC_B0254-4_PBMC_6_rep1
+# SN vs. FB
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SN_6_rep1.amplified HC_ND34770_FB_6_rep1
+# same sample, same batch
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_BN05-10_SNDA_5_rep1 HC_BN05-10_SNDA_5_rep2
+# same sample, different batch
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_MGH1000_SNDA_1_rep1 HC_MGH1000_SNDA_4_rep2
+Rscript $pipeline_path/modules/_pairwise_compare.R PD_UWA734_SNDA_2_rep1 PD_UWA734_SNDA_6_rep2
+
 ########################
 ## 4. factor analysis to identify the hidden covariates (PEER)
 ########################
 cd $result_dir/eQTL
-Rscript $pipeline_path/modules/_factor_analysis.R $result_dir/merged/genes.fpkm.HCILB.uniq.xls 
-
+module unload R/3.1.0
+module load R/3.0.2
+Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.HCILB.uniq.xls 
+module unload R/3.0.2; module load R/3.1.0
 #########################
 ### 5. post-normalization QC
 #########################

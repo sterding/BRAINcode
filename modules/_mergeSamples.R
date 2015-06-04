@@ -24,7 +24,7 @@ for(i in 1:(n-1)){
 colnames(fpkm)[grep('FPKM',colnames(fpkm))]=paste("FPKM", gsub(".*run_output/([^/]*)/.*", "\\1", args[1:(n-1)]), sep=".")
 
 # save data
-write.table(fpkm, outputfile, sep="\t", quote = F, col.names = T, row.names = F)
+write.table(fpkm, outputfile, sep="\t", na="", row.names = F)
 
 
 

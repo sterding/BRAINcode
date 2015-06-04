@@ -1,5 +1,5 @@
 #!/usr/bin/awk -f
-# awk script to calculate normalized CpG score for input DNA sequences
+# awk script to calculate normalized CpG score, and GC content for input DNA sequences
 # Authos: Xianjun Dong
 # Date: 2015-03-30
 # Usage: getNormalizedCpGscore.awk input.fa.tab
@@ -13,10 +13,9 @@
     id = $1;
     s = tolower($2);
     
-    
-    n1 = gsub("gc","gc",s);
-    n2 = length($s);
+    n1 = gsub("cg","cg",s);
+    n2 = length(s);
     n3 = gsub("g","g",s) + gsub("c","c",s);
 
-    print id, 4*n2*n1/(n3**2);
+    print id, 4*n2*n1/(n3**2), n3/n2;
 }

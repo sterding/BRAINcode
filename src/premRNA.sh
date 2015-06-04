@@ -16,21 +16,38 @@ cd ~/xd010/eRNAseq
 #bg=/data/neurogen/rnaseq_PD/results/merged/HC_SNDA.trimmedmean.uniq.normalized.bedGraph
 bg=/data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph 
 
+# use only the region above the basal level
 basalLevel=`tail -n1 $bg | cut -f2 -d'=' | cut -f1`
 awk -vmin=$basalLevel '$4>=min' $bg > /tmp/bg;
 bedGraphToBigWig /tmp/bg $GENOME/Annotation/Genes/ChromInfo.txt ${bg/bedGraph/aboveBasal.bw}
 
 ln -fs ${bg/bedGraph/aboveBasal.bw} RNAseq.aboveBasal.bigwig
 
-bigWigAverageOverBed RNAseq.aboveBasal.bigwig $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.exons.bed12 /tmp/RNAseq.aboveBasal.bigwig.exons.tab
-bigWigAverageOverBed RNAseq.aboveBasal.bigwig $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.introns.bed12 /tmp/RNAseq.aboveBasal.bigwig.introns.tab
+bigWigAverageOverBed -minMax RNAseq.aboveBasal.bigwig $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.exons.bed12 /tmp/RNAseq.aboveBasal.bigwig.exons.tab
+bigWigAverageOverBed -minMax RNAseq.aboveBasal.bigwig $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.introns.bed12 /tmp/RNAseq.aboveBasal.bigwig.introns.tab
+
+# bigWigAverageOverBed
+   #name - name field from bed, which should be unique
+   #size - size of bed (sum of exon sizes
+   #covered - # bases within exons covered by bigWig
+   #sum - sum of values over all bases covered
+   #mean0 - average over bases with non-covered bases counting as zeroes
+   #mean - average over just covered bases
+   #min - minimal value of all bases
+   #max - minimal value of all bases
+
+join -1 1 -2 1 <(sort -k1,1 /tmp/RNAseq.aboveBasal.bigwig.exons.tab) <(sort -k1,1 /tmp/RNAseq.aboveBasal.bigwig.introns.tab) | awk '($3+$10)>0' > RNAseq.aboveBasal.bigwig.exons.intron.tab
+
+awk '{print $2+$9, $0}' RNAseq.aboveBasal.bigwig.exons.intron.tab | sed 's/___/ /g' | cut -f1,2,3,6- -d' ' | sort -k3,3 -k1,1nr | awk '{if(id!=$3) {print; id=$3;}}END{if(id!=$3) print}' | head
+
+
 
 # splicing_ratio = (exon-intro) / (exon + intron) in mean0 (average over bases with non-covered bases counting as zeroes)
 # only keep genes with intron
 join -1 1 -2 1 <(sort -k1,1 /tmp/RNAseq.aboveBasal.bigwig.exons.tab) <(sort -k1,1 /tmp/RNAseq.aboveBasal.bigwig.introns.tab) | awk '{OFS="\t"; splicing_ratio=(($5+$10)==0)?0:(($5-$10)/($5+$10)); rpkm_exon=$5*1000; rpkm_intron=$10*1000; cov_exon=$3/$2; cov_intron=$8/$7; print $1, rpkm_exon, rpkm_intron, cov_exon, cov_intron, splicing_ratio;}'>  /tmp/RNAseq.aboveBasal.bigwig.exons-introns.tab
 
 echo -e "#chr\tstart\tend\tgeneID\trpkm_exon\trpkm_intron\tcov_exon\tcov_intron\tsplicing_ratio" > gencode.v19.Tx.exons-introns.RNAseq.aboveBasal.bigwig.bed
-cut -f1-4 $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.exons.bed12 | sort -k4,4 | join -1 4 -2 1 - /tmp/RNAseq.aboveBasal.bigwig.exons-introns.tab -o '1.1,1.2,1.3,0,2.2,2.3,2.4,2.5,2.6' |sed 's/ /\t/g' >> gencode.v19.Tx.exons-introns.RNAseq.aboveBasal.bigwig.bed
+cut -f1-4 $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.exons.bed12 | sort -k4,4 | join -1 4 -2 1 - /tmp/RNAseq.aboveBasal.bigwig.exons-introns.tab -o '1.1,1.2,1.3,0,2.2,2.3,2.4,2.5,2.6' | sed 's/ /\t/g' >> gencode.v19.Tx.exons-introns.RNAseq.aboveBasal.bigwig.bed
 
 # only the longest transcript per gene
 echo -e "#chr\tstart\tend\tgeneID\trpkm_exon\trpkm_intron\tcov_exon\tcov_intron\tsplicing_ratio" > gencode.v19.longestTx.exons-introns.RNAseq.aboveBasal.bigwig.bed

@@ -4,7 +4,7 @@
 ## Date: 2014-Dec-27
 ## Version: 0.0
 ## Require: R v3.0.2, python etc.
-## Usage: bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/modules/_factor_analysis.R
+## Usage: bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/modules/_PEER_eQTL.R
 ###############################################
 require(reshape2)
 require(peer)
@@ -18,16 +18,16 @@ snps_file=args[3]  # snps_file="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/
 geneloc=args[4]
 snpsloc=args[5]  # snps_location_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.SNP.ID"
 
-covs_file="/PHShome/xd010/neurogen/rnaseq_PD/results/eQTL/genes80samples/covariances.12152014.80samples.tab";
-snps_file="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.txt";
-snpsloc="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.SNP.ID"
+covs_file="/PHShome/xd010/neurogen/rnaseq_PD/results/eQTL/HCILB93samples/covariance_table_90subjects_v05112015.tab";
+snps_file="/data/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 93 unique subjects
+snpsloc="/data/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
 
 # for gene
-expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.80samples.xls";  # matrix of 57816 x 80
-geneloc="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.loci.txt";
+#expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.80samples.xls";  # matrix of 57816 x 80
+#geneloc="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.loci.txt";
 
 # for eRNAs
-expr_file="eRNA.80samples.RPKM.xls";  
+expr_file="eRNA.RPKM.xls";  
 geneloc="eRNA.loci.txt";
 
 if(file.exists("data.RData")) load("data.RData") else{

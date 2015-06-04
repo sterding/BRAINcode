@@ -4,7 +4,7 @@
 # Date: Mon Feb 10
 # the input file is a gtf/bed file, each row is a transcript with columns chr/TSS/TTS/strand/ID
 # the output file is a bed file for all bins, and it will be used for input of bigWigAverageOverBed (fron Jim kent)
-# Usage: cat input.bed12 | awk -v option=mRNA -f bigWigAverageOverBed_generate_81bins.awk
+# Usage: cat input.bed12 | awk -v option=mRNA binSize= -f bigWigAverageOverBed_generate_81bins.awk
 # ===============================================================
 #!/bin/awk -f
 

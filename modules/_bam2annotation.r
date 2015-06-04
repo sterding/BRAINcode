@@ -1,6 +1,11 @@
+## Rscript to draw the venPier plot
+# see http://onetipperday.blogspot.com/2014/09/vennpier-combination-of-venn-diagram.html
+# Usage:
+# Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf
+
 args<-commandArgs(TRUE)
 
-stat_file=args[1]  # for example: stat_file="/PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_BN13-18_SNDA_5b_rep1/uniq/accepted_hits.bam.bam2annotation"
+stat_file=args[1]  # for example: stat_file="/PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_BN13-18_SNDA_5_rep1/uniq/accepted_hits.bam.bam2annotation"
 pdf_file=args[2]
 
 df=read.table(stat_file)

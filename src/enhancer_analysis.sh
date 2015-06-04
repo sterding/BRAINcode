@@ -7,154 +7,160 @@ cd ~/projects/PD/results/eRNA/externalData/RNAseq
 
 inputBG=/data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph
 
-################################################
-# eRNA definition:
-# 1) density higher than the basal level,  
-# 2) summit >0.05 RPM, --> p<0.05 comparing to the transcriptional noise
-# 3) located in non-generic regions (e.g. 500bp away from any annotated exons),
-# 4) at least 100bp in length,
-# 5) not from highly actively transcribing genes (e.g. pre-mRNA, intronic coverage > 50% & exonic coverage >90%)
-# 6) q-value<0.05 when comparing with random non-functional background
-################################################
+################################################################################################
+# define eRNA
+################################################################################################
+$pipeline_path/src/eRNA.define.sh $inputBG eRNA.bed
 
-#: background region to measure transcriptional noise: genomic regions excluding the known regions with RNA activities (exons+/-500bp, rRNA, CAGE-defined enhancers, promoters)
-ANNOTATION=$GENOME/Annotation/Genes
-cat $ANNOTATION/gencode.v19.annotation.bed12 $ANNOTATION/knownGene.bed12 $ANNOTATION/NONCODEv4u1_human_lncRNA.bed12 | bed12ToBed6 | cut -f1-3 | grep -v "_" | slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 > /tmp/bg.bed
-cut -f1-3 $ANNOTATION/rRNA.bed >> /tmp/bg.bed  # rRNA
-grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/TSS_human.bed | grep -v "211,211,211" | cut -f1-3 | grep -v "_" | slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 >> /tmp/bg.bed # +/-500bp flanking around the CAGE-predicted TSS (downloaded from: http://fantom.gsc.riken.jp/5/datafiles/latest/extra/TSS_classifier/)
-#cat $ANNOTATION/SINE.bed $ANNOTATION/LINE.bed | cut -f1-3 >> /tmp/bg.bed  # LINE and SINE
-cat /tmp/bg.bed | sortBed | mergeBed > ../toExclude.bed
-grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/permissive_enhancers.bed | cut -f1-3 >> /tmp/bg.bed # CAGE-enhancer
-cat /tmp/bg.bed | sortBed | mergeBed > ../blacklist.bed
-
-# RNAseq signal distribution in the background region
-intersectBed -a $inputBG -b ../blacklist.bed -sorted -v | awk '{OFS="\t"; print $3-$2, $4}' | shuf > transcriptional.noise.rpm.txt
-
-#R
-df=read.table("transcriptional.noise.rpm.txt", comment.char = "", nrows = 2000000)
-df=log10(as.numeric(do.call('c',apply(df, 1, function(x) rep(x[2],x[1])))))
-library(fitdistrplus)
-fitn=fitdist(df,'norm')
-pdf("transcriptional.noise.distribution.pdf", width=8, height=6)
-hist(df, breaks=100, prob=TRUE, xlab='log10(RPM)', main='Distribution of transcriptional noise')
-lines(density(df, bw=0.15))
-m=round(as.numeric(fitn$estimate[1]),digits=3)
-sd=round(as.numeric(fitn$estimate[2]),digits=3)
-lines(density(rnorm(n=2000000, mean=m, sd=sd),bw=0.25), col='blue',lty=2)
-p=round(qnorm(.05, mean=m, sd=sd, lower.tail = F), digits=3)
-lines(y=c(0,0.3),x=c(p,p),col='red')
-text(p,0.2,paste0("P(X>",p,") = 0.05\nRPM=10**",p,"=",round(10**p,digits=3)), adj=c(0,0))
-legend("topright", c("empirical density curve", paste0("fitted normal distribution \n(mean=",m,", sd=",sd,")")), col=c('black','blue'), lty=c(1,2), bty='n')
-dev.off()
-
-# Dsig: 10**-1.105 == 0.079
-
-## any region with RPM density > 0.101
-#basalLevel=0.101
-#j=`basename ${inputBG/bedGraph/eRNA.bed}`
-#awk -vmin=$basalLevel '{OFS="\t"; if($4>min) print $1,$2,$3,".",$4}' $inputBG | mergeBed -d 100 -scores max | intersectBed -a - -b ../toExclude.bed -v > $j
-##wc -l $j
-##40451 trimmedmean.uniq.normalized.HCILB_SNDA.eRNA.bed
-
-#for i in /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph;
-#do
-#    basalLevel=`tail -n1 $i | cut -f2 -d'=' | cut -f1 -d' '`
-#    echo $i, $basalLevel;
-#    j=`basename ${i/bedGraph/eRNA.bed}`
-#    awk -vmin=$basalLevel '{OFS="\t"; if($4>=2*min) print $1,$2,$3,".",$4}' $i | mergeBed -scores max | awk '{OFS="\t"; if($4>=0.05) print $1,$2,$3,".",$4}' | mergeBed -d 100 -scores max | intersectBed -a - -b ../toExclude.bed -v > $j &
-#done
-
-# step1: any regions with summit RPM > peakLevel and border > baseLevel
-# =================
-basalLevel=`tail -n1 $inputBG | cut -f2 -d'=' | cut -f1`
-awk -vmin=$basalLevel '{OFS="\t"; if($4>=min) print $1,$2,$3,".",$4}' $inputBG | mergeBed -scores max > eRNA.tmp1
-
-# step2: summit RPM >=Dsig (density with p<0.05)
-# =================
-Dsig=0.079
-awk -vD=$Dsig '{OFS="\t"; if($4>=D) print $1,$2,$3,".",$4}' eRNA.tmp1 | mergeBed -d 100 -scores max > eRNA.tmp2
-
-# step3: located in non-generic regions (e.g. 500bp away from any annotated exons),
-# =================
-intersectBed -a eRNA.tmp2 -b ../toExclude.bed -v > eRNA.tmp3
-
-# step4: length > 100nt
-# =================
-awk '{OFS="\t"; if(($3-$2)>100) print $1,$2,$3,$1"_"$2"_"$3}' eRNA.tmp3 > eRNA.tmp4
-
-# step5: calculate the significance of eRNA
-# =================
-#1: create 100,000 random regions (400bp each) as background and calculate their signals
-for i in ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA*/uniq/accepted_hits.normalized.bw ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw;
-do
-    bsub -q normal -n 1 "bedtools random -g $GENOME/Annotation/Genes/ChromInfo.txt -l 400 -n 500000 | grep -v chrM | intersectBed -a - -b ../blacklist.bed -v | head -n100000 | bigWigAverageOverBed $i stdin $i.rdbg";
-    bsub -q normal -n 1 "bigWigAverageOverBed $i eRNA.tmp4 stdout | cut -f1,5 | sort -k1,1 | awk '{OFS=\"\t\"; print \$1, \$2*1000+0}'> $i.eRNA.RPKM"
-done
-
-### 2: distribution of random background, in order to define the cutoff with p=0.0001 significance
-R
-# significance
-path=c("~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw", "~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA*/uniq/accepted_hits.normalized.bw")
-pdf("background.RNAseq.cummulative.plot.pdf")
-
-## read in only the 80 subjects/samples (w/ genotype)
-IDs=read.table('~/neurogen/rnaseq_PD/results/merged/RNAseqID.wGenotyped.list',stringsAsFactors =F)[,1]
-IDs=IDs[grep("^[HI].*_SNDA", IDs)]
-
-EXP=data.frame(); PV=data.frame(); QV=data.frame(); id="locus"
-for(i in Sys.glob(path)){
-    ii=ifelse(grepl("merged", i), sub(".*merged/(.*).bw.*","\\1", i), sub(".*run_output/(.*)/uniq.*","\\1", i));
-    if(! (ii %in% IDs || grepl("trimmedmean",ii))) next;
-    print(i)
-    # read background
-    df=read.table(paste(i,"rdbg",sep="."), header=F)[,5] * 1000  # convert mean RPM to RPKM
-    Fn=ecdf(df)
-    
-    # plot the cummulative plot
-    plot(Fn, verticals = TRUE, do.points = FALSE, main=ii, ylim=c(0.99, 1), xlab="RPKM", ylab="cummulative percentage (approx. 1-p)")
-    inv_ecdf <- function(f){ x <- environment(f)$x; y <- environment(f)$y; approxfun(y, x)}; g <- inv_ecdf(Fn);
-    abline(h=0.999, v=g(0.999), col='red', lty=2, lwd=1)
-    points(g(0.999), 0.999, col='red', pch=19)
-    text(g(0.999), 0.999, round(g(0.999),2), cex=5, adj=c(0,1))
-    
-    if(grepl("trimmedmean",ii)) next;
-    id=c(id, ii)
-
-    # read expression
-    expression=read.table(paste(i,"eRNA.RPKM",sep="."), header=F)
-    pvalue=as.numeric(format(1-Fn(expression[,2]), digits=3));
-    qvalue=as.numeric(format(p.adjust(pvalue, "BH"), digits=3));
-    write.table(cbind(expression[,1:2], pvalue=pvalue, qvalue=qvalue), file=paste(i,"eRNA.RPKM.significance",sep="."), quote=F, sep ="\t", col.names =F, row.names=F)
-    
-    # merge
-    if(ncol(EXP)==0) { EXP=expression; expression[,2]=pvalue; PV=expression; expression[,2]=qvalue; QV=expression; }
-    else {EXP=cbind(EXP, expression[,2]); PV=cbind(PV, pvalue); QV=cbind(QV, qvalue); }
-}
-dev.off()
-
-colnames(EXP)=id; colnames(PV)=id; colnames(QV)=id;
-rM=rowMeans(QV[,-1]<=0.05)
-write.table(EXP[rM>0.25,], "eRNA.80samples.RPKM.xls", col.names=T, row.names=F, sep="\t", quote=F)
-write.table(PV[rM>0.25,], "eRNA.80samples.pvalue.xls", col.names=T, row.names=F, sep="\t", quote=F)
-write.table(QV[rM>0.25,], "eRNA.80samples.qvalue.xls", col.names=T, row.names=F, sep="\t", quote=F)
-
-pdf("eRNA.80samples.qvalue.hist.pdf", width=8, height=6)
-h=hist(rM, breaks=80, xlim=c(0,1), main="",xlab=expression("Percentage of HC/ILB SNDA samples (out of 80) with q-value" <= "0.05"), ylab="Count of eRNAs", freq=T)
-abline(v=0.25, lty=2, col='red')
-legend(0.25, max(h$counts), c(bquote(.(sum(rM>0.25)) ~ "eRNAs"), expression("with q-value" <= "0.05"), "in at least 25% of samples"), adj=c(0,1), bty='n', text.col='red', cex=1.5)
-dev.off()
-
-q('no')
-## R end
-
-# final set of eRNAs
-# =================
-awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) print a[1],a[2],a[3],$1}' eRNA.80samples.RPKM.xls > eRNA.bed
 rsync -azv eRNA.bed xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/merged
 
 ################################################################################################
 # characterize eRNA
 ################################################################################################
+# see eRNA.characterize.sh
+
+# if the overlap is significant or not?
+for i in `seq 1 10000`;
+do
+    echo $i;
+    bsub -J random_overlap -oo _random_overlap.$i.log -eo _random_overlap.$i.log -q normal -n 1 -M 500 $pipeline_path/src/overlap.with.random.sh
+done
+
+tmp=eRNA.bed
+# TFBS hotspot
+awk '$6>=1' ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -c | awk '$5>5' | wc -l
+# P300
+awk '$4=="EP300"' ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -u | wc -l
+# FANTOMF CAGE
+intersectBed -a $tmp -b ../CAGE/permissive_enhancers.bed -u | wc -l
+# Roadmpa Histone
+intersectBed -a $tmp -b ../Segment/15_coreMarks_segments.E6E7E12.bed -u | wc -l
+# VISTA positive
+grep -v NULL ../VISTA/hg19.tested_regions.bed | intersectBed -a $tmp -b stdin -u | wc -l
+# DNase enhancer from Roadmap
+intersectBed -a $tmp -b ../DNase/regions_enh_merged.brain.bed -u | wc -l
+# HCNE
+intersectBed -a $tmp -b ../Conservation/HCNE_hg19_danRer7_70pc_50col.bed -u | wc -l
+# GWAS SNPs
+cut -f1-3 $GENOME/Annotation/GWASCatalog/gwascatalog2015Apr.gwas-clean-hg19.uniq.bed | sort -u | intersectBed -a $tmp -b stdin -u | wc -l
+
+# R
+features=c("TFBS","P300","CAGE", "Histone","VISTA", "DNase", "HCNE", "GWAS")
+nHiTNE=c(4148,3914,1266,21823,63,15987,294,317)
+for(i in 1:8){
+    df=read.table(paste0("randomoverlap.",features[i],".txt"))$V1
+    #cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/75490,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i])$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t", file = "randomoverlap.enrichment.xls", append =T)
+    cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/75490,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i])$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t")
+}
+
+
+################################################################################################
+# for in vitro/vivo test
+################################################################################################
+# random (negative) : not overlap with any exons, promoter, eRNA, and other possible enhancer regions
+cat ../toExclude.bed eRNA.bed ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed ../CAGE/permissive_enhancers.bed ../Segment/15_coreMarks_segments.E6E7E12.bed ../VISTA/hg19.tested_regions.bed ../DNase/regions_enh_merged.brain.bed ../Conservation/HCNE_hg19_danRer7_70pc_50col.bed $GENOME/Annotation/GWASCatalog/gwascatalog2015Apr.gwas-clean-hg19.uniq.bed ../Segment/wgEncodeAwgSegmentationCombinedHelas3.Enh.bed ../CAGE/hg19_permissive_enhancer.HeLaS3.bed | cut -f1-3 | sortBed | mergeBed -i - | bedtools shuffle -excl stdin -noOverlapping -i eRNA.bed -g $ANNOTATION/ChromInfo.txt | awk '{OFS="\t"; print $0, $3-$2}' > negative.bed
+
+awk '{OFS="\t"; $4=$1"_"$2"_"$3"_"($3-$2); if($5>500 && $5<800) print;}' negative.bed | head -n20 | bedtools getfasta -name -tab -fi $GENOME/Sequence/WholeGenomeFasta/genome.fa -bed - -fo stdout | sed 's/_/\t/g' > negative.xls
+
+################################################################################################
+# eRNA cluster
+################################################################################################
+# top 10 clusters with distance gap <100k bp
+bedtools merge -d 100000 -i eRNA.bed -c 4 -o count | awk '{OFS="\t"; print $0, $3-$2}' | sort -k5,5nr | head -n10
+
+################################################################################################
+# HITNE intron co-transcriptional splicing?
+################################################################################################
+for i in HC_PBMC HC_FB HC_MCPY HC_TCPY HCILB_SNDA; do
+    echo $i;
+    intersectBed -a $ANNOTATION/introns.meta.bed -b eRNA.bed -u | awk '($3-$2)>50000' | $pipeline_path/bin/toBinRegionsOnBigwig.sh /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bw - 100 > $i.HiTNE.introns.100bin.rpm &
+    awk '($3-$2)>50000' $ANNOTATION/introns.meta.bed | $pipeline_path/bin/toBinRegionsOnBigwig.sh /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bw - 100 > $i.all.introns.100bin.rpm &
+done
+
+R
+pdf("cotranscriptionalsplicing.intron.pdf", width=6, height=4, paper='usr')
+celltypes=c("HC_FB", "HC_PBMC", "HC_MCPY", "HC_TCPY","HCILB_SNDA")
+colors=c("#2C2C2C", "#5F5F5F", "#99D8C9", "#9EBCDA","#2CA25F")
+for(i in 1:5){
+    df=read.table(paste0(celltypes[i],".HiTNE.introns.100bin.rpm"), header=F)[,-1]
+    if(i==1) plot(apply(df[,1:99], 2, mean, trim=.1), frame.plot=F, las=1, type='l',lwd=3, col=colors[i], ylim=c(0,0.07), ylab="Average RPM", xlab="Meta-intron position (% of total length)") else points(apply(df[,1:99], 2, mean, trim=.1), type='l',lwd=3, lty=1, col=colors[i])
+    df=read.table(paste0(celltypes[i],".all.introns.100bin.rpm"), header=F)[,-1]
+    points(apply(df[,1:99], 2, mean, trim=.1), type='l',lwd=3, lty=3, col=colors[i])
+}
+abline(v=c(0,100),lty=2)
+legend("topright",c(celltypes), col=colors, pch='-',lty=1, cex=.8, lwd=4, bty='n')
+legend("top",c("HiTNE introns  ","all introns"), pch='-',lty=c(1,3), cex=.8, lwd=4, bty='n')
+
+celltypes=c("HCILB_SNDA")
+colors=c("#2CA25F")
+for(i in 1){
+    df=read.table(paste0(celltypes[i],".HiTNE.introns.100bin.rpm"), header=F)[,-1]
+    if(i==1) plot(apply(df[,1:99], 2, mean, trim=.1), frame.plot=F, las=1, type='l',lwd=3, col=colors[i], ylim=c(0,0.02), ylab="Average RPM", xlab="Meta-intron position (% of total length)") else points(apply(df[,1:99], 2, mean, trim=.1), type='l',lwd=3, lty=1, col=colors[i])
+    df=read.table(paste0(celltypes[i],".all.introns.100bin.rpm"), header=F)[,-1]
+    points(apply(df[,1:99], 2, mean, trim=.1), type='l',lwd=3, lty=3, col=colors[i])
+}
+abline(v=c(0,100),lty=2)
+legend("topright",c("HiTNE introns  ","all introns"), pch='-',lty=c(1,3), cex=.8, lwd=4, bty='n')
+dev.off()
+
+
+rm introns.meta.*; cat $ANNOTATION/introns.meta.bed | awk '{OFS="\t"; if($4==id){ sup=($6=="+")?(end-500):$2; sdown=($6=="+")?$2:(end-500); print $1,sup,sup+500,$1"_"$2"_"$3 >> "introns.meta.up.bed"; print $1,sdown,sdown+500,$1"_"$2"_"$3 >> "introns.meta.down.bed"; end=$3;} else {if(($3-$2)>500) {id=$4;end=$3;}}}'
+
+for i in HC_PBMC HC_FB HC_MCPY HC_TCPY HCILB_SNDA; do
+    echo $i;
+    #bigWigAverageOverBed /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bw introns.meta.up.bed stdout | cut -f1,5 | awk '{OFS="\t"; split($1,a,"_"); print $1,a[3]-a[2],$2;}'> $i.all.introns.up500.rpm &
+    #bigWigAverageOverBed /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bw introns.meta.down.bed stdout | cut -f1,5 | awk '{OFS="\t"; split($1,a,"_"); print $1,a[3]-a[2],$2;}'> $i.all.introns.down500.rpm &
+    #cut -f2 Hostgene.length.nHITNE.metaExon.metaIntron.xls | fgrep -f - introns.meta.up.bed | bigWigAverageOverBed /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bw stdin stdout | cut -f1,5 | awk '{OFS="\t"; split($1,a,"_"); print $1,a[3]-a[2],$2;}'> $i.HiTNE.introns.up500.rpm &
+    #cut -f2 Hostgene.length.nHITNE.metaExon.metaIntron.xls | fgrep -f - introns.meta.down.bed | bigWigAverageOverBed /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bw stdin stdout | cut -f1,5 | awk '{OFS="\t"; split($1,a,"_"); print $1,a[3]-a[2],$2;}'> $i.HiTNE.introns.down500.rpm &
+    awk '$5>10' Hostgene.length.nHITNE.metaExon.metaIntron.xls | cut -f2 | fgrep -f - introns.meta.up.bed | bigWigAverageOverBed /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bw stdin stdout | cut -f1,5 | awk '{OFS="\t"; split($1,a,"_"); print $1,a[3]-a[2],$2;}'> $i.HiTNE.gt10.introns.up500.rpm &
+    awk '$5>10' Hostgene.length.nHITNE.metaExon.metaIntron.xls | cut -f2 | fgrep -f - introns.meta.down.bed | bigWigAverageOverBed /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bw stdin stdout | cut -f1,5 | awk '{OFS="\t"; split($1,a,"_"); print $1,a[3]-a[2],$2;}'> $i.HiTNE.gt10.introns.down500.rpm &
+done
+
+# R
+df=c()
+for(i in c("HC_PBMC", "HC_FB", "HC_MCPY", "HC_TCPY", "HCILB_SNDA")){
+    df=rbind(df, data.frame(celltype=i,region="up500",read.table(paste0(i,".all.introns.up500.rpm"), header=F)[,c(2,3)]))
+    df=rbind(df, data.frame(celltype=i,region="down500",read.table(paste0(i,".all.introns.down500.rpm"), header=F)[,c(2,3)]))
+}
+colnames(df)=c('celltype','region',"intronLength","RPM")
+df=cbind(df, Length=cut(df$intronLength, breaks=c(0,10000,50000,100000,2000000), labels=c("S","M","L","XL")))
+
+pdf("cotranscriptionalsplicing2.all.pdf", width=4, height=4, paper="us")
+meanRPM=tapply(df$RPM, list(df$Length,df$region, df$celltype), mean)
+for(i in c("HC_PBMC", "HC_FB", "HC_MCPY", "HC_TCPY", "HCILB_SNDA")){
+    barplot(t(meanRPM[,,i]),beside=T, xlab="Length of downstream intron", ylab="Average RPM", main=i, col=c(0,1), las=1)
+}
+dev.off()
+        
+df=c()
+for(i in c("HC_PBMC", "HC_FB", "HC_MCPY", "HC_TCPY", "HCILB_SNDA")){
+    df=rbind(df, data.frame(celltype=i,region="up500",read.table(paste0(i,".HiTNE.introns.up500.rpm"), header=F)[,c(2,3)]))
+    df=rbind(df, data.frame(celltype=i,region="down500",read.table(paste0(i,".HiTNE.introns.down500.rpm"), header=F)[,c(2,3)]))
+}
+colnames(df)=c('celltype','region',"intronLength","RPM")
+df=cbind(df, Length=cut(df$intronLength, breaks=c(0,10000,50000,100000,2000000), labels=c("S","M","L","XL")))
+
+pdf("cotranscriptionalsplicing2.HiTNE.pdf", width=4, height=4, paper="us")
+meanRPM=tapply(df$RPM, list(df$Length,df$region, df$celltype), mean)
+for(i in c("HC_PBMC", "HC_FB", "HC_MCPY", "HC_TCPY", "HCILB_SNDA")){
+    barplot(t(meanRPM[,,i]),beside=T, xlab="Length of downstream intron", ylab="Average RPM", main=i, col=c(0,1), las=1)
+}
+dev.off()
+
+df=c()
+for(i in c("HC_PBMC", "HC_FB", "HC_MCPY", "HC_TCPY", "HCILB_SNDA")){
+    df=rbind(df, data.frame(celltype=i,region="up500",read.table(paste0(i,".HiTNE.gt10.introns.up500.rpm"), header=F)[,c(2,3)]))
+    df=rbind(df, data.frame(celltype=i,region="down500",read.table(paste0(i,".HiTNE.gt10.introns.down500.rpm"), header=F)[,c(2,3)]))
+}
+colnames(df)=c('celltype','region',"intronLength","RPM")
+df=cbind(df, Length=cut(df$intronLength, breaks=c(0,10000,50000,100000,2000000), labels=c("S","M","L","XL")))
+
+pdf("cotranscriptionalsplicing2.HiTNE.gt10.pdf", width=4, height=4, paper="us")
+meanRPM=tapply(df$RPM, list(df$Length,df$region, df$celltype), mean)
+for(i in c("HC_PBMC", "HC_FB", "HC_MCPY", "HC_TCPY", "HCILB_SNDA")){
+    barplot(t(meanRPM[,,i]),beside=T, xlab="Length of downstream intron", ylab="Average RPM", main=i, col=c(0,1), las=1)
+}
+dev.off()        
 
 
 #############################################################
@@ -165,7 +171,7 @@ Rscript eRNA.clustering.R eRNA.80samples.rawcount.xls
 
 
 #############################################################
-# DESeq of eRNA (by BZ)
+# DESeq of eRNA 
 #############################################################
 
 

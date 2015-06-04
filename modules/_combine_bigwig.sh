@@ -9,12 +9,17 @@
 
 group_lable=$1
 
-[ "$group_lable" = "HC_TCPY" ]  && pattern="(HC|ND)_.*_TCPY_[2345]";
-[ "$group_lable" = "HC_MCPY" ]  && pattern="(HC|ND)_.*_MCPY_[2345]";
-[ "$group_lable" = "HC_SNDA" ]  && pattern="(HC|ND)_.*_SNDA_[2345]";
-[ "$group_lable" = "ILB_SNDA" ] && pattern="ILB_.*_SNDA_[2345]";
-[ "$group_lable" = "PD_SNDA" ]  && pattern="PD_.*_SNDA_[2345]";
-[ "$group_lable" = "HCILB_SNDA" ]  && pattern="(HC|ND|ILB)_.*_SNDA_[2345]";
+[ "$group_lable" = "HC_TCPY" ]  && pattern="(HC|ND)_.*_TCPY_[^1]";
+[ "$group_lable" = "HC_MCPY" ]  && pattern="(HC|ND)_.*_MCPY_[^1]";
+[ "$group_lable" = "HC_SNDA" ]  && pattern="(HC|ND)_.*_SNDA_[^1]_[^s]*/";
+[ "$group_lable" = "ILB_SNDA" ] && pattern="ILB_.*_SNDA_[^1]";
+[ "$group_lable" = "PD_SNDA" ]  && pattern="PD_.*_SNDA_[^1]";
+[ "$group_lable" = "HCILB_SNDA" ]  && pattern="(HC|ND|ILB)_.*_SNDA_[^1]_[^s]*/";  # excep batch1 and stranded libs
+# control
+[ "$group_lable" = "HC_SN" ]  && pattern="HC_.*_SN_[^u]*/";
+[ "$group_lable" = "HC_SNDAstranded" ]  && pattern="HC_.*_SNDA_.*stranded";
+[ "$group_lable" = "HC_PBMC" ]  && pattern="HC_.*_PBMC_[^u]*/";
+[ "$group_lable" = "HC_FB" ]  && pattern="HC_.*_FB_";
 
 echo $group_lable, "$pattern";
 ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"

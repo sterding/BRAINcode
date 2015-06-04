@@ -20,24 +20,24 @@ type=$4
 
 [[ $type == "" ]] && type="mean"
 
-## for N=1
-[[ $type == "sum" ]] && ncol=4
-[[ $type == "mean" ]] && ncol=5
-[[ $type == "min" ]] && ncol=7
-[[ $type == "max" ]] && ncol=8
+### for N=1
+#[[ $type == "sum" ]] && ncol=4
+#[[ $type == "mean" ]] && ncol=5
+#[[ $type == "min" ]] && ncol=7
+#[[ $type == "max" ]] && ncol=8
 
-#echo $ncol
-
-bigWigAverageOverBed $bigwig $bedfile stdout -minMax | cut -f1,$ncol
-
-## for N>1
+## NOTE:
 ## bug in bigwigsummary: https://groups.google.com/a/soe.ucsc.edu/forum/#!topic/genome/pWjcov-xQyQ
+## TODO: switch to use bigWigAverageOverBed $bigwig $bedfile stdout -minMax | cut -f1,$ncol
 
-#cat $bedfile | while read chr start end rest
-#do
-#    s=`bigWigSummary $bigwig -udcDir=/tmp -type=$type $chr $start $end $N 2>/dev/null | sed 's/n\/a/0/g'`;
-#    [[ $s == "" ]] && s=`yes 0 | head -n$N | tr '\n' '\t'`
-#    echo "$chr:$start-$end" $s;
-#done
+cat $bedfile | while read chr start end name score strand rest
+do
+    s=`bigWigSummary $bigwig -udcDir=/tmp -type=mean $chr $start $end $N 2>/dev/null | sed 's/n\/a/0/g'`;
+    [[ $s == "" ]] && s=`yes 0 | head -n$N | tr '\n' ' '`
+    [[ $strand == "-" ]] && s=`echo $s | tr ' ' '\n' | tac | tr '\n' ' '`
+    [[ $name == "" ]] && name="$chr_$start_$end";
+    echo $name $s;
+done
+
 
 

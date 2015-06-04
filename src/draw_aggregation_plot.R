@@ -49,7 +49,7 @@ for(fname in filenames){
         mps=rbind(mps, mp[[1]]);
             
         # get decay ratio
-        mRNAdecay=c(mRNAdecay, mean(mp[[1]][42:61])/mean(mp[[1]][21:40]))
+        mRNAdecay=c(mRNAdecay, mean(mp[[1]][59:61])/mean(mp[[1]][21:23]))
                     
         rangeY[1]=min(rangeY[1], range(mp[[1]], na.rm=T)[1])
         rangeY[2]=max(rangeY[2], range(mp[[1]], na.rm=T)[2])
@@ -78,9 +78,9 @@ rownames(covarianceTable)=covarianceTable$sampleName;
 covarianceTable=covarianceTable[,-1]
 df=cbind(mRNAdecay, covarianceTable[match(rownames(mRNAdecay), rownames(covarianceTable)),])
 
-df=df[grep("ILB_BN10-90_SNDA_4|ILB_BN99-54_SNDA_4", rownames(df), invert=T),] # remove two outliers
+df=df[grep("ILB_BN10-90_SNDA_4|ILB_BN99-54_SNDA_4|HC_BN00-14_SNDA_4|HC_BN97-02_SNDA_4", rownames(df), invert=T),] # remove two outliers
 
-pdf("decayratio_vs_RIN.pdf", height=6, width=6, colormodel='cmyk')
+pdf("decayratio_vs_RIN.3bins.pdf", height=6, width=6, colormodel='cmyk')
 plot(housekeeping~RIN, df, ylab="decay ratio", main="housekeeping genes"); legend("topleft", paste("Spearman's rho",round(cor(df$housekeeping, df$RIN, method='spearman'),3), sep="=")); abline(lm(housekeeping~RIN, df), col='red')
 plot(protein_coding~RIN, df, ylab="decay ratio", main="protein_coding genes"); legend("topleft", paste("Spearman's rho",round(cor(df$protein_coding, df$RIN, method='spearman'),3), sep="=")); abline(lm(protein_coding~RIN, df), col='red')
 plot(all~RIN, df, ylab="decay ratio", main="all genes"); legend("topleft", paste("Spearman's rho",round(cor(df$all, df$RIN, method='spearman'),3), sep="=")); abline(lm(all~RIN, df), col='red')
