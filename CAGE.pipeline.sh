@@ -91,3 +91,16 @@ bedGraphToBigWig trimmedmean.plus.normalized.bg $GENOME/Annotation/Genes/ChromIn
 
 unionBedGraphs -i `ls *minus.normalized.bedGraph` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm!=0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' | awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.minus.normalized.bg
 bedGraphToBigWig trimmedmean.minus.normalized.bg $GENOME/Annotation/Genes/ChromInfo.txt trimmedmean.minus.normalized.bw
+
+########################
+# 4. call bidirectional loci accoroding to Andersson et al 2014 Nature (https://github.com/anderssonrobin/enhancers)
+########################
+# prepare bed file for transcription initiation sites (5' bed6 files with score column quantifying the number of mapped reads)
+for i in *.bed; do
+  echo $i;
+  sort -k1,1 -k2,2n -k6,6 $i | groupBy -g 1,2,3,6 -c 6 -o count | awk '{OFS="\t"; print $1,$2,$3,$1"_"$2,$5,$4;}' > $i.merged.BED 
+  ~/bin/enhancers/scripts/bidir_enhancers -s $i -m ~/bin/enhancers/mask/hg19_neg_filter_500_merged.bed -f $i.merged.BED -o .
+done
+
+
+

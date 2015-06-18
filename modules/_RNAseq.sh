@@ -25,6 +25,8 @@ R1=$1  # filename of R1
 R2=$2  # filename of R2 (for paired-end reads)
 samplename=${R1/[.|_]R1*/}
 
+cirRNA_caller = $3
+
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
 
@@ -89,6 +91,10 @@ touch $outputdir/$samplename/.status.$modulename.mapping
 #tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strandoption --max-multihits $MAX_HIT --no-coverage-search genome $R1 $R2 && \
 #touch $outputdir/$samplename/.status.$modulename.smallRNAmapping
 
+
+## Using BWA-MEM to prepare alignment for calling cirRNA with CIRI
+#bwa mem $R1 $R2
+
 ############################################
 echo "["`date`"] STEP 4.1. mapping & calling circRNA"
 ############################################
@@ -101,6 +107,9 @@ tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --keep-fa
 CIRCexplorer.py -f $outputdir/$samplename/tophat_fusion/accepted_hits.bam -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -r $GENOME/Annotation/Genes/refFlat.txt -o $outputdir/$samplename/circ.txt && \
 rm $outputdir/$samplename/unmapped.fastq && \
 touch $outputdir/$samplename/.status.$modulename.circRNA
+
+## calling cirRNA using CIRI
+
 
 ###########################################
 echo "["`date`"] STEP 5. post-processing, format converting"

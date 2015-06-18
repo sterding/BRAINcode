@@ -101,11 +101,10 @@ intersectBed -a eRNA.tmp4 -b ~/neurogen/rnaseq_PD/results/merged/denovo_assembly
 # step5: calculate the significance of eRNA
 # =================
 #1: create 100,000 random regions (400bp each) as background and calculate their signals
-for i in ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA*rep[0-9]/uniq/accepted_hits.normalized.bw ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw;
+for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw;
 do
-    #bsub -q normal -n 1 "bedtools random -g $GENOME/Annotation/Genes/ChromInfo.txt -l 400 -n 500000 | grep -v chrM | intersectBed -a - -b ../blacklist.bed -v | head -n100000 | bigWigAverageOverBed $i stdin $i.rdbg";
-    bsub -q normal -n 1 "bedtools shuffle -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg";
-    bsub -q normal -n 1 "bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM"
+    [ -e $i.rdbg ] || bsub -q normal -n 1 "bedtools shuffle -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg";
+    [ -e $i.eRNA.meanRPM ] || bsub -q normal -n 1 "bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM"
 done
 
 ### 2: distribution of random background, in order to define the cutoff with p=0.0001 significance
@@ -165,3 +164,20 @@ q('no')
 ## R end
 
 awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) print a[1],a[2],a[3],$1}' eRNA.90samples.meanRPM.xls > eRNA.bed
+
+
+## merge menaRPM for all samples
+R
+path="~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw"
+EXP=data.frame(); id="locus"
+for(i in Sys.glob(path)){
+    ii=sub(".*run_output/(.*)/uniq.*","\\1", i);
+    print(i)
+    id=c(id, ii)
+    expression=read.table(paste(i,"eRNA.meanRPM",sep="."), header=F)
+    if(ncol(EXP)==0) {
+      EXP=expression; 
+    } else {EXP=cbind(EXP, expression[,2]);}
+}
+colnames(EXP)=id; 
+write.table(EXP, "eRNA.140samples.meanRPM.xls", col.names=T, row.names=F, sep="\t", quote=F)
