@@ -38,7 +38,7 @@ output_dir=$input_dir/../run_output
 fordisplay_dir=$input_dir/../for_display
 [ -d $fordisplay_dir ] || mkdir $fordisplay_dir
 
-result_dir=$input_dir/../results 
+result_dir=$input_dir/../results2 
 [ -d $result_dir ] || mkdir $result_dir
 
 ########################
@@ -61,14 +61,10 @@ done
 exit
 
 ########################
-## [test] (merge all reads and then call assembly once) vs. (call assembly individually and then run cuffmerge)
-########################
-samtools merge -1r all124samples.uniq.accepted_hits.bam `ls */uniq/accepted_hits.bam.non-rRNA-mt.bam`
-
-
-########################
 ## [test] total-rRNA-chrM vs. total, which one is better to be used for normalization?
 ########################
+[ -d $result_dir/coverage ] || mkdir $result_dir/coverage
+cd $result_dir/coverage
 
 echo "sampleID" `rowsToCols /PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_2_rep1/uniq/accepted_hits.bam.bam2annotation stdout | sed 's/://g' | head -n1` | sed 's/ /\t/g' > allsamples.bam2annotation.tab
 paste <(ls -1 ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation | sed 's/.*run_output\///g;s/\/uniq.*//g') <(paste ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation | sed 's/[^[:space:]]*: //g' | rowsToCols stdin stdout) >> allsamples.bam2annotation.tab
@@ -86,15 +82,14 @@ dev.off()
 ########################
 [ -d $result_dir/coverage ] || mkdir $result_dir/coverage
 cd $result_dir/coverage
-#for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA;
-for i in HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded;
+for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded;
 do
     #bsub -J combine_coverage -oo _combine_cov.$i.log -eo _combine_cov.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 5
     bsub -J combine_coverage -oo _combine_cov.$i.rpm.log -eo _combine_cov.$i.rpm.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 0.05
 done
 
 # GENCODE meta-exons (v19)
-cut -f1-3 /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/exons.bed | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}' # 122000567
+cut -f1-3 $GENOME/Annotation/Genes/exons.bed | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}' # 122000567
 # intergenic
 intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed | awk '{s+=($3-$2)}END{print s}'  # 650101182
 # EXONs
@@ -102,12 +97,11 @@ intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/inter
 # introns
 intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed -v | intersectBed -a - -b $GENOME/Annotation/Genes/exons.meta.bed -v | awk '{s+=($3-$2)}END{print s}' # 1123233053
 
-## coverage.txt
+## cat > coverage.txt
 GENCODE.all.exons   122000567   0
 exons   0   101113507
 introns 0   1123233053
 intergenic  0   650101182
-
 
 # R
 pdf("coverage.barplot.pdf", paper='us',width=4.5, height=4)
@@ -123,13 +117,13 @@ dev.off()
 
 ## body coverage
 ls ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA_*rep[1-2]/uniq/accepted_hits.bam.non-rRNA-mt.bam > bam_path.txt
-bsub -J RseQC_body_coverage -oo _RseQC_body_coverage.log -eo _RseQC_body_coverage.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i bam_path.txt  -o RseQC_body_coverage
+bsub -J RseQC -oo _RseQC_body_coverage.log -eo _RseQC_body_coverage.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i bam_path.txt  -o RseQC_body_coverage
 
 ## cumulative coverage
 for i in ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA_*rep[1-2]/uniq/accepted_hits.bw;
 do
     echo $i;
-    bigWigToBedGraph $i stdout | awk '$4>=5' > $i.gt5reads.bedGraph &
+    [ -f $i.gt5reads.bedGraph ] || bigWigToBedGraph $i stdout | awk '$4>=5' > $i.gt5reads.bedGraph &
 done
 bsub -J combine_coverage -oo _combine_cov.HCILB_SNDA.log -eo _combine_cov.HCILB_SNDA.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh HCILB_SNDA 5
 
@@ -202,7 +196,11 @@ Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgse
 for i in HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SNDAstranded;
 do
     bsub -J combine_bw -oo _combin_bw.$i.log -eo _combin_bw.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_bigwig.sh $i
+
+    # if bedGraph files are not there, convert back using bigwig
+    [ -f trimmedmean.uniq.normalized.$i.bedGraph ] || bigWigToBedGraph trimmedmean.uniq.normalized.$i.bw trimmedmean.uniq.normalized.$i.bedGraph
 done
+
 
 #--------------------------
 ## 2.3 make UCSC track hub
@@ -228,7 +226,7 @@ Rscript $pipeline_path/modules/_normQC.R genes.fpkm.HCILB.uniq.xls QC.genes.fpkm
 ## k-mer distance
 cd $filtered_dir/
 for i in *_[12]_*fastq.gz; do echo $i;  [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HWI-ST' $i fa/${i/fastq.gz/fa};  done
-for i in *_[3-5]_*fastq.gz; do echo $i; [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HISEQ' $i fa/${i/fastq.gz/fa};  done
+for i in *_[3-6]_*fastq.gz; do echo $i; [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HISEQ' $i fa/${i/fastq.gz/fa};  done
 cd fa
 for i in [!PD]*.R1.fa; do
     sample=${i/.R1.fa/}

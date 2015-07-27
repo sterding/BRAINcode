@@ -6,8 +6,9 @@
 ## Version: 0.0
 ##############################################
 
-install.packages('gsheet')
-library(gsheet)
+setwd("~/eRNAseq")
+
+library(gsheet) # install.packages('gsheet')
 colorcode = gsheet2tbl('docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs#gid=1995457670')
 
 ## TODO
@@ -17,26 +18,46 @@ colorcode = gsheet2tbl('docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213ke
 ## 4. heatmap of cor() for all HiTNEs across 90 SNDA samples
 df=read.table("~/eRNAseq/eRNA.90samples.meanRPM.xls", header=T)
 rownames(df) = df[,1]; df=df[,-1]
-df=df[grep("chr7", rownames(df)),]
+
+## take the one overlapped wit DNase peaks (N=5669)
+core=read.table("eRNA.wDNase.bed")
+
+df=df[rownames(df) %in% core$V4,]
 df=scale(df)
 require(gplots);
 heatmap.2(1-cor((df)), trace="none", density="none", scale='none', cexRow=0.5, labCol ="", margins=c(3,8), symm=T, lhei=c(1,5))
 #heatmap.2(d, trace="none", density="none", scale='none', cexRow=0.5, labCol ="", labRow ="", margins=c(3,8), symm=T, lhei=c(1,5))
+
 x=cor(t(df), method='spearman')
+# remove row/col which max(abs)<0.7
+x2=x; x2[lower.tri(x2, T)]=0
+INDEX=apply(abs(x2),1,max, na.rm=T)>0.7
+x=x[INDEX,INDEX]
+
+pdf("eRNA.wDNase.cor.clustering.pdf")
+heatmap.2(x, breaks=seq(-1,1,0.01),col=colorRampPalette(c('darkblue','white','red'))(200), trace="none", density="none", symm=F,symkey=F,symbreaks=T, scale='none', cexRow=0.5, labCol ="", margins=c(3,8), lhei=c(1,5))
+dev.off()
 
 xmin=-1; xmax=1;
 x[x<xmin]=xmin; x[x>xmax]=xmax;
-collist<-c("#053061","#2166AC","#4393C3","#92C5DE","#D1E5F0","#F7F7F7","#FDDBC7","#F4A582","#D6604D","#B2182B","#67001F")
-#collist<-rev(c("#053061","#2166AC","#4393C3","#92C5DE","#D1E5F0","#F7F7F7"))
+x=x2
+x[lower.tri(x)]=0
+
+#collist<-c("#053061","#2166AC","#4393C3","#92C5DE","#D1E5F0","#F7F7F7","#FDDBC7","#F4A582","#D6604D","#B2182B","#67001F")
+collist<-c('darkblue','white','red')
 ColorRamp<-colorRampPalette(collist)(10000)
 ColorLevels<-seq(from=xmin, to=xmax, length=10000)
 ColorRamp_ex <- ColorRamp[round(1+(min(x)-xmin)*10000/(xmax-xmin)) : round( (max(x)-xmin)*10000/(xmax-xmin) )]
 
+pdf("eRNA.wDNase.cor.image.pdf")
 par(mar=c(0,2,0,2), oma=c(3,3,3,3))
 layout(matrix(1:2,nrow = 2), widths = 8, heights = c(1,8))
-r=rollapply(apply(x,2,mean),width =5,by = 1,FUN = mean, align = "left")
-plot(r, type='h', col='#67001F', xlab="",ylab="",xaxs = 'i', xaxt="n",yaxt="n", frame.plot=F)
+require('zoo'); # install.packages('zoo')
+r=rollapply(apply(x2,2,mean),width =5,by = 1,FUN = mean, align = "left")
+plot(r, type='h', col='gray', xlab="",ylab="",xaxs = 'i', xaxt="n",yaxt="n", frame.plot=F)
 image(as.matrix(x), col=ColorRamp_ex, useRaster=T, xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=F)
+dev.off()
+
 
 df=read.table("~/eRNAseq/eRNA.140samples.meanRPM.xls", header=T)
 rownames(df) = df[,1]; df=df[,-1]

@@ -12,7 +12,7 @@
 ## TODO: re-run without 
 ## Note: PD could potentially introduce noise (e.g. those survived neurons could be more resisitent than other died)
 
-require('MatrixEQTL') || install.package('MatrixEQTL', repo='http://cran.revolutionanalytics.com');
+require('MatrixEQTL') || install.packages('MatrixEQTL', repo='http://cran.revolutionanalytics.com');
 
 args<-commandArgs(TRUE)
 

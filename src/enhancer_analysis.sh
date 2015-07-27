@@ -20,39 +20,47 @@ rsync -azv eRNA.bed xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/versio
 # see eRNA.characterize.sh
 
 # if the overlap is significant or not?
-for i in `seq 1 10000`;
+for i in `seq 1 1000`;
 do
     echo $i;
-    bsub -J random_overlap -oo _random_overlap.$i.log -eo _random_overlap.$i.log -q normal -n 1 -M 500 $pipeline_path/src/overlap.with.random.sh
+    #bsub -J random_overlap -oo _random_overlap.$i.log -eo _random_overlap.$i.log -q normal -n 1 -M 500 $pipeline_path/src/overlap.with.random.sh
+    
+    ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
+    # randomly sampling
+    tmp=`mktemp`
+    bedtools shuffle -excl toExclude.bed -noOverlapping -i eRNA.bed -g $ANNOTATION/ChromInfo.txt > $tmp
+    intersectBed -a $tmp -b externalData/CAGE/permissive_enhancers.bed -u | wc -l >> randomoverlap.CAGE.txt
+    
 done
 
 tmp=eRNA.bed
 # TFBS hotspot
-awk '$6>=1' ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -c | awk '$5>5' | wc -l
+awk '$6>1' externalData/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -c | awk '$5>5' | wc -l > eRNA.overlap.txt
 # P300
-awk '$4=="EP300"' ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -u | wc -l
+awk '$4=="EP300"' externalData/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -u | wc -l >> eRNA.overlap.txt
 # FANTOMF CAGE
-intersectBed -a $tmp -b ../CAGE/permissive_enhancers.bed -u | wc -l
+intersectBed -a $tmp -b externalData/CAGE/permissive_enhancers.bed -u | wc -l >> eRNA.overlap.txt
 # Roadmpa Histone
-intersectBed -a $tmp -b ../Segment/15_coreMarks_segments.E6E7E12.bed -u | wc -l
+intersectBed -a $tmp -b externalData/Segment/15_coreMarks_segments.E6E7E12.bed -u | wc -l >> eRNA.overlap.txt
 # VISTA positive
-grep -v NULL ../VISTA/hg19.tested_regions.bed | intersectBed -a $tmp -b stdin -u | wc -l
-# DNase enhancer from Roadmap
-intersectBed -a $tmp -b ../DNase/regions_enh_merged.brain.bed -u | wc -l
+grep -v NULL externalData/VISTA/hg19.tested_regions.bed | intersectBed -a $tmp -b stdin -u | wc -l >> eRNA.overlap.txt
 # HCNE
-intersectBed -a $tmp -b ../Conservation/HCNE_hg19_danRer7_70pc_50col.bed -u | wc -l
+intersectBed -a $tmp -b externalData/Conservation/HCNE_hg19_danRer7_70pc_50col.bed -u | wc -l >> eRNA.overlap.txt
+# DNase peak from Roadmap
+intersectBed -a $tmp -b externalData/DNase/merged.DNase.pval.signal.peaks -u | wc -l >> eRNA.overlap.txt
 # GWAS SNPs
-cut -f1-3 $GENOME/Annotation/GWASCatalog/gwascatalog2015Apr.gwas-clean-hg19.uniq.bed | sort -u | intersectBed -a $tmp -b stdin -u | wc -l
+snps_in_LD=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwascatalog2015Apr.gwas-clean-hg19.uniq.snps_in_LD.r2.0.4.bed
+awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$2,$3,$7; for(i=1;i<n;i++) print $1,b[i]-1,b[i],$7;}' $snps_in_LD | cut -f1-3 | sort -u | intersectBed -a $tmp -b stdin -u | wc -l >> eRNA.overlap.txt
 
 # R
-features=c("TFBS","P300","CAGE", "Histone","VISTA", "DNase", "HCNE", "GWAS")
-nHiTNE=c(4148,3914,1266,21823,63,15987,294,317)
+setwd("~/eRNAseq")
+features=c("TFBS","P300","CAGE", "Histone","VISTA", "HCNE", "DNase", "GWAS")
+nHiTNE=read.table("eRNA.overlap.txt")[,1]  # c(4148,3914,1266,21823,63,15987,294,317)
 for(i in 1:8){
     df=read.table(paste0("randomoverlap.",features[i],".txt"))$V1
     #cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/75490,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i])$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t", file = "randomoverlap.enrichment.xls", append =T)
-    cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/75490,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i])$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t")
+    cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/71469,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i], alternative =)$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t")
 }
-
 
 ################################################################################################
 # for in vitro/vivo test

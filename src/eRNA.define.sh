@@ -1,7 +1,15 @@
-## script to define eRNAs with the following features
-# $pipeline_path/eRNA.define.sh $inputBG
+## script to define HiTNE with the following features
+# Usage: $pipeline_path/eRNA.define.sh HCILB_SNDA
+# Author: Xianjun Dong
+# Date: July 17, 2015
+# preqisition: 
+# 1. run bash /data/neurogen/pipeline/RNAseq/src/get.regulatoryMarks.data.sh to Download bigwig files for various marks
+# 2. run bash /data/neurogen/pipeline/RNAseq/src/get.background.sh to generate the background region
+
+## TODO: modify code to work for any sample group
+
 ################################################
-# eRNA definition:
+# HiTNE definition:
 # 1) density higher than the basal level,  
 # 2) summit >0.05 RPM, --> p<0.05 comparing to the transcriptional noise
 # 3) located in non-generic regions (e.g. 500bp away from any annotated exons),
@@ -13,62 +21,25 @@
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
 
-cd ~/projects/PD/results/eRNA/externalData/RNAseq
+cd ~/projects/PD/results/eRNA
 
-inputBG=/data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph
+SAMPLE_GROUP=$1
+inputBG=/data/neurogen/rnaseq_PD/results2/merged/trimmedmean.uniq.normalized.$SAMPLE_GROUP.bedGraph
 
+mkdir $SAMPLE_GROUP
+cd $SAMPLE_GROUP
 
 # ===========================================================================
 #: background region to measure transcriptional noise: genomic regions excluding the known regions with RNA activities (known exons+/-500bp, rRNA, CAGE-defined enhancers, promoters)
 # ===========================================================================
 
-ANNOTATION=$GENOME/Annotation/Genes
-cat $ANNOTATION/gencode.v19.annotation.bed12 $ANNOTATION/knownGene.bed12 $ANNOTATION/NONCODEv4u1_human_lncRNA.bed12 | bed12ToBed6 | cut -f1-3 | grep -v "_" | slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 > /tmp/bg.bed
-cut -f1-3 $ANNOTATION/rRNA.bed >> /tmp/bg.bed  # rRNA
-# +/-500bp flanking around the CAGE-predicted TSS (downloaded from: http://fantom.gsc.riken.jp/5/datafiles/latest/extra/TSS_classifier/)
-grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/TSS_human.bed | grep -v "211,211,211" | cut -f1-3 | grep -v "_" | slopBed -g $GENOME/Sequence/WholeGenomeFasta/genome.fa.fai -b 500 >> /tmp/bg.bed 
-#cat $ANNOTATION/SINE.bed $ANNOTATION/LINE.bed | cut -f1-3 >> /tmp/bg.bed  # LINE and SINE
-cat $ANNOTATION/hg19.gap.bed >> /tmp/bg.bed  # genomic gap
-cat /tmp/bg.bed | sortBed | mergeBed -i - > ../toExclude.bed
-grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/permissive_enhancers.bed | cut -f1-3 >> /tmp/bg.bed # CAGE-enhancer
-cat /tmp/bg.bed | sortBed | mergeBed -i - > ../blacklist.bed
-
 # RNAseq signal distribution in the background region
-intersectBed -a $inputBG -b ../blacklist.bed -sorted -v | awk '{OFS="\t"; print $3-$2, $4}' | shuf > transcriptional.noise.rpm.txt
+intersectBed -a $inputBG -b ../blacklist.bed -sorted -v | awk '{OFS="\t"; print $3-$2, $4}' | shuf -n 1000000 > transcriptional.noise.rpm.txt
 
 #R
-df=read.table("transcriptional.noise.rpm.txt", comment.char = "", nrows = 2000000)
-df=log10(as.numeric(do.call('c',apply(df, 1, function(x) rep(x[2],x[1])))))
-library(fitdistrplus)
-fitn=fitdist(df,'norm')
-pdf("transcriptional.noise.distribution.pdf", width=8, height=6)
-hist(df, breaks=100, prob=TRUE, xlab='log10(RPM)', main='Distribution of transcriptional noise')
-lines(density(df, bw=0.15))
-m=round(as.numeric(fitn$estimate[1]),digits=3)
-sd=round(as.numeric(fitn$estimate[2]),digits=3)
-lines(density(rnorm(n=2000000, mean=m, sd=sd),bw=0.25), col='blue',lty=2)
-p=round(qnorm(.05, mean=m, sd=sd, lower.tail = F), digits=3)
-lines(y=c(0,0.3),x=c(p,p),col='red')
-text(p,0.2,paste0("P(X>",p,") = 0.05\nRPM=10**",p,"=",round(10**p,digits=3)), adj=c(0,0))
-legend("topright", c("empirical density curve", paste0("fitted normal distribution \n(mean=",m,", sd=",sd,")")), col=c('black','blue'), lty=c(1,2), bty='n')
-dev.off()
-
-# Dsig: 10**-1.105 == 0.079
-
-## any region with RPM density > 0.101
-#basalLevel=0.101
-#j=`basename ${inputBG/bedGraph/eRNA.bed}`
-#awk -vmin=$basalLevel '{OFS="\t"; if($4>min) print $1,$2,$3,".",$4}' $inputBG | mergeBed -d 100 -scores max | intersectBed -a - -b ../toExclude.bed -v > $j
-##wc -l $j
-##40451 trimmedmean.uniq.normalized.HCILB_SNDA.eRNA.bed
-
-#for i in /data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph;
-#do
-#    basalLevel=`tail -n1 $i | cut -f2 -d'=' | cut -f1 -d' '`
-#    echo $i, $basalLevel;
-#    j=`basename ${i/bedGraph/eRNA.bed}`
-#    awk -vmin=$basalLevel '{OFS="\t"; if($4>=2*min) print $1,$2,$3,".",$4}' $i | mergeBed -scores max | awk '{OFS="\t"; if($4>=0.05) print $1,$2,$3,".",$4}' | mergeBed -d 100 -scores max | intersectBed -a - -b ../toExclude.bed -v > $j &
-#done
+Rscript /data/neurogen/pipeline/RNAseq/src/_fit.Tx.noise.R .
+#for HCILB_SNDA: Dsig: 10**-1.105 == 0.079
+Dsig=`tail -n1 transcriptional.noise.rpm.pvalues.txt`  
 
 # step1: any regions with summit RPM > peakLevel and border > baseLevel
 # =================
@@ -77,7 +48,6 @@ awk -vmin=$basalLevel '{OFS="\t"; if($4>=min) print $1,$2,$3,".",$4}' $inputBG |
 
 # step2: summit RPM >=Dsig (density with p<0.05)
 # =================
-Dsig=0.079
 awk -vD=$Dsig '{OFS="\t"; if($4>=D) print $1,$2,$3,".",$4}' eRNA.tmp1 | mergeBed -d 100 -scores max > eRNA.tmp2
 
 # step3: located in non-generic regions (e.g. 500bp away from any annotated exons),
@@ -90,30 +60,30 @@ awk '{OFS="\t"; if(($3-$2)>100) print $1,$2,$3,$1"_"$2"_"$3}' eRNA.tmp3 > eRNA.t
 
 # step6: don't contain any splicing sites (donor or acceptor from trinity/cufflinks de novo assembly)
 # =================
-# cd ~/neurogen/rnaseq_PD/results/merged/denovo_assembly/
+# cd ~/neurogen/rnaseq_PD/results2/merged/denovo_assembly/
 # cat cufflinks-cuffmerge/merged.bed trinity-cuffmerge/all_strand_spliced.chr.bed | awk '{OFS="\t";split($11,a,","); split($12,b,","); A=""; B=""; for(i=1;i<length(a)-1;i++) {A=A""(b[i+1]-b[i]-a[i])",";B=B""(b[i]+a[i]-(b[1]+a[1]))",";} if($10>1) print $1,$2+a[1], $3-a[length(a)-1], $4,$5,$6,$2+a[1], $3-a[length(a)-1],$9,$10-1,A,B;}' | bed12ToBed6 | awk '{OFS="\t"; print $1, $2-10,$2+10; print $1,$3-10,$3+10;}' | sortBed | uniq > trinitycufflinks.merged.splicingsites.flanking20nt.bed
 
 # more than 10 splicing reads in at least 5 samples
-# for i in  ~/neurogen/rnaseq_PD/run_output/*/junctions.bed; do awk '{OFS="\t"; if($5>10) { split($11,a,","); split($12,b,","); print $1,$2+a[1]-10,$2+a[1]+10; print $1,$2+b[2]-10,$2+b[2]+10}}' $i | sortBed | uniq; done | sort | uniq -c | awk '{OFS="\t"; if($1>5) print $2,$3,$4}' > ~/neurogen/rnaseq_PD/results/merged/denovo_assembly/tophatjunctions.merged.splicingsites.flanking20nt.bed
+# for i in  ~/neurogen/rnaseq_PD/run_output/*/junctions.bed; do awk '{OFS="\t"; if($5>10) { split($11,a,","); split($12,b,","); print $1,$2+a[1]-10,$2+a[1]+10; print $1,$2+b[2]-10,$2+b[2]+10}}' $i | sortBed | uniq; done | sort | uniq -c | awk '{OFS="\t"; if($1>5) print $2,$3,$4}' > ~/neurogen/rnaseq_PD/results2/merged/denovo_assembly/tophatjunctions.merged.splicingsites.flanking20nt.bed
  
-intersectBed -a eRNA.tmp4 -b ~/neurogen/rnaseq_PD/results/merged/denovo_assembly/tophatjunctions.merged.splicingsites.flanking20nt.bed -v > eRNA.tmp5
+intersectBed -a eRNA.tmp4 -b ~/neurogen/rnaseq_PD/results2/merged/denovo_assembly/tophatjunctions.merged.splicingsites.flanking20nt.bed -v > eRNA.tmp5
 
 # step5: calculate the significance of eRNA
 # =================
 #1: create 100,000 random regions (400bp each) as background and calculate their signals
-for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw;
+for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw ~/neurogen/rnaseq_PD/results2/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw;
 do
-    [ -e $i.rdbg ] || bsub -q normal -n 1 "bedtools shuffle -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg";
-    [ -e $i.eRNA.meanRPM ] || bsub -q normal -n 1 "bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM"
+    bsub -q normal -n 1 "bedtools shuffle -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg";
+    bsub -q normal -n 1 "bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM"
 done
 
 ### 2: distribution of random background, in order to define the cutoff with p=0.0001 significance
 R
 # significance
-path=c("~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw", "~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA*rep[0-9]/uniq/accepted_hits.normalized.bw")
+path=c("~/neurogen/rnaseq_PD/results2/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bw", "~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA*rep[0-9]/uniq/accepted_hits.normalized.bw")
 
-## read in only the 80 subjects/samples (w/ genotype)
-IDs=read.table('~/neurogen/rnaseq_PD/results/merged/RNAseqID.wGenotyped.list',stringsAsFactors =F)[,1]
+## read in only the 90 HCILB subjects/samples (w/ genotype)
+IDs=read.table('~/neurogen/rnaseq_PD/results2/merged/RNAseqID.wGenotyped.list',stringsAsFactors =F)[,1]
 IDs=IDs[grep("^[HI].*_SNDA", IDs)]
 EXP=data.frame(); PV=data.frame(); QV=data.frame(); id="locus"
 
