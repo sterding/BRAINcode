@@ -2,10 +2,11 @@ cd ~/eRNAseq/externalData/DNase
 
 ## call narrow peaks from merged uniform signal of individual samples [SELECTED as final solution]
 grep DNase macs2signal.list | cut -f2 | awk '{print "http://egg2.wustl.edu/roadmap/data/byFileType/signal/consolidated/macs2signal/pval/"$1}' | xargs -n 1 -P 8 wget -b
-bsub -q big -n 1 -M 10000 bigWigMerge E*DNase.pval.signal.bigwig merged.DNase.pval.signal.bg
+mkdir download; mv E* download/
+bsub -q big -n 1 -M 10000 bigWigMerge download/E*DNase.pval.signal.bigwig merged.DNase.pval.signal.bg
 bsub -q big -n 1 -M 10000 bedGraphToBigWig merged.DNase.pval.signal.bg $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size merged.DNase.pval.signal.bigwig
 module load macs2/2.1
-bsub -q big -n 1 -M 10000 macs2 bdgpeakcall -i merged.DNase.pval.signal.bg --min-length 100 -o merged.DNase.pval.signal.p0.01.peaks --cutoff 106  # each with p=0.01 (2*53)
+bsub -q big -n 1 -M 10000 macs2 bdgpeakcall -i merged.DNase.pval.signal.bg --min-length 100 -o merged.DNase.pval.signal.p0.01.halfsamples.peaks --cutoff 53  # at least half samples with p=0.01 (2*53/2)
 ln -fs merged.DNase.pval.signal.p0.01.peaks merged.DNase.pval.signal.peaks
 intersectBed -a merged.DNase.pval.signal.peaks -b ../../eRNA.bed -u | wc -l
 #6129
@@ -17,8 +18,14 @@ intersectBed -a merged.DNase.pval.signal.peaks -b ../../eRNA.bed -u | wc -l
 # intersectBed -a merged.DNase.macs2.narrowPeak.merged -b ../../eRNA.bed -u | awk '$4>=40' | wc -l 
 # # 3075
 
-mkdir download; mv E* download/
+# alternative: use the 638304 enhancer-being DNase peaks defined in 10 Roadmap "brain" samples (http://egg2.wustl.edu/roadmap/web_portal/DNase_reg.html#delieation)
+awk '($3-$2)>100' regions_enh_merged.brain.bed | while read chr start end rest
+do
+  l=$(expr $end - $start)
+  bigWigSummary merged.DNase.pval.signal.bigwig $chr $start $end $l | awk -vchr=$chr -vstart=$start -vend=$end '{OFS="\t"; for(i=1;i<=NF;i++) if($i!="n/a" && $i>max) {imax=i;max=$i}}END{print chr, start, end, ".", 0, ".", max, -1, -1, imax-1}'
+done > regions_enh_merged.brain.narrowPeak
 
+wc -l regions_enh_merged.brain.narrowPeak
 
 ## script to generate data to draw aggregation plot for HITNE
 

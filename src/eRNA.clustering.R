@@ -126,6 +126,10 @@ features = read.table("~/eRNAseq/eRNA.characterize.xls", header=T)
 ## clustering
 # ================================
 
+# ---------------------------------------------
+# clustering only based on if overlapping with nTFBS, P300, CAGE, chromHMM, DNase, HCNE
+# ---------------------------------------------
+
 df=subset(features, select=c(f06.TFBS, f07.P300, f08.CAGEenhancer, f09.chromHMM_brain, f12.DNaseROADMAP, f15.HCNE))
 df$f06.TFBS=ifelse(df$f06.TFBS>=5,1,0)
 #df$f20.nHostgene=ifelse(df$f20.nHostgene>=10,1,0)
@@ -133,37 +137,44 @@ df[df>0]=1;
 library(plyr); 
 df0=count(df, vars = colnames(df))
 mat_data=df0[,1:6]
-# require(ade4); #install.packages('ade4');
-# d=dist.binary(mat_data,method=10)
-# plot(hclust(d, method='single'))
-#library(ape)
-#plot(as.phylo(hclust(d, method='single')), type = "fan")
+#colnames(mat_data)=c("TFBS_hotspot","P300","CAGE_enhancer","")
+
+# do the clustering
+require(ade4); require(cluster)
+row_distance = dist.binary(mat_data, method = 10)
+row_distance = daisy(mat_data, metric = "gower", type =list(asymm=c(1:6)), weights = c(1,1,1,1,5,1))
+row_cluster = hclust(row_distance, method = "single")
+
+col_distance = as.dist((1 - cor(mat_data))/2)
+col_cluster = hclust(col_distance, method = "complete")
+
+require(Heatplus) # source("http://bioconductor.org/biocLite.R"); biocLite("Heatplus")
+
+# below code are partially borrowed from http://sebastianraschka.com/Articles/heatmaps_in_r.html
+# extract cluster assignments; i.e. k=8 (rows) k=5 (columns)
+# gr.row <- cutree(row_cluster, 7)
+# gr.col <- cutree(col_cluster, 4)
+# gr.row[row_cluster$order]=c(1,rep(2,6),rep(3,15),rep(4,13),rep(5,10),rep(6,3))
+# col1 <- brewer.pal(6, "Set1")
+# col2 <- brewer.pal(4, "Pastel1")
+
+# reorder to have DNase positioned at the left and HiTNEs with none support at the top
+require(ape)
+row_cluster <- reorder(as.dendrogram(row_cluster), 48:1, min)
+col_cluster <- rev(reorder(as.dendrogram(col_cluster), 1:6))
 
 require(gplots);
 require(RColorBrewer);
-# below code are partially borrowed from http://sebastianraschka.com/Articles/heatmaps_in_r.html
-my_palette <- colorRampPalette(c("gray", "black"))(n = 2)
-require(ade4)
-row_distance = dist.binary(mat_data, method = 10)
-row_cluster = hclust(row_distance, method = "single")
-plot(row_cluster)
-col_distance = as.dist((1 - cor(mat_data))/2)
-#col_distance = dist.binary(t(mat_data), method = 2)
-col_cluster = hclust(col_distance, method = "complete")
 
-# extract cluster assignments; i.e. k=8 (rows) k=5 (columns)
-gr.row <- cutree(row_cluster, 8)
-gr.col <- cutree(col_cluster, 4)
-
-gr.row[row_cluster$order]=c(1,rep(2,6),rep(3,15),rep(4,13),rep(5,10),rep(6,3))
-
-# require(RColorBrewer)
-col1 <- brewer.pal(6, "Set1")
+col1 <- brewer.pal(5, "Set1")
 col2 <- brewer.pal(4, "Pastel1")
+gr.row[order.dendrogram(row_cluster)]=c(rep(1,22),rep(2,10),rep(3,10),rep(4,5), 5)
+gr.col[order.dendrogram(col_cluster)]=c(1,1,2,2,3,4)
 
+pdf("~/Dropbox/PDBrainMap/figures/eRNA/eRNA.clustering.pdf", width=2.5, height=7)
 heatmap.2(as.matrix(mat_data),
           margins=c(10,6), keysize=0.1, sepcolor=NA,sepwidth=c(0,0),
-          lwid=c(1,0.3,4), lhei=c(0.1,0.015,0.5),
+          lwid=c(1.5,0.25,4), lhei=c(0.1,0.01,0.5),
           #lmat=rbind(c(5,0,4),c(3,1,2)),
           lmat=rbind(c(6,0,5),c(0,0,2),c(4,1,3)),
           #cellnote = mat_data,  # same data set for cell labels
@@ -171,7 +182,7 @@ heatmap.2(as.matrix(mat_data),
           notecol="black",      # change font color of cell labels to black
           density.info="none",  # turns off density plot inside color legend
           trace="none",         # turns off trace lines inside the heat map
-          col=my_palette,       # use on color palette defined earlier
+          col=colorRampPalette(c("gray", "black"))(n = 2),       # use on color palette defined earlier
           cexCol=1,
           cexRow=1,
           labRow = df0$freq, #[rownames(mat_data)],
@@ -182,9 +193,14 @@ heatmap.2(as.matrix(mat_data),
           Rowv = as.dendrogram(row_cluster),
           RowSideColors=col1[gr.row],
           ColSideColors=col2[gr.col],
-          key.title=NA,key.ylab=NA,key.xlab = NA,key.par=list(mgp=c(3,0.3,0))
+          key.title=NA, key.ylab=NA, key.xlab = NA, key.par=list(mgp=c(3,0.3,0))
 )
 
+dev.off()
+
+# ---------------------------------------------
+# clustering based on mixed features
+# ---------------------------------------------
 
 # mixed features
 df=subset(features, select=c(f01.dis2TSS, f02.RPKM, f03.RPM, f05.CpG, f06.TFBS, f07.P300, f08.CAGEenhancer, f09.chromHMM_brain, f11.DNase, f12.DNaseENCODE, f12.DNaseROADMAP,f13.phyloP, f15.HCNE, f16.GWAS, f18.eSNP, f20.nHostgene, f21.lenHostgene, f22.lenHostgeneMetaintron))

@@ -138,9 +138,9 @@ bigWigAverageOverBed ../DNase/UW.Fetal_Brain.ChromatinAccessibility.H-24510.DNas
 zcat ../DNase/wgEncodeRegDnaseClusteredV2.bed.gz | awk '$5>=500 && $4>=5' | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f12.DNaseENCODE.txt
 
 # Roadmap DNase (http://egg2.wustl.edu/roadmap/web_portal/DNase_reg.html#delieation)
-#for i in E071 E074 E068 E069 E072 E067 E073 E070 E082 E081; do echo $i; curl -s http://egg2.wustl.edu/roadmap/data/byDataType/dnase/BED_files_enh/regions_enh_${i}.bed.gz > ../DNase/regions_enh_${i}.bed.gz; done
-#zcat ../DNase/regions_enh_*.bed.gz | sortBed | mergeBed -i - > ../DNase/regions_enh_merged.brain.bed
-intersectBed -a $inputbed -b ../DNase/regions_enh_merged.brain.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f12.DNaseROADMAP.txt
+#for i in E071 E074 E068 E069 E072 E067 E073 E070 E082 E081; do echo $i; curl -s http://egg2.wustl.edu/roadmap/data/byDataType/dnase/BED_files_enh/regions_enh_${i}.bed.gz > externalData/DNase/regions_enh_${i}.bed.gz; done
+#zcat externalData/DNase/regions_enh_*.bed.gz | sortBed | mergeBed -i - > externalData/DNase/regions_enh_merged.brain.bed
+intersectBed -a $inputbed -b externalData/DNase/regions_enh_merged.brain.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f12.DNaseROADMAP.txt
 
 
 # ====================================

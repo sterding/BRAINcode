@@ -26,6 +26,7 @@ intersectBed -a externalData/DNase/merged.DNase.pval.signal.peaks -b eRNA.bed -u
 R
 
 # any TF enriched in eRNAs (vs. the rest of the genome)
+setwd("~/eRNAseq")
 tf1='all.TFBSoccurance.txt'
 tf2='eRNA.TFBSoccurance.txt'
 ntf1=51  # eRNA size in million base pair
@@ -68,18 +69,18 @@ table(results$type)
 write.table(results, "eRNA.TF.enrichments.xls", sep="\t", col.names = T, row.names = F)
 
 pdf("~/Dropbox/PDBrainMap/figures/eRNA/eRNA.TF.enrichment.pdf", width = 6,height = 3)
-par(mar=c(3,3,2,2), mgp=c(3,.5,.2))
-df=subset(results, type=="eRNA.eRNA_w_DNase")
-df=df[with(df, order(-OR)), ]
-d=barplot(df$observed,  space=.2, names.arg = df$TF, cex.names = 0.3, cex.axis = .8, las=1, horiz = T, yaxs = "i", xlim=c(0,2000))
-text(x=d, y=df$observed, pos=3, offset =0.1, labels=as.character(cut(df$pvalue, breaks=c(0,0.0001,0.001,0.01), include.lowest=T, labels = c('***',"**","*"))), cex=0.6)
-legend("topright",c("* p<0.01","** p<0.001","*** p<0.0001"), bty='n', cex=.8)
+par(mar=c(5,5,2,4), mgp=c(3,.5,.2))
+df=subset(results, type=="eRNA.eRNA_w_DNase" & observed>500)
+df=df[with(df, order(-observed)), ]
+d=barplot(df$observed,  space=.2, names.arg = df$TF, cex.names = 1, cex.axis = 1, las=1, horiz = T, yaxs = "i", xlim=c(0,2200), xlab="Number of DNase-supported HiTNEs")
+#text(x=d, y=df$observed, pos=3, offset =0.1, labels=as.character(cut(df$pvalue, breaks=c(0,0.0001,0.001,0.01), include.lowest=T, labels = c('***',"**","*"))), cex=0.6)
+#legend("topright",c("* p<0.01","** p<0.001","*** p<0.0001"), bty='n', cex=.8)
 dev.off()
 
-par(mar=c(5,3,2,2), mgp=c(3,.5,.3))
+par(mar=c(5,5,2,4), mgp=c(3,.5,.2))
 df=subset(results, type=="DNase.DNase_w_eRNA")
 df=df[with(df, order(-observed)), ]
-d=barplot(df$observed, names.arg = df$TF, cex.names = 0.8, cex.axis = .8, las=2, horiz = F, ylim=c(0,2300))
+d=barplot(df$observed, names.arg = df$TF, cex.names = 1, cex.axis = 1, las=1, horiz = T, yaxs = "i", xlim=c(0,2200), xlab="Number of HiTNEs-overlapped DNase peaks")
 text(x=d, y=df$observed, pos=3, offset =0.1, labels=as.character(cut(df$pvalue, breaks=c(0,0.0001,0.001,0.01), include.lowest=T, labels = c('***',"**","*"))), cex=0.6)
 legend("topright",c("* p<0.01","** p<0.001","*** p<0.0001"), bty='n', cex=.8)
 dev.off()

@@ -4,13 +4,16 @@
 ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
 # randomly sampling
 tmp=`mktemp`
-bedtools shuffle -excl blacklist.bed -noOverlapping -i eRNA.bed -g $ANNOTATION/ChromInfo.txt > $tmp
-# TFBS hotspot
-awk '$6>1' externalData/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -c | awk '$5>5' | wc -l >> randomoverlap.TFBS.txt
-# P300
-awk '$4=="EP300"' externalData/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -u | wc -l >> randomoverlap.P300.txt
+bedtools shuffle -excl toExclude.bed -noOverlapping -i eRNA.bed -g $ANNOTATION/ChromInfo.txt > $tmp
 # FANTOMF CAGE
 intersectBed -a $tmp -b externalData/CAGE/permissive_enhancers.bed -u | wc -l >> randomoverlap.CAGE.txt
+    
+tmp=`mktemp`
+bedtools shuffle -excl blacklist.bed -noOverlapping -i eRNA.bed -g $ANNOTATION/ChromInfo.txt > $tmp
+# TFBS hotspot
+awk '$6>=1' externalData/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -c | awk '$5>=5' | wc -l >> randomoverlap.TFBS.txt
+# P300
+awk '$4=="EP300"' externalData/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $tmp -b stdin -u | wc -l >> randomoverlap.P300.txt
 # Roadmpa Histone
 intersectBed -a $tmp -b externalData/Segment/15_coreMarks_segments.E6E7E12.bed -u | wc -l >> randomoverlap.Histone.txt
 # VISTA positive

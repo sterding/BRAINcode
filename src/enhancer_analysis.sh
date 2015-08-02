@@ -23,14 +23,7 @@ rsync -azv eRNA.bed xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/versio
 for i in `seq 1 1000`;
 do
     echo $i;
-    #bsub -J random_overlap -oo _random_overlap.$i.log -eo _random_overlap.$i.log -q normal -n 1 -M 500 $pipeline_path/src/overlap.with.random.sh
-    
-    ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes
-    # randomly sampling
-    tmp=`mktemp`
-    bedtools shuffle -excl toExclude.bed -noOverlapping -i eRNA.bed -g $ANNOTATION/ChromInfo.txt > $tmp
-    intersectBed -a $tmp -b externalData/CAGE/permissive_enhancers.bed -u | wc -l >> randomoverlap.CAGE.txt
-    
+    bsub -J random_overlap -oo _random_overlap.$i.log -eo _random_overlap.$i.log -q normal -n 1 -M 500 $pipeline_path/src/overlap.with.random.sh
 done
 
 tmp=eRNA.bed
