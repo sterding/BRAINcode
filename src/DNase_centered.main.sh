@@ -19,13 +19,19 @@ intersectBed -a merged.DNase.pval.signal.peaks -b ../../eRNA.bed -u | wc -l
 # # 3075
 
 # alternative: use the 638304 enhancer-being DNase peaks defined in 10 Roadmap "brain" samples (http://egg2.wustl.edu/roadmap/web_portal/DNase_reg.html#delieation)
-awk '($3-$2)>100' regions_enh_merged.brain.bed | while read chr start end rest
+intersectBed -a eRNA.bed -b externalData/DNase/regions_enh_merged.brain.bed -u | while read chr start end rest
 do
   l=$(expr $end - $start)
-  bigWigSummary merged.DNase.pval.signal.bigwig $chr $start $end $l | awk -vchr=$chr -vstart=$start -vend=$end '{OFS="\t"; for(i=1;i<=NF;i++) if($i!="n/a" && $i>max) {imax=i;max=$i}}END{print chr, start, end, ".", 0, ".", max, -1, -1, imax-1}'
-done > regions_enh_merged.brain.narrowPeak
+  bigWigSummary externalData/DNase/merged.DNase.pval.signal.bigwig $chr $start $end $l | awk -vchr=$chr -vstart=$start -vend=$end '{OFS="\t"; for(i=1;i<=NF;i++) if($i!="n/a" && $i>max) {imax=i;max=$i}}END{print chr, start, end, chr"_"start"_"end, 0, ".", max, -1, -1, imax-1}'
+done > eRNA.overlapped.with.mergedDNasePeak.narrowPeak
 
-wc -l regions_enh_merged.brain.narrowPeak
+wc -l eRNA.overlapped.with.mergedDNasePeak.narrowPeak
+
+intersectBed -a eRNA.bed -b externalData/DNase/regions_enh_merged.brain.bed -v | while read chr start end rest
+do
+  l=$(expr $end - $start)
+  bigWigSummary externalData/DNase/merged.DNase.pval.signal.bigwig $chr $start $end $l | awk -vchr=$chr -vstart=$start -vend=$end '{OFS="\t"; for(i=1;i<=NF;i++) if($i!="n/a" && $i>max) {imax=i;max=$i}}END{print chr, start, end, chr"_"start"_"end, 0, ".", max, -1, -1, imax-1}'
+done > eRNA.notoverlapped.with.mergedDNasePeak.narrowPeak
 
 ## script to generate data to draw aggregation plot for HITNE
 
@@ -34,11 +40,20 @@ wc -l regions_enh_merged.brain.narrowPeak
 #============================================================
 cd ~/eRNAseq
 
-intersectBed -a externalData/DNase/merged.DNase.pval.signal.peaks -b eRNA.bed -u | awk '{OFS="\t"; mid=$2+$10; print $1,mid-1000,mid+1000, $4}' > eRNA.with.mergedDNase.peak.summit.1kbp.bed
+# eRNA overlapped with DNase peak (N=15351)
+# ------------------------------------
+#intersectBed -a externalData/DNase/merged.DNase.pval.signal.peaks -b eRNA.bed -u | awk '{OFS="\t"; mid=$2+$10; print $1,mid-1000,mid+1000, $4}' > eRNA.with.mergedDNase.peak.summit.1kbp.bed
+awk '{OFS="\t"; mid=$2+$10; print $1,mid-1000,mid+1000, $4}' eRNA.overlapped.with.mergedDNasePeak.narrowPeak > eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.bed
+
+# eRNA not overlapped with DNase peak (N=56118) -- [-1k,1k] around the middle position 
+# ------------------------------------
+intersectBed -a eRNA.bed -b externalData/DNase/regions_enh_merged.brain.bed -v | awk '{OFS="\t"; mid=int(($2+$3)/2); print $1,mid-1000,mid+1000, $4}' > eRNA.notoverlapped.with.mergedDNasePeak.middle.1kbp.bed
 
 for i in externalData/*/*.bigwig;
 do
-    toBinRegionsOnBigwig.sh $i eRNA.with.mergedDNase.peak.summit.1kbp.bed 100 > $i.eRNA.with.mergedDNase.peak.summit.1kbp.100bins &
+  #toBinRegionsOnBigwig.sh $i eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.bed 100 > $i.eRNA.with.mergedDNase.peak.summit.1kbp.100bins &
+  toBinRegionsOnBigwig.sh $i eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.bed 100 > $i.eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.100bins &
+  toBinRegionsOnBigwig.sh $i eRNA.notoverlapped.with.mergedDNasePeak.middle.1kbp.bed 100 > $i.eRNA.notoverlapped.with.mergedDNasePeak.middle.1kbp.100bins &
 done
 
 #============================================================
@@ -62,28 +77,17 @@ output_dir="~/eRNAseq/";
 X=data.frame()
 for(i in 1:length(marks))
 {
-  x0=read.table(paste0(output_dir, "externalData/", marks[i], ".bigwig.",mark,".with.mergedDNase.peak.summit.1kbp.100bins"), check.names =F, stringsAsFactors=F, header=F); 
+  x0=read.table(paste0(output_dir, "externalData/", marks[i], ".bigwig.",mark,".overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.100bins"), check.names =F, stringsAsFactors=F, header=F); 
   rownames(x0)=x0[,1]; x0=x0[,-1];
   if(ncol(X)>0) {X=cbind(X,x0);} else { X=x0;}
 }
 
-hclustfunc <- function(x) hclust(x, method="single")
-distfunc <- function(x) dist(x,method="euclidean")
-distfunc2 <- function(x) as.dist((1 - cor(x, method='spearman'))/2)
-distfunc3 <- function(x) dist.binary(x,method=10)
-
-cl <- hclustfunc(distfunc((X[,1:100])))
-#cl <- hclustfunc(distfunc2(t(X)))
-ORDER1 <- cl$order
 
 D1=apply(X, 1, function(x) (sum(x[1:50])-sum(x[51:100]))/(sum(x[1:50])+sum(x[51:100])))  # RNAseq
-D2=apply(X, 1, function(x) (sum(x[101:150])-sum(x[151:200]))/(sum(x[101:150])+sum(x[151:200])))  # CAGE rev
-D3=apply(X, 1, function(x) (sum(x[201:250])-sum(x[251:300]))/(sum(x[201:250])+sum(x[251:300])))  # CAGE fwd
 ORDER2=order(D1)
 
-pdf("aggregation.enhancers.all.1kbp.orderbyD.pdf", width=8, height=6, paper='us')
-#png("aggregation.enhancers.all.1kbp.orderbyD.png", width=800, height=600)
-#png("aggregation.enhancers.all.1kbp.orderbyCOR.png", width=800, height=600)
+pdf("aggregation.eRNAs_overlapped_with_DNase.1kbp.orderbyD.pdf", width=8, height=6, paper='us')
+#png("aggregation.eRNAs_overlapped_with_DNase.1kbp.orderbyD.png", width=1000, height=800)
 par(mfcol=c(1,9), mar=c(.5,0,0,0), oma=c(2,1,1,1))
 layout(matrix(seq(3*length(marks)),nrow=3,ncol=length(marks)),widths=rep(.5,length(marks)),heights=c(0.4,3,0.2))
 
@@ -97,7 +101,7 @@ ONLYMAX=c(0,0,0,0,0,0,0,0)
 for(i in 1:length(marks))
 {
   x=X[,(100*(i-1)+1):(i*100)]
-  plot(apply(x, 2, mean, trim =0.01), type='l',col=cols[i], xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
+  plot(apply(x, 2, mean, trim =0.01), type='l',col=cols[i], xlab="",ylab="",xaxt="n",las=2, cex.axis=1,tck=0.04, frame.plot=T, mgp=c(3,-2,0))
   V=ncol(x)/2+.5
   abline(v=V, lty=2, lwd=.5)
   
@@ -125,47 +129,53 @@ for(i in 1:length(marks))
 dev.off()
 
 
-# png("aggregation.enhancers.all.500bp.png", width=800, height=600)
-# par(mfcol=c(1,9), mar=c(.5,0,0,0), oma=c(2,1,1,1))
-# layout(matrix(seq(3*length(marks)),nrow=3,ncol=length(marks)),widths=rep(.5,length(marks)),heights=c(0.5,3,0.2))
-# 
-# MARKS=c("RNAseq","CAGE.rev","CAGE.fwd","DNase","H3K4me1","H3K27ac","nTFBS","Conservation")
-# cols=c("red", 'magenta', 'darkmagenta','darkgreen','orange','blue','purple','darkblue')
-# LOG =c(1, 0, 0,    1, 1,   1,    0, 0)
-# MIN=c(-2, 1, 1, 1,  -1, -1, 0, 0)
-# MAX=c(1,3.5,3.5, 3.5,  3,  3,  5, 1)
-# ONLYMAX=c(0,0,0,0,0,0,0,0)
-# 
-# for(i in 1:length(marks))
-# {
-#   x=X[,(100*(i-1)+1):(i*100)]
-#   x=x[,26:75]
-#   plot(apply(x, 2, mean, trim =0.01), type='l',col=cols[i], xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
-#   V=ncol(x)/2+.5
-#   abline(v=V, lty=2, lwd=.5)
-#   
-#   x=x[ORDER1, ];
-#   if(ONLYMAX[i]) x=apply(x,1,max)
-#   if(LOG[i]) x=log10(x+0.01)
-#   range(x)
-#   xmin=range(x)[1];xmax=range(x)[2]
-#   xmin=MIN[i];xmax=MAX[i];
-#   x[x<xmin]=xmin;  x[x>xmax]=xmax;
-#   #barplot(apply(x, 2,mean));
-#   # boxplot(log(x))
-#   collist<-c("white",cols[i])
-#   ColorRamp<-colorRampPalette(collist)(1000)
-#   ColorRamp_ex <- ColorRamp[round(1+(min(x)-xmin)*1000/(xmax-xmin)) : round( (max(x)-xmin)*1000/(xmax-xmin) )]
-#   ColorLevels<-seq(from=xmin, to=xmax, length=100)
-#   if(ONLYMAX[i]==0) image(1:ncol(x),1:nrow(x), as.matrix(t(x)), col=ColorRamp_ex, useRaster=F, xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
-#   if(ONLYMAX[i]==1) image(1,1:length(x),matrix(data=x,nrow=1, ncol=length(x)),col=ColorRamp_ex, useRaster=T, xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
-#   abline(v=V, lty=2, lwd=.5)
-#   
-#   image(1:length(ColorLevels),1,matrix(data=1:length(ColorLevels),nrow=length(ColorLevels),ncol=1),col=colorRampPalette(collist)(100), xlab="",ylab="",cex.axis=1,xaxt="n",yaxt="n")
-#   if(i==1) {axis(1, 1,labels=" low", mgp=c(3,0.2,0),  cex.axis=1.5, hadj = 0);axis(1, 100,labels="high ", mgp=c(3,0.2,0), cex.axis=1.5,  hadj=1)}
-#   text(50,1,gsub(".*/(.*)","\\1",MARKS[i]), cex=2)
-# }
-# dev.off()
+D1=apply(X, 1, function(x) (sum(x[26:50])-sum(x[51:75]))/(sum(x[26:50])+sum(x[51:75])))  # RNAseq
+ORDER1=order(D1)
+#pdf("aggregation.eRNAs_overlapped_with_DNase.500bp.orderbyD.pdf", width=8, height=6, paper='us')
+png("aggregation.eRNAs_overlapped_with_DNase.500bp.orderbyD.png", width=1000, height=800)
+par(mfcol=c(1,9), mar=c(.5,0,0,0), oma=c(2,1,1,1))
+layout(matrix(seq(3*length(marks)),nrow=3,ncol=length(marks)),widths=rep(.5,length(marks)),heights=c(0.4,3,0.2))
+
+MARKS=c("RNAseq","CAGE(-)","CAGE(+)","DNase","H3K4me1","H3K27ac","nTFBS","phyloP")
+cols=c("red", 'magenta', 'darkmagenta','darkgreen','darkorange4','blue','purple','darkblue')
+LOG =c(1, 1, 1,    1, 1,   1,    0, 0)
+MIN=c(-2, 0,   0,   1,   -1, -0.5,   0, 0)
+MAX=c( 0, 0.9, 0.6, 3.5,  1.5, 1,   5, 1)
+ONLYMAX=c(0,0,0,0,0,0,0,0)
+
+for(i in 1:length(marks))
+{
+  x=X[,(100*(i-1)+1):(i*100)]
+  x=x[,26:75]
+  plot(apply(x, 2, mean, trim =0.01), type='l',col=cols[i], xlab="",ylab="",xaxt="n",las=2, cex.axis=1,tck=0.04, frame.plot=T, mgp=c(3,-2,0))
+  V=ncol(x)/2+.5
+  abline(v=V, lty=2, lwd=.5)
+  
+  x=x[ORDER1, ];
+  if(ONLYMAX[i]) x=apply(x,1,max)
+  if(LOG[i]) x=log10(x+0.01)
+  range(x)
+  xmin=range(x)[1];xmax=range(x)[2]
+  xmin=MIN[i];xmax=MAX[i];
+  x[x<xmin]=xmin;  x[x>xmax]=xmax;
+  #barplot(apply(x, 2,mean));
+  # boxplot(log(x))
+  collist<-c("white",cols[i])
+  ColorRamp<-colorRampPalette(collist)(1000)
+  ColorRamp_ex <- ColorRamp[round(1+(min(x)-xmin)*1000/(xmax-xmin)) : round( (max(x)-xmin)*1000/(xmax-xmin) )]
+  ColorLevels<-seq(from=xmin, to=xmax, length=100)
+  if(ONLYMAX[i]==0) image(1:ncol(x),1:nrow(x), as.matrix(t(x)), col=ColorRamp_ex, useRaster=F, xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
+  if(ONLYMAX[i]==1) image(1,1:length(x),matrix(data=x,nrow=1, ncol=length(x)),col=ColorRamp_ex, useRaster=T, xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
+  abline(v=V, lty=2, lwd=.5)
+  
+  image(1:length(ColorLevels),1,matrix(data=1:length(ColorLevels),nrow=length(ColorLevels),ncol=1),col=colorRampPalette(collist)(100), xlab="",ylab="",cex.axis=1,xaxt="n",yaxt="n")
+  if(i==1) {axis(1, 1,labels=" low", mgp=c(3,0.2,0),  cex.axis=1.5, hadj = 0);axis(1, 100,labels="high ", mgp=c(3,0.2,0), cex.axis=1.5,  hadj=1)}
+  text(50,1,gsub(".*/(.*)","\\1",MARKS[i]), cex=2)
+}
+dev.off()
+
+## aggregation plot for (A) all, (B) supported by DNase, (C) unsupported by DNase but at least one other features, (D) no feature supported
+features = read.table("~/eRNAseq/eRNA.characterize.xls", header=T)
 
 
 ## how many eRNA candidates overlap with a DNase peak
