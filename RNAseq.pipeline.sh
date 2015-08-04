@@ -38,7 +38,7 @@ output_dir=$input_dir/../run_output
 fordisplay_dir=$input_dir/../for_display
 [ -d $fordisplay_dir ] || mkdir $fordisplay_dir
 
-result_dir=$input_dir/../results2 
+result_dir=$input_dir/../results 
 [ -d $result_dir ] || mkdir $result_dir
 
 ########################

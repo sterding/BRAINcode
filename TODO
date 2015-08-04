@@ -1,3 +1,11 @@
+[Tue Aug  4 18:05:59 EDT 2015]
+1. testing cufflinks in /PHShome/xd010/neurogen/rnaseq_PD/run_output/HC_BN12-44_SNDA_6_rep1.stranded/uniq, which genes.fpkm_tracking does not include ENSG00000199071 and ENSG00000122728. JOBID: 910559
+2. enhancer-being test：
+(1). ENHANCER state from chromHMM enrichment in each HiTNE categories
+(2) H3k4me1 vs. H3k4me3 in HiTNE vs. promoter
+(3) P300 TF enrichment
+(4) CAGE bi-directionality in HiTNEs
+
 [Sat Dec 20 01:43:01 EST 2014]
 1. continue until the bsub jobs are done in CAGE.pipeline.sh
 

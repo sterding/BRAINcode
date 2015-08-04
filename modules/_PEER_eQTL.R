@@ -23,12 +23,12 @@ snps_file="/data/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.tx
 snpsloc="/data/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
 
 # for gene
-#expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.80samples.xls";  # matrix of 57816 x 80
-#geneloc="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.loci.txt";
+expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls";  # matrix of 57816 x 118 (HCILB for all cell types)
+geneloc="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.loci.txt";
 
 # for eRNAs
-expr_file="eRNA.RPKM.xls";  
-geneloc="eRNA.loci.txt";
+#expr_file="eRNA.RPKM.xls";  
+#geneloc="eRNA.loci.txt";
 
 if(file.exists("data.RData")) load("data.RData") else{
     
@@ -36,10 +36,14 @@ message("# loading expression data...")
 ######################
 
 # TODO: remove outlier and replicate
+  
+  
+  
+  
 
 expr = read.table(expr_file, header=T, check.names = F)  # GxN where G is number of genes and N is number of samples
 rownames(expr) = expr[,1]; expr = expr[, -1];
-#expr=expr[,grep("FPKM", colnames(expr))]
+expr=expr[,grep("FPKM", colnames(expr))]
 # change the sample ID to subject ID
 colnames(expr)=gsub(".*_(.*)_.*_.*_rep.*", "\\1", colnames(expr))
 
@@ -133,7 +137,7 @@ save.image("data.RData")
 ##2: regress them out beforehand
 #- run PEER with covariates, e.g. PEER_setCovariates(model, as.matrix(covs))
 #- get residuals from PEER, e.g. residuals = PEER_getResiduals(model), 
-#- use the residual as expression input for Matrix-eQTL, but no more covariates included. It’s still OK to include covariates specific for genotypes, I guess.
+#- use the residual as expression input for Matrix-eQTL, but no more covariates included. It's still OK to include covariates specific for genotypes (I think).
 
 # GEUVADIS used the #2 strategy, as below:
     
@@ -196,8 +200,13 @@ for(k in K){
         min.pv.by.genesnp = FALSE,
         noFDRsaveMemory = TRUE);
     
-    nCiseqtl = cbind(nCiseqtl, me$cis$neqtls)
+    nCiseqtl = cbind(nCiseqtl, me$cis$neqtls)  ## TODO: change to eGene, instead of gene-snp pairs
     cat(k,":", me$cis$neqtls,"\n")
+    
+    ## perform permutation
+    # scramble the sample lable of SNP
+    snps_temp=snps;
+    snps_temp$ColumnSubsample(colnames(cvrt_snp))
     
     rm(me)
 }
@@ -228,7 +237,7 @@ message("# step3: getting residuals...");
 ######################
 model = PEER()
 PEER_setPhenoMean(model,as.matrix(t(expr)))
-PEER_setNk(model,0)  #since we use above learnt factors as “known” covariates, we don’t need to set number of hidden factors any more.
+PEER_setNk(model,0)  #since we use above learnt factors as ?known? covariates, we don?t need to set number of hidden factors any more.
 PEER_setAdd_mean(model, FALSE)  # mean is already included in the above getX(), so no need to include again.
 PEER_setCovariates(model, as.matrix(factors))
 PEER_update(model)
