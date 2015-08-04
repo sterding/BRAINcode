@@ -144,11 +144,15 @@ require(ade4); require(cluster)
 row_distance = dist.binary(mat_data, method = 10)
 row_distance = daisy(mat_data, metric = "gower", type =list(asymm=c(1:6)), weights = c(1,1,1,1,5,1))
 row_cluster = hclust(row_distance, method = "single")
+pdf("~/Dropbox/PDBrainMap/figures/eRNA/eRNA.clustering.tree.pdf")
+plot(row_cluster)
+dev.off()
 
 col_distance = as.dist((1 - cor(mat_data))/2)
 col_cluster = hclust(col_distance, method = "complete")
 
-require(Heatplus) # source("http://bioconductor.org/biocLite.R"); biocLite("Heatplus")
+gr.row <- cutree(row_cluster, 7)
+gr.col <- cutree(col_cluster, 4)
 
 # below code are partially borrowed from http://sebastianraschka.com/Articles/heatmaps_in_r.html
 # extract cluster assignments; i.e. k=8 (rows) k=5 (columns)
@@ -160,18 +164,18 @@ require(Heatplus) # source("http://bioconductor.org/biocLite.R"); biocLite("Heat
 
 # reorder to have DNase positioned at the left and HiTNEs with none support at the top
 require(ape)
-row_cluster <- reorder(as.dendrogram(row_cluster), 48:1, min)
+row_cluster <- rev(reorder(as.dendrogram(row_cluster), 48:1, min))
 col_cluster <- rev(reorder(as.dendrogram(col_cluster), 1:6))
+plot(row_cluster)
 
 require(gplots);
 require(RColorBrewer);
 
-col1 <- brewer.pal(5, "Set1")
-col2 <- brewer.pal(4, "Pastel1")
-gr.row[order.dendrogram(row_cluster)]=c(rep(1,22),rep(2,10),rep(3,10),rep(4,5), 5)
-gr.col[order.dendrogram(col_cluster)]=c(1,1,2,2,3,4)
+#col1 <- brewer.pal(5, "Set1"); gr.row[order.dendrogram(row_cluster)]=c(rep(1,22),rep(2,10),rep(3,10),rep(4,5), 5)
+col1=c("blue","purple","red"); gr.row[order.dendrogram(row_cluster)]=c(1,rep(2,25), rep(3,22))
+col2 <- brewer.pal(4, "Pastel1"); gr.col[order.dendrogram(col_cluster)]=c(1,1,2,2,3,4)
 
-pdf("~/Dropbox/PDBrainMap/figures/eRNA/eRNA.clustering.pdf", width=2.5, height=7)
+pdf("~/Dropbox/PDBrainMap/figures/eRNA/eRNA.clustering.3class.pdf", width=2.5, height=7)
 heatmap.2(as.matrix(mat_data),
           margins=c(10,6), keysize=0.1, sepcolor=NA,sepwidth=c(0,0),
           lwid=c(1.5,0.25,4), lhei=c(0.1,0.01,0.5),
