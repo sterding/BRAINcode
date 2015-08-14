@@ -1,3 +1,11 @@
+[Tue Aug 11 14:11:20 EDT 2015]
+1. eQTL for eRNA
+2. correlation for eRNA and GENCODE genes
+3. GO for each of categories in heatmap format
+4. super-regulated genes and super-enriched genes?
+5. method & result for above
+
+
 [Tue Aug  4 18:05:59 EDT 2015]
 1. testing cufflinks in /PHShome/xd010/neurogen/rnaseq_PD/run_output/HC_BN12-44_SNDA_6_rep1.stranded/uniq, which genes.fpkm_tracking does not include ENSG00000199071 and ENSG00000122728. JOBID: 910559
 2. enhancer-being test：

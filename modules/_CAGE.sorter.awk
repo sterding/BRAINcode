@@ -1,4 +1,4 @@
-#!//bin/awk -f
+#!/bin/awk -f
 # awk script to sort CAGE data according to barcode, remove the following EcoP15I site CAGCAG, the first 5'nt G (if any), and 3' linker (if any). Save the remained reads into individual files (named with barcode), if it's >=10 nt in length.
 # hopefully to minic the tagDust: tagdust -1 B:AGA,CTT,GAT -2 S:CAGCAG -3 G:G -4 R:N -5 P:TCGTATGCCGTCTTCTGCTTG $i -o $i -ref $GENOME/Annotation/Genes/U13369.1.fa -fe 2
 # Authos: Xianjun Dong

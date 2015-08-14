@@ -17,7 +17,9 @@ fpkm=subset(fpkm, select=c('tracking_id', 'class_code', 'nearest_ref_id', 'gene_
 for(i in 1:(n-1)){
     message(paste("[Merging file", args[i], "...] %", round(100*i/(n-1), 1), "Done"));
     df=read.table(args[i], header=T)
-    fpkm=cbind(fpkm, FPKM=df[match(fpkm$tracking_id, df$tracking_id), 'FPKM'])
+    #fpkm=cbind(fpkm, FPKM=df[match(fpkm$tracking_id, df$tracking_id), 'FPKM'])  # potential issue if df has less number of rows than fpkm
+    common=intersect(fpkm$tracking_id, df$tracking_id)
+    fpkm=cbind(fpkm[match(common,fpkm$tracking_id),], FPKM=df[match(common,df$tracking_id), 'FPKM'])
 }
 
 # reassign column name
