@@ -145,14 +145,20 @@ save.image("data.RData")
 #- get residuals from PEER, e.g. residuals = PEER_getResiduals(model), 
 #- use the residual as expression input for Matrix-eQTL, but no more covariates included. It's still OK to include covariates specific for genotypes (I think).
 
+# GTEx used the #1 strategy, as below:
+#1. filtered and quantile normalized expression FPKM into normal distributed values
+#2. run PEER on subset of chr20-22 for K=0,1,3,5,7,10,13,15,20 to get best K(with most number of eGenes)
+#3. run PEER on all dataset with best K to get covariates
+#4. run Matrix-eQTL with the covariates
+
 # GEUVADIS used the #2 strategy, as below:
     
 # Method: http://geuvadiswiki.crg.es/index.php/Basic_methodology#Normalization_of_the_phenotype_data
 #c. for each group, normalize with PEER, adding mean
 #    c1. use subset (e.g. chr20, or chr20- 22) using K=0,1,3,5,7,10,13,15,20 for each dataset
-#    c2. run eQTL and number of genes for each K.
-#    c3. get the optimal K = K(with most number of eQTL genes)
-#    c4. run PEER on 20,000 exons to get covairantes for the final normalization
+#    c2. run eQTL (with known covariates) and get the number of eGenes for each K.
+#    c3. get the optimal K = K(with most number of eGenes)
+#    c4. run PEER with K (but no more known covariates) on 20,000 exons to get covairantes for the final normalization
 #    c5. final PEER normalization using all dataset, residual + mean as final quantification
 #d. transform the final quantification to standard normal distribution (by ?)
 #e. eQTL using Matrix-eQTL: linear regression of quantification ~ genotypes + genotype_covariates
@@ -162,15 +168,15 @@ message("# step1: getting the best K ...")
 # use genes on chr20-22
 expr_subset = expr[rownames(expr) %in% subset(genepos, chr=="chr20"|chr=="chr21"|chr=="chr22")[,1], ]  # 2087 genes selected
 
-n_eGene=c(); K=c(1,2,4,5,7,10,15,20);
+n_eGene=c(); K=c(1,2,4,5,7,10,12,14,16,18,20);
 
 for(k in K){
     model = PEER()
     PEER_setNk(model,k)
     PEER_setPhenoMean(model,as.matrix(t(expr_subset)))  # PEER ask NxG matrix, where N=samples and G=genes
-    #PEER_setAdd_mean(model, TRUE)
-    #PEER_setCovariates(model, as.matrix(cvrt))  # PEER ask NxC matrix, where N=samples and C=covariates
-    PEER_setNmax_iterations(model, 1000)
+    #PEER_setAdd_mean(model, TRUE)  # not necessary as mean will be same after the quantile normalization
+    PEER_setCovariates(model, as.matrix(cvrt))  # PEER ask NxC matrix, where N=samples and C=covariates
+    PEER_setNmax_iterations(model, 2000)
     PEER_update(model)
     #PEER_getX(model)
     residuals = t(PEER_getResiduals(model))  # convert to GxN
@@ -220,7 +226,7 @@ for(k in K){
     rm(me)
 }
 
-pdf("step1.bestK.pdf")
+pdf("peer.pilot.bestK.pdf")
 plot(K, n_eGene, type='b', xlab="PEER K", ylab="# of cis-eGenes", main="pilot PEER + Matrix-eQTL")
 dev.off()
 
@@ -231,40 +237,56 @@ message(paste0("\t number of eGenes = ",max(n_eGene)))
 
 message("# step2: getting covariates ...")
 ######################
-#bestK=4
-expr_subset = expr[sample.int(nrow(expr), 20000),]
-model = PEER()
-PEER_setPhenoMean(model,as.matrix(t(expr_subset)))
-PEER_setNk(model,bestK)
-#PEER_setAdd_mean(model, TRUE)
-#PEER_setCovariates(model, as.matrix(cvrt)) # include known cvrt as above
-PEER_update(model)
-factors = PEER_getX(model)  # now, the getX() factors should include mean + known covariates + learnt hidden factors.
-
-cor(factors, covs)
-
-rm(expr_subset, model)
-
-message("# step3: getting residuals...");
-######################
+#bestK=10
 model = PEER()
 PEER_setPhenoMean(model,as.matrix(t(expr)))
-PEER_setNk(model,0)  #since we use above learnt factors as ?known? covariates, we don?t need to set number of hidden factors any more.
-PEER_setAdd_mean(model, FALSE)  # mean is already included in the above getX(), so no need to include again.
-PEER_setCovariates(model, as.matrix(factors))
+PEER_setNk(model,bestK)
+#PEER_setCovariates(model, as.matrix(cvrt)) # DON'T include known cvrt any more
 PEER_update(model)
+factors = PEER_getX(model)  # now, the getX() factors should include mean + known covariates + learnt hidden factors.
 residuals = t(PEER_getResiduals(model))  # transfer to GxN matrix
 rownames(residuals) = rownames(expr)
 colnames(residuals) = colnames(expr)
 
-pdf(file="diagnostics_peer.all.pdf", paper="usr", width = 0, height = 0)
+## correlation of inferred factors vs. known factors
+colnames(factors)=paste0("PEER_top_factor_",1:bestK)
+covs2=subset(covs, select=c(RIN, PMI, Age));
+covs2=cbind(covs2, batch=paste0("batch",apply(covs[,1:6],1,which.max)))
+covs2=cbind(covs2, Sex=ifelse(covs$Sex,"M","F"), readLength=ifelse(covs$readsLength_75nt, "75nt", "50nt"))
+
+library("plyr")
+# ref: http://stackoverflow.com/a/11421267
+xvars=covs2; yvars=as.data.frame(factors);
+r2 <- laply(xvars, function(x) {
+  laply(yvars, function(y) {
+    summary.lm(aov(y~x))$r.squared
+  })
+})
+rownames(r2) <- colnames(xvars)
+colnames(r2) <- colnames(yvars)
+
+pvalue <- laply(xvars, function(x) {
+  laply(yvars, function(y) {
+    anova(lm(y~x))$`Pr(>F)`[1]
+  })
+})
+rownames(pvalue) <- colnames(xvars)
+colnames(pvalue) <- colnames(yvars)
+
+require(pheatmap);
+pheatmap(-log10(t(pvalue)),color= colorRampPalette(c("white", "blue"))(10), cluster_row =F, cluster_col=F, display_numbers=as.matrix(t(round(r2,2))), filename="peer.factor.correlation.pdf")
+
+pdf(file="peer.diagnostics.plot.pdf", paper="usr", width = 0, height = 0)
 PEER_plotModel(model)
-mtext(paste0("PEER factor = ", k), side=3, line=1)
+mtext(paste0("PEER factor = ", bestK), side=3, line=1)
 dev.off()
 
-message("# add mean to residuals")
+rm(expr_subset, model)
+
+
+#message("# add mean to residuals")
 ######################
-#residuals = residuals + apply(expr, 1, mean)
+residuals = residuals + apply(expr, 1, mean)
 
 #message("# convert to normal distribution")
 #residuals = t(apply(residuals, 1, rank, ties.method = "average"));
@@ -314,8 +336,11 @@ residuals=as.matrix(read.table(paste(expr_file, "postPEER.xls",sep="."), header=
 
 message("# step4: run eQTL with final quantifications")
 ######################
-genes = SlicedData$new();
+genes = SlicedData$new(); 
+## method1: use residual + mean as new expression, without covariates
 genes$CreateFromMatrix(residuals);
+# method2: use original normalized expression, with PEER covariates
+#genes$CreateFromMatrix(expr);
 
 me = Matrix_eQTL_main(
     snps = snps,
@@ -327,7 +352,7 @@ me = Matrix_eQTL_main(
     errorCovariance = numeric(),
     verbose = TRUE,
     output_file_name.cis = "final.cis.eQTL.xls",
-    pvOutputThreshold.cis = 1e-6,  # a rough cutoff here in order to refine later
+    pvOutputThreshold.cis = 1e-2,  # a rough cutoff here in order to refine later
     snpspos = snpspos, 
     genepos = genepos,
     cisDist = 1e6,
@@ -337,7 +362,7 @@ me = Matrix_eQTL_main(
 
 write.table(me$cis$min.pv.gene, file='final.cis.min.pv.gene.txt')
 
-pdf(file="diagnostics_matrixeqlt.all.pdf", paper="usr", width = 0, height = 0)
+pdf(file="diagnostics_matrixeqlt.all.pdf", paper="usr")
 plot(me, pch = 16, cex = 0.7);
 dev.off()
 
@@ -345,50 +370,15 @@ message(paste("eQTL analysis is done and found", me$cis$neqtls,"cis SNP-gene pai
 
 message("# step5: perform permutations for eGene FDR")
 ######################
-snps_shuffled=snps$Clone();
-min.pv.gene=c();
-for(i in 1:1000)
-{
-  message(paste(" -- performing the",i,"permutation  ..."))
-  snps_shuffled$ColumnSubsample(sample.int(ncol(snps_shuffled))) # scramble the sample lable of SNP
-  me2 = Matrix_eQTL_main(
-    snps = snps_shuffled,
-    gene = genes,
-    cvrt = SlicedData$new(), 
-    output_file_name = "",
-    pvOutputThreshold = 0,  # no tran
-    useModel = modelLINEAR, 
-    errorCovariance = numeric(), 
-    verbose = FALSE,
-    output_file_name.cis = paste0("final.cis.eQTL.permutation.K",i,".xls"),
-    pvOutputThreshold.cis = 1e-5,
-    snpspos = snpspos, 
-    genepos = genepos,
-    cisDist = 1e6,
-    pvalue.hist = FALSE,
-    min.pv.by.genesnp = TRUE,
-    noFDRsaveMemory = TRUE);
-  
-  mpg=me2$cis$min.pv.gene
-  mpg=mpg[match(sort(names(mpg)), names(mpg))]
-  write.table(mpg,paste0("permutation",i,".txt"))
-  
-  if(length(min.pv.gene)==0) {
-    min.pv.gene=mpg
-  } else {
-    min.pv.gene=cbind(min.pv.gene, mpg)
-  }
-}
-
-# now min.pv.gene is a matrix for min(p) of all genes (per row) of 1000 permutations (per column)
-observedP=me$cis$min.pv.gene
+## alternative way in bash
+module unload R/3.1.0; module load R/3.0.2; for i in `seq 1 10000`; do [ -e permutation$i.txt ] || bsub -n 1 -M 800 -q short Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i ~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/data.RData ~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls.postPEER.xls; done
 
 ## alternatively, run _eQTL_permutation_minP.R parallelly and then merge together
 setwd("~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/")
 observedP=read.table('final.cis.min.pv.gene.txt')
-n=sort(rownames(observedP))
+name=sort(rownames(observedP))
 observedP=observedP[match(sort(rownames(observedP)), rownames(observedP)),]
-names(observedP)=n
+names(observedP)=name
 min.pv.gene=read.table(paste0("permutation",1,".txt"))
 for(i in 2:1000){
   message(i)
@@ -396,21 +386,34 @@ for(i in 2:1000){
 }
 
 #For each gene, adjusted P value is set to the rank of observed in the permutation list divided by X
+# ref: https://www.biostars.org/p/13791/
 adjustedP=apply(min.pv.gene < observedP, 1, mean)  # get the percenage of observedP>min(p) among the 1000 permutations
 
 #Use adjusted P values as input to qvalue to estimate FDR for a given adjust P value cutoff.
 require('qvalue') # source("http://bioconductor.org/biocLite.R"); biocLite("qvalue")
 q=qvalue(p = adjustedP)$qvalue
+pi0=qvalue(p = adjustedP)$pi0  ## 0.9455778
+# pi1=1-pi0= the estimate of the proportion of true alternative tests  (which is 5.4% in this case)
+
 write.table(q[q<=0.05],"final.cis.eGene.qvalue.cutoff0.05.txt")
 
 ## now, we can get a list of all significantly associated SNP-gene pairs
-#get the p-value correspinding to the 0.05 tail of the distribution of the minimal p-values from 1000 permutations 
-#since the distribution is asymmetric, I will simply use the 5 percentile of sorted values 
+#get the p-value correspinding to the eGene empirical p-value for eGenes at the q-value = 0.05 threshold
+# range of min.pv.gene is not [0,1], which lead to "ERROR: The estimated pi0 <= 0. Check that you have valid p-values or use another lambda method" for following code
+#cutoff = apply(min.pv.gene, 1, function(x) max(x[qvalue(x)$qvalue<=0.05]))
+
+# so, to be simple, simply take the 5% percentile of emperical pvalue as cutoff
 cutoff = apply(min.pv.gene, 1, quantile, probs=0.05)
 
-genesnp=read.table("final.cis.eQTL.xls", header=T, stringsAsFactors=F)
-genesnp = genesnp[with(genesnp, order(FDR)), ]
-genesnp = subset(genesnp, FDR<0.05)
+genesnp=read.table("final.cis.eQTL.xls", header=T, stringsAsFactors = FALSE)
+# filter on the eGene
+genesnp=subset(genesnp, gene %in% names(q[q<=0.05]))
+# filter on the SNP-gene cutoff
+genesnp=cbind(genesnp, SNPgene.cutoff=cutoff[match(genesnp$gene,names(cutoff))])
+genesnp=subset(genesnp, p.value <= SNPgene.cutoff)
+
+#genesnp = genesnp[with(genesnp, order(FDR)), ]
+#genesnp = subset(genesnp, FDR<0.05)
 
 ## if any, add gene symbol etc. annotation info to the eQTL output
 annotation = read.table("/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed", header=F)
@@ -418,16 +421,16 @@ colnames(annotation) = c("chr","start", "end", "gene_symbol", "gene_ensID", "gen
 genesnp = cbind(genesnp,annotation[match(genesnp$gene, annotation$gene_ensID),])
 
 eGenes=aggregate(SNP~gene_symbol+gene_ensID+gene_type, data=data.frame(genesnp), FUN=length)
-write.table(eGenes[order(-eGenes$SNP),], file="eGenes.FDR.05.sortbyeQTL.xls", sep="\t", col.names = T, quote=F,row.names = F)
+write.table(eGenes[order(eGenes$gene_type, -eGenes$SNP),], "eGenes.FDR.05.sortbyeQTL.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
 
-write.table(genesnp, file="final.cis.eQTL.FDR.05.xls", sep="\t", col.names = T, quote=F,row.names = F)
+write.table(genesnp, file="final.cis.eQTL.FDR.05.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
 
 message("# making eQTL plot ...")
 ######################
 # load data
 load("data.RData")
 genesnp = read.table("final.cis.eQTL.FDR.05.xls", header=T, stringsAsFactors =F)
-expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/eQTL/genes80samples/genes.fpkm.HCILB.uniq.80samples.xls";  # matrix of 57816 x 80
+expr_file="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls";  # matrix of 57816 x 80
 residuals = read.table(paste(expr_file, "postPEER.xls",sep="."))
 require(MatrixEQTL)
 genes = SlicedData$new();

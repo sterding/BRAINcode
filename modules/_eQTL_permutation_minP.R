@@ -1,5 +1,8 @@
 # Rscript to perform eQTL permutation with shuffled genotype labels
 # Usage: Rscript _eQTL_permutation_minP.R 1 ~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/data.RData ~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls.postPEER.xls
+# or
+# module unload R/3.1.0; module load R/3.0.2; for i in `seq 1 1000`; do echo $i; bsub -q normal -n 1 -M 1000 -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i ~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/data.RData ~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls.postPEER.xls; done
+
 require(MatrixEQTL)
 
 args<-commandArgs(TRUE)
@@ -7,10 +10,12 @@ i=args[1]
 Rdata=args[2] # "~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/data.RData"
 expr=args[3] # '~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls.postPEER.xls'
 
-load(Rdata)
 residuals=read.table(expr, header=T)
+dim(residuals)
 genes = SlicedData$new();
 genes$CreateFromMatrix(as.matrix(residuals))
+
+load(Rdata)
 
 message(paste(" -- performing the",i,"permutation  ..."))
 snps_shuffled=snps$Clone();
