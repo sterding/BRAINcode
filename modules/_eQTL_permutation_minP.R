@@ -41,4 +41,4 @@ me2 = Matrix_eQTL_main(
 
 mpg=me2$cis$min.pv.gene
 mpg=mpg[match(sort(names(mpg)), names(mpg))]
-write.table(mpg,paste0("permutation",i,".txt"))
+write.table(mpg,paste0("permutations/permutation",i,".txt"))

@@ -10,27 +10,13 @@ require(reshape2)
 require(peer)
 require(MatrixEQTL)
 
-args<-commandArgs(TRUE)
-
-expr_file=args[1]  # for example: expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls"
-covs_file=args[2]  # covs_file="/PHShome/xd010/neurogen/rnaseq_PD/rawfiles/covariances.tab"
-snps_file=args[3]  # snps_file="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.txt"
-geneloc=args[4]
-snpsloc=args[5]  # snps_location_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrix/All.Matrix.SNP.ID"
-
 covs_file="~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/covariance_tablel_109SNDAsubjects_v08072015.tab";
 snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 93 unique subjects
 snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
 
-# for gene
-expr_file="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls";  # matrix of 57816 x 118 (HCILB for all cell types)
-geneloc="~/neurogen/rnaseq_PD/results/merged/genes.loci.txt";
-
-outliers=c('ILB_BN10-90_SNDA_4_rep1')
-
 # for eRNAs
-#expr_file="eRNA.RPKM.xls";  
-#geneloc="eRNA.loci.txt";
+expr_file="~/eRNAseq/eRNA.140samples.meanRPM.xls";  
+geneloc="~/eRNAseq/eRNA.loci.txt"; #awk 'BEGIN{OFS="\t"; print "id","chr","s1","s2";}{print $4,$1,$2,$3;}' eRNA.bed > eRNA.loci.txt
 
 if(file.exists("data.RData")) load("data.RData") else{
     
@@ -38,15 +24,15 @@ message("## loading expression data...")
 ######################
 expr = read.table(expr_file, header=T, check.names = F)  # GxN where G is number of genes and N is number of samples
 rownames(expr) = expr[,1]; expr = expr[, -1];
-expr=expr[,grep("FPKM", colnames(expr))]
-colnames(expr) = gsub("FPKM.","",colnames(expr))
+#expr=expr[,grep("FPKM", colnames(expr))]
+#colnames(expr) = gsub("FPKM.","",colnames(expr))
 
 message(" # remove outlier and replicate...")
 ######################
-covs=read.table(covs_file, header=T)
+covs=read.table(covs_file, header=T, stringsAsFactors = FALSE);
 covs=subset(covs, Diagnosis<2)  # only HC and ILB
 covs=subset(covs, !(RNAseq_ID %in% outliers))  # remove outliers
-expr=subset(expr, select = as.character(covs$RNAseq_ID))
+expr=subset(expr, select = covs$RNAseq_ID)
 
 # change the sample ID to subject ID
 colnames(expr)=gsub(".*_(.*)_.*_.*_rep.*", "\\1", colnames(expr))
@@ -59,6 +45,7 @@ message(" # filtering expression data...")
 # expr=expr[rowMeans(expr==0)<0.9, ]
 # GTEx: Filter on >=10 individuals having >0.1 RPKM.
 expr=expr[rowSums(expr>0.05)>=10,]  # 57816 --> 36556 remained
+hist(log10(rowMeans(expr)), nclass=100)
 message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
 
 message(" # transforming RPKM to rank normalized gene expression ...")
@@ -238,9 +225,10 @@ message(paste0("\t number of eGenes = ",max(n_eGene)))
 message("# step2: getting covariates ...")
 ######################
 #bestK=10
+N=bestK+ncol(cvrt)
 model = PEER()
 PEER_setPhenoMean(model,as.matrix(t(expr)))
-PEER_setNk(model,bestK)
+PEER_setNk(model,N)  # total factors: hidden factors+ known factors
 #PEER_setCovariates(model, as.matrix(cvrt)) # DON'T include known cvrt any more
 PEER_update(model)
 factors = PEER_getX(model)  # now, the getX() factors should include mean + known covariates + learnt hidden factors.
@@ -248,8 +236,8 @@ residuals = t(PEER_getResiduals(model))  # transfer to GxN matrix
 rownames(residuals) = rownames(expr)
 colnames(residuals) = colnames(expr)
 
-## correlation of inferred factors vs. known factors
-colnames(factors)=paste0("PEER_top_factor_",1:bestK)
+## ANOVA test to calcluate R-square (correlation) betwee inferred factors vs. known factors
+colnames(factors)=paste0("PEER_top_factor_",1:N)
 covs2=subset(covs, select=c(RIN, PMI, Age));
 covs2=cbind(covs2, batch=paste0("batch",apply(covs[,1:6],1,which.max)))
 covs2=cbind(covs2, Sex=ifelse(covs$Sex,"M","F"), readLength=ifelse(covs$readsLength_75nt, "75nt", "50nt"))
@@ -329,9 +317,9 @@ dev.off()
 
 message("# save final quantification data into file")
 ######################
-write.table(format(residuals, digits=4,nsmall=4), file = paste(expr_file, "postPEER.xls",sep="."), sep="\t", col.names = NA, quote=F,row.names = TRUE)
+write.table(format(residuals, digits=4,nsmall=4), file = "expression.postPEER.xls", sep="\t", col.names = NA, quote=F,row.names = TRUE)
 
-residuals=as.matrix(read.table(paste(expr_file, "postPEER.xls",sep="."), header=T))
+residuals=as.matrix(read.table("expression.postPEER.xls", header=T))
 
 
 message("# step4: run eQTL with final quantifications")
@@ -373,10 +361,10 @@ message("# step5: perform permutations for eGene FDR")
 ## run permutations in bash
 module unload R/3.1.0; module load R/3.0.2; 
 mkdir permutations;
-for i in `seq 1 10000`; do [ -e permutation$i.txt ] || bsub -n 1 -M 800 -q short Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i ~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/data.RData ~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls.postPEER.xls; done
+for i in `seq 1 10000`; do [ -e permutation$i.txt ] || bsub -n 1 -M 800 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postPEER.xls; done
 
 ## alternatively, run _eQTL_permutation_minP.R parallelly and then merge together
-setwd("~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/")
+setwd("~/neurogen/rnaseq_PD/results/eQTL/eRNA/")
 observedP=read.table('final.cis.min.pv.gene.txt')
 name=sort(rownames(observedP))
 observedP=observedP[match(sort(rownames(observedP)), rownames(observedP)),]
@@ -432,8 +420,8 @@ message("# making eQTL plot ...")
 # load data
 load("data.RData")
 genesnp = read.table("final.cis.eQTL.FDR.05.xls", header=T, stringsAsFactors =F)
-expr_file="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls";  # matrix of 57816 x 80
-residuals = read.table(paste(expr_file, "postPEER.xls",sep="."))
+expr_file="~/eRNAseq/eRNA.140samples.meanRPM.xls";  # matrix of 57816 x 80
+residuals = read.table("expression.postPEER.xls")
 require(MatrixEQTL)
 genes = SlicedData$new();
 genes$CreateFromMatrix(as.matrix(residuals))
@@ -441,7 +429,7 @@ genes$CreateFromMatrix(as.matrix(residuals))
 # one file per gene
 for(g in unique(genesnp$gene))
 {
-    pdf(paste(expr_file, g, "eQTLplot.pdf", sep="."), width=8, height=8)
+    pdf(paste("eQTLplot",g,"pdf", sep="."), width=8, height=8)
     par(mfrow=c(1,2), mar=c(4,4,2,2), oma = c(0, 0, 2, 0))
     genesnp0=subset(genesnp, gene==g)
     genesnp0 = genesnp0[with(genesnp0, order(FDR)), ]
@@ -478,7 +466,7 @@ for(g in unique(genesnp$gene))
 }
 
 # one file for all genes
-pdf(paste(expr_file, "eQTLplot.pdf", sep="."), width=8, height=8)
+pdf("eQTLplot.pdf", width=8, height=8)
 par(mfrow=c(1,2), mar=c(4,4,2,2), oma = c(0, 0, 2, 0))
 for(i in 1:1000){
     s=as.character(genesnp$SNP[i]);
