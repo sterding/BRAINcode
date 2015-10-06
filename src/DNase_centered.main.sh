@@ -77,7 +77,8 @@ output_dir="~/eRNAseq/";
 X=data.frame()
 for(i in 1:length(marks))
 {
-  x0=read.table(paste0(output_dir, "externalData/", marks[i], ".bigwig.",mark,".overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.100bins"), check.names =F, stringsAsFactors=F, header=F); 
+  #x0=read.table(paste0(output_dir, "externalData/", marks[i], ".bigwig.",mark,".overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.100bins"), check.names =F, stringsAsFactors=F, header=F); 
+  x0=read.table(paste0(output_dir, "externalData/", marks[i], ".bigwig.",mark,".with.mergedDNase.peak.summit.1kbp.100bins"), check.names =F, stringsAsFactors=F, header=F); 
   rownames(x0)=x0[,1]; x0=x0[,-1];
   if(ncol(X)>0) {X=cbind(X,x0);} else { X=x0;}
 }
@@ -86,8 +87,8 @@ for(i in 1:length(marks))
 D1=apply(X, 1, function(x) (sum(x[1:50])-sum(x[51:100]))/(sum(x[1:50])+sum(x[51:100])))  # RNAseq
 ORDER2=order(D1)
 
-pdf("aggregation.eRNAs_overlapped_with_DNase.1kbp.orderbyD.pdf", width=8, height=6, paper='us')
-#png("aggregation.eRNAs_overlapped_with_DNase.1kbp.orderbyD.png", width=1000, height=800)
+#pdf("aggregation.eRNAs_overlapped_with_DNase.1kbp.orderbyD.pdf", width=8, height=6, paper='us')
+png("aggregation.eRNAs_overlapped_with_DNase.1kbp.orderbyD.png", width=1000, height=800)
 par(mfcol=c(1,9), mar=c(.5,0,0,0), oma=c(2,1,1,1))
 layout(matrix(seq(3*length(marks)),nrow=3,ncol=length(marks)),widths=rep(.5,length(marks)),heights=c(0.4,3,0.2))
 
@@ -95,7 +96,7 @@ MARKS=c("RNAseq","CAGE(-)","CAGE(+)","DNase","H3K4me1","H3K27ac","nTFBS","phyloP
 cols=c("red", 'magenta', 'darkmagenta','darkgreen','darkorange4','blue','purple','darkblue')
 LOG =c(1, 1, 1,    1, 1,   1,    0, 0)
 MIN=c(-2, 0,   0,   1,   -1, -0.5,   0, 0)
-MAX=c( 0, 0.9, 0.6, 3.5,  1.5, 1,   5, 1)
+MAX=c( 0, 0.9, 0.6, 3,  1.5, 1,   3, 1)
 ONLYMAX=c(0,0,0,0,0,0,0,0)
 
 for(i in 1:length(marks))
@@ -127,6 +128,7 @@ for(i in 1:length(marks))
   text(50,1,MARKS[i], cex=1.5)
 }
 dev.off()
+
 
 
 D1=apply(X, 1, function(x) (sum(x[26:50])-sum(x[51:75]))/(sum(x[26:50])+sum(x[51:75])))  # RNAseq

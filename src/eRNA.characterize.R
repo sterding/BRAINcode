@@ -105,7 +105,10 @@ d=density(100*d$f01/d$f21)
 plot(d, xlab="Relative position to 5' TSS (%)", ylab="Density", main="", cex.axis=0.8, col='orangered')
 polygon(d, col="orangered", border="orangered")
 
+dev.off()
+
 # intron length vs. HiTNE counts
+pdf("eRNA.characterize.intronLength.pdf", width=4, height=4, paper='usr')
 #read random
 rd=read.table("~/eRNAseq/intron.length.n_HITNE.random.txt", header=F, stringsAsFactors =F); colnames(rd)=c('intronID', 'len_intron','n_HITNE')
 fd=read.table("~/eRNAseq/intron.length.n_HITNE.txt", header=F, stringsAsFactors =F);  colnames(fd)=c('intronID', 'len_intron','n_HITNE')
@@ -136,7 +139,7 @@ ng=read.table('neuronalgenes.Yunfei.txt', header=F, stringsAsFactors =F)
 plot(fd$len_intron/1000, fd$n_HITNE, main="", xlim=range(rd$len_intron/1000, fd$len_intron/1000), col='orangered', cex.axis=0.8, cex=.6, pch=ifelse(fd$gene_symbol %in% ng$V1,19, 1), ylab="Number of HiTNEs in host gene", xlab="Total length of host gene introns (Kb)")
 text(fd$len_intron/1000, fd$n_HITNE,labels=ifelse(fd$gene_symbol %in% ng$V1, fd$gene_symbol,""), cex=0.7, adj=c(0.5,1.5))
 
-dev.off()
+
 
 # ===========================================================================
 # are they from PCR artifact?

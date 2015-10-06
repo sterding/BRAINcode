@@ -14,6 +14,8 @@ output_dir="~/eRNAseq/";
 X=data.frame()
 for(i in 1:length(marks))
 {
+  message(paste("reading the mark",i))
+  
   x0=read.table(paste0(output_dir, "externalData/", marks[i], ".bigwig.",mark,".1kbp.summit.or.mid.1kbp.100bins"), nrows =71469, check.names =F, stringsAsFactors=F, header=F); rownames(x0)=x0[,1]; x0=x0[,-1];
   if(ncol(X)>0) {X=cbind(X,x0);} else { X=x0;}
 }
@@ -49,29 +51,29 @@ df$class=ifelse(apply(df,1,sum)==0,1,ifelse(df$f12.DNaseROADMAP==0,ifelse(apply(
 
 MARKS=c("RNAseq","CAGE(-)","CAGE(+)","DNase","H3K4me1","H3K27ac","nTFBS","phyloP")
 cols=c("red", 'magenta', 'darkmagenta','darkgreen','darkorange4','blue','purple','darkblue')
-LOG =c(1, 1, 1,    1, 1,   1,    0, 0)
-MIN=c(-2, 0,   0,   1,   -1, -0.5,   0, 0)
-MAX=c( 0, 0.9, 0.6, 3.5,  1.5, 1,   5, 1)
-ONLYMAX=c(0,0,0,0,0,0,0,0)
 
-png("aggregation.eRNAs.class.all.png",width=1000, height=800)
-par(mfrow=c(6,8), mar=c(.5,0,0,0), oma=c(2,1,1,1))
-layout(matrix(seq(6*length(marks)),nrow=6,ncol=length(marks), byrow=1),widths=rep(1,length(marks)),heights=rep(1,6))
-ymin=c(0.03,0.68,0.68,0,0.2,0.2,0,0.05)
-ymax=c(0.1,1.45,1.45,8.5,2.2,2.3,10,0.3)
-for(k in c(0:5))
-{
-  if(k==0) index=rownames(X) else { index=rownames(subset(df,class==k))}
-  for(i in 1:length(marks))
-  {
-    x=X[index,(100*(i-1)+1):(i*100)]
-    plot(apply(x, 2, mean, trim =0.01), type='l',col=cols[i], ylim=c(ymin[i],ymax[i]),xlab="",ylab="",xaxt="n",las=2, cex.axis=1,tck=0.04, frame.plot=T, mgp=c(3,-2,0))
-    V=ncol(x)/2+.5
-    abline(v=V, lty=2, lwd=.5)
-  }
-}
-dev.off()
+## to show aggregation of each class in separate rows
+## -------------------------------------
+# png("aggregation.eRNAs.class.all.png",width=1000, height=800)
+# par(mfrow=c(6,8), mar=c(.5,0,0,0), oma=c(2,1,1,1))
+# layout(matrix(seq(6*length(marks)),nrow=6,ncol=length(marks), byrow=1),widths=rep(1,length(marks)),heights=rep(1,6))
+# ymin=c(0.03,0.68,0.68,0,0.2,0.2,0,0.05)
+# ymax=c(0.1,1.45,1.45,8.5,2.2,2.3,10,0.3)
+# for(k in c(0:5))
+# {
+#   if(k==0) index=rownames(X) else { index=rownames(subset(df,class==k))}
+#   for(i in 1:length(marks))
+#   {
+#     x=X[index,(100*(i-1)+1):(i*100)]
+#     plot(apply(x, 2, mean, trim =0.01), type='l',col=cols[i], ylim=c(ymin[i],ymax[i]),xlab="",ylab="",xaxt="n",las=2, cex.axis=1,tck=0.04, frame.plot=T, mgp=c(3,-2,0))
+#     V=ncol(x)/2+.5
+#     abline(v=V, lty=2, lwd=.5)
+#   }
+# }
+# dev.off()
 
+## to show aggregation of each class in one row
+## -------------------------------------
 png("aggregation.eRNAs.class.four.png",width=1200, height=200)
 pdf("aggregation.eRNAs.class.four.pdf",width=18, height=2, paper = 'usr')
 par(mfrow=c(1,8), mar=c(.5,0,2,0), oma=c(2,1,1,1))
@@ -101,48 +103,60 @@ for(i in 1:length(marks))
 }
 dev.off()
   
-for(k in c(0:5))
+
+# heatmaps of four classes
+
+for(k in 1:3)
 {
-  if(k==0) index=rownames(X) else { index=rownames(subset(df,class==k))}
+  if(k==1) index=rownames(subset(df,class==5))
+  if(k==2) index=rownames(subset(df,class>1 & class<5))
+  if(k==3) index=rownames(subset(df,class==1))
   
   D1=apply(X[index,], 1, function(x) (sum(x[1:50])-sum(x[51:100]))/(sum(x[1:50])+sum(x[51:100])))  # RNAseq
   ORDER1=order(D1)
   
   message(paste("processing the class",k))
+  png(paste0("heatmap.eRNAs.class.",k,".png"),width=1000, height=800)
+  par(mfrow=c(3,length(marks)), mar=c(.5,0,0,0), oma=c(2,1,1,1))
+  layout(matrix(seq(3*length(marks)),nrow=3,ncol=length(marks), byrow=F),widths=rep(0.5,length(marks)),heights=c(.5,3,0.2))
+  LOG =c(1, 1, 1,    1, 1,   1,    0, 0)
+  MARKS=c("RNAseq","CAGE(-)","CAGE(+)","DNase","H3K4me1","H3K27ac","nTFBS","phyloP")
+  cols=c("red", 'magenta', 'darkmagenta','darkgreen','darkorange4','blue','purple','darkblue')
+  MIN=c(-2,   0,   0,  -0.8,  -1, -0.5, 0, 0)
+  MAX=c( 0, 0.9, 0.6,  1.2, 1.5,    1, 1, 1)
   
-  png(paste0("aggregation.eRNAs.class",k,".all.png"),width=1000, height=800)
-  par(mfcol=c(3,8), mar=c(.5,0,0,0), oma=c(2,1,1,1))
-  layout(matrix(seq(3*length(marks)),nrow=3,ncol=length(marks)),widths=rep(0.5,length(marks)),heights=c(0.5,3,0.2))
-  
-
   for(i in 1:length(marks))
   {
     x=X[index,(100*(i-1)+1):(i*100)]
-    plot(apply(x, 2, mean, trim =0.01), type='l',col=cols[i], xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
+    x=x[ORDER1, ];
+    if(LOG[i]) x=log10(x+0.01)
+    
+    # aggregation
+    range(x);   
+    plot(apply(x, 2, mean, trim =0.01), main="", type='l',col=cols[i], xlab="",ylab="",xaxt="n",las=2, cex.axis=1.5, tck=0.04, frame.plot=T, mgp=c(3,-2,0))
     V=ncol(x)/2+.5
     abline(v=V, lty=2, lwd=.5)
     
-    x=x[ORDER1, ];
-    if(ONLYMAX[i]) x=apply(x,1,max)
-    if(LOG[i]) x=log10(x+0.01)
-    range(x)
-    xmin=range(x)[1];xmax=range(x)[2]
+    # heatmap
     xmin=MIN[i];xmax=MAX[i];
     x[x<xmin]=xmin;  x[x>xmax]=xmax;
     collist<-c("white",cols[i])
     ColorRamp<-colorRampPalette(collist)(1000)
     ColorRamp_ex <- ColorRamp[round(1+(min(x)-xmin)*1000/(xmax-xmin)) : round( (max(x)-xmin)*1000/(xmax-xmin) )]
     ColorLevels<-seq(from=xmin, to=xmax, length=100)
-    if(ONLYMAX[i]==0) image(1:ncol(x),1:nrow(x), as.matrix(t(x)), col=ColorRamp_ex, useRaster=F, xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
-    if(ONLYMAX[i]==1) image(1,1:length(x),matrix(data=x,nrow=1, ncol=length(x)),col=ColorRamp_ex, useRaster=T, xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
-    abline(v=V, lty=2, lwd=.5)
+    image(1:ncol(x),1:nrow(x), as.matrix(t(x)), col=ColorRamp_ex, useRaster=F, xlab="",ylab="",cex.axis=2,xaxt="n",yaxt="n", frame.plot=T)
+    V=ncol(x)/2+.5; abline(v=V, lty=2, lwd=.5)
     
+    # color legend
     image(1:length(ColorLevels),1,matrix(data=1:length(ColorLevels),nrow=length(ColorLevels),ncol=1),col=colorRampPalette(collist)(100), xlab="",ylab="",cex.axis=1,xaxt="n",yaxt="n")
     if(i==1) {axis(1, 1,labels=" low", mgp=c(3,0.2,0), cex=0.5, hadj = 0);axis(1, 100,labels="high ", mgp=c(3,0.2,0), cex=0.5, hadj=1)}
-    text(50,1,gsub(".*/(.*)","\\1",MARKS[i]))
+    text(50,1,MARKS[i], cex=1.5)
   }
+  
   dev.off()
 }
+
+
 
 
 #pdf("aggregation.enhancers.SN.pdf", width=18, height=16)
