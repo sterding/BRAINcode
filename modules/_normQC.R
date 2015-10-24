@@ -35,7 +35,7 @@ par(mfrow=c(2,2))
 notAllZero <- (rowMeans(fpkm>0)>0.1)
 logfpkm=fpkm[notAllZero,]
 logfpkm=log10(logfpkm + 1e-4)  # so row value of 0 will be -2 in the transformed value
-rle=logfpkm/apply(logfpkm, 1, median)
+rle=logfpkm-apply(logfpkm, 1, median) # change / to - so that we got log(fold-change) which centered on 0 on the RLE plot.
 rle=melt(cbind(ID=rownames(rle), rle), variable.name = "Sample",value.name ="FPKM", id="ID")
 bymedian <- with(rle, reorder(Sample, FPKM, IQR))  # sort by IQR
 op=par(mar=c(7,3,3,1))

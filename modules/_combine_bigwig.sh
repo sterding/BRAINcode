@@ -9,12 +9,22 @@
 
 group_lable=$1
 
-[ "$group_lable" = "HC_TCPY" ]  && pattern="(HC|ND)_.*_TCPY_[^1]";
-[ "$group_lable" = "HC_MCPY" ]  && pattern="(HC|ND)_.*_MCPY_[^1]";
-[ "$group_lable" = "HC_SNDA" ]  && pattern="(HC|ND)_.*_SNDA_[^1]_[^s]*/";
+cd ~/neurogen/rnaseq_PD/results/merged/
+
+# dopamine neurons (HC+ILB, SNDA)
+[ "$group_lable" = "HCILB_SNDA" ]  && pattern="(HC|ILB)_.*_SNDA_[^1]_[^s]*/";  # excep batch1 and stranded libs
+# pyramidal neurons (HC, TCPY+MCPY)
+[ "$group_lable" = "HC_PY" ]  && pattern="HC_.*_[TM]CPY_[^1]";
+# non-neuronal (HC, PBMC+FB)
+[ "$group_lable" = "HC_nonNeuron" ]  && pattern="HC_.*_(FB|PBMC)_[^u]*/";
+# neuronal (HC+ILB, SNDA+TCPY+MCPY)
+[ "$group_lable" = "HC_Neuron" ]  && pattern="(HC|ILB)_.*_(SNDA|TCPY|MCPY)_[^1]_[^s]*/";
+
+[ "$group_lable" = "HC_TCPY" ]  && pattern="HC_.*_TCPY_[^1]";
+[ "$group_lable" = "HC_MCPY" ]  && pattern="HC_.*_MCPY_[^1]";
+[ "$group_lable" = "HC_SNDA" ]  && pattern="HC_.*_SNDA_[^1]_[^s]*/";
 [ "$group_lable" = "ILB_SNDA" ] && pattern="ILB_.*_SNDA_[^1]";
 [ "$group_lable" = "PD_SNDA" ]  && pattern="PD_.*_SNDA_[^1]";
-[ "$group_lable" = "HCILB_SNDA" ]  && pattern="(HC|ND|ILB)_.*_SNDA_[^1]_[^s]*/";  # excep batch1 and stranded libs
 # control
 [ "$group_lable" = "HC_SN" ]  && pattern="HC_.*_SN_[^u]*/";
 [ "$group_lable" = "HC_SNDAstranded" ]  && pattern="HC_.*_SNDA_.*stranded";
@@ -23,11 +33,14 @@ group_lable=$1
 
 echo $group_lable, "$pattern";
 ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"
+ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern" | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' > samplelist.$group_lable
     
 echo "["`date`"] computing trimmed mean of bedGraph"
 #-------------------
 
-unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' | awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.normalized.$group_lable.bedGraph
+unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"` \
+| awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
+| awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.normalized.$group_lable.bedGraph
 
 # collapse continous regions with the same value by code: awk '{OFS="\t"; if(id!=$4 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}'
 
@@ -35,6 +48,16 @@ echo "["`date`"] bedgraph --> bigwig"
 #-------------------
 
 bedGraphToBigWig trimmedmean.uniq.normalized.$group_lable.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt trimmedmean.uniq.normalized.$group_lable.bw
+
+echo "["`date`"] Done!"
+
+cd -
+
+
+
+
+
+
 
 
 ## Note: other ways of averaging (e.g. mean, median etc.) of all samples [SAVE FOR REFERENCE]

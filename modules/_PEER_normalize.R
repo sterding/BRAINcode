@@ -3,18 +3,19 @@
 ## Author: Xianjun Dong
 ## Date: 2015-02-26
 ## Version: 0.0
-## Require: R v3.0.2, python etc.
+## Require: R v3.0.2, python etc. module unload R/3.1.0; module load R/3.0.2
 ## Usage: bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/modules/_PEER_normalize.R
 ###############################################
-
 
 args<-commandArgs(TRUE)
 
 expr_file=args[1]  # expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls"
 covs_file=args[2]  # covs_file="/PHShome/xd010/neurogen/rnaseq_PD/rawfiles/covariances.tab"
 
-expr_file="/PHShome/xd010/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls"
-covs_file="/PHShome/xd010/neurogen/rnaseq_PD/rawfiles/covariances.tab"
+setwd("~/neurogen/rnaseq_PD/results/eQTL/HCILBsamples/")
+
+expr_file="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.allSamples.uniq.xls"
+covs_file="~/neurogen/rnaseq_PD/rawfiles/covariances.all.tab"
 bestK = 10 # according to eQTL test using SNDA data
 
 
@@ -39,87 +40,91 @@ message("# Load covariates ...")
 
 cvrt = read.table(covs_file, header=T, check.names = F, stringsAsFactors = F) # NxC matrix
 cvrt = subset(cvrt, outlier==0, select=-c(outlier, subjectID, replicate))  # remove outlier
+cvrt = subset(cvrt, condition!="PD", select=-c(condition, cellType)) # remove PD condition, ignore cell type info
+cvrt = cvrt[grep("strand|unamplified|_SN_", cvrt$sampleName, invert=T),] # remove samples (1) with stranded RNAseq, (2) unamplified and (3) from homogenate, as they are just controls
 
 # Encode categorical variables (e.g., batch, sex, readsLength, condition, cellType, replicate) as indicators. E.g. with a different binary variable for each batch, having a value of 1 if the individual was in the batch and a value of 0 otherwise.
 library(reshape2)
 categorical_varaibles = c("cellType", "batch", "sex", "readsLength", "condition");
-for(x in categorical_varaibles) {cvrt = cbind(cvrt, value=1); cvrt[,x]=paste0(x,cvrt[,x]); cvrt = dcast(cvrt, as.formula(paste0("... ~ ", x)), fill=0);}
+for(x in categorical_varaibles) {if(x %in% colnames(cvrt)) {cvrt = cbind(cvrt, value=1); cvrt[,x]=paste0(x,cvrt[,x]); cvrt = dcast(cvrt, as.formula(paste0("... ~ ", x)), fill=0);}}
 
 # intersected samples in covariates table & RNAseq
 rownames(cvrt) = cvrt[, 1]; cvrt = cvrt[, -1]; 
 expr=expr[, intersect(rownames(cvrt), colnames(expr))]
 cvrt=cvrt[intersect(rownames(cvrt), colnames(expr)), ]
 
-# temp: remove condition
-cvrt = cvrt[,grep("condition", colnames(cvrt), invert=T)]
-
 message("# filtering expression data...")
 ######################
+
+# filter
+expr=expr[rowSums(expr)>0, ]  # a weak filter: remove genes with 0 in all samples
 
 # logorithm
 expr=log10(expr+1e-5)  # so row value of 0 will be -5 in the transformed value
 
-# like GTEx: Filter on >=10 individuals having >0.05 RPKM.
-# expr=expr[rowSums(expr>0.05)>=10,]  # 57816 --> 36556 remained
-pdf("individual.hist.beforePEER.beforeFilter.pdf",paper="usr", width = 0, height = 0)
-par(mfrow=c(5,5), mar=c(2,2,2,1))
-sapply(colnames(expr),function(x) hist(expr[,x],main=x,breaks=100, cex.main=0.8))
-replicate(ceiling(ncol(expr)/5)*5-ncol(expr),plot.new())
-sapply(c(paste0("SNDA_",1:5), "MCPY_4", "TCPY_5"),function(x) hist(apply(expr[,grep(x,colnames(expr))],1,median),main=x,breaks=100, cex.main=0.9))
-dev.off()
 
-## Filter criteria: at least 2 samples or 1/2 of samples, whichever is bigger, having expression >0 RPKM.
-#index= apply(expr[,grep("MCPY",colnames(expr))]>-15,1,sum)>=2 | apply(expr[,grep("TCPY",colnames(expr))]>-15,1,sum)>=5 | apply(expr[,grep("SNDA",colnames(expr))]>-15,1,sum)>=44 
-## at least 10 samples have expression > 10^-15.
-#index= rowSums(expr > -15)>=10  # 57816 --> 41730
-
-# TODO: change to require median > -4 in at least one cell type (see distribution for how to define the cutoff of -4). # 57816 --> 34194
-index= apply(expr[,grep("SNDA",colnames(expr))],1,median) >= -4 | apply(expr[,grep("TCPY",colnames(expr))],1,median) >= -4 | apply(expr[,grep("MCPY",colnames(expr))],1,median) >= -4
-
-# how to define cutoff -4
-pdf("celltype.hist.median.cutoff.pdf", paper='usr', width=0, height=4)
-par(mfrow=c(1,3))
-lapply(c("SNDA","TCPY","MCPY"),function(x) hist(apply(expr[,grep(x, colnames(expr))], 1, median), border=NA, col='darkblue', xlab="median of log10(FPKM)", breaks=200, main=x))
-lapply(c("SNDA","TCPY","MCPY"),function(x) {hist(apply(expr[,grep(x, colnames(expr))], 1, median), border=NA, col='darkblue', xlab="median of log10(FPKM)",breaks=200, xlim=c(-8,5), ylim=c(0,1600), main=x); abline(v=-4,col='red',lwd=3)})
-lapply(c("SNDA","TCPY","MCPY"),function(x) hist(apply(expr[index,grep(x, colnames(expr))], 1, median), border=NA, col='darkblue', xlab="median of log10(FPKM)",breaks=200, main=x))
-dev.off()
-
-expr = expr[index, ]
-
-
-
-pdf("individual.hist.beforePEER.afterFilter.pdf",paper="usr", width = 0, height = 0)
-par(mfrow=c(5,5), mar=c(2,2,2,1))
-sapply(colnames(expr),function(x) hist(expr[,x],main=x,breaks=100, cex.main=0.8))
-replicate(ceiling(ncol(expr)/5)*5-ncol(expr),plot.new())
-sapply(c(paste0("SNDA_",1:5), "MCPY_4", "TCPY_5"),function(x) hist(apply(expr[,grep(x,colnames(expr))],1,median),main=x,breaks=100, cex.main=0.9))
-dev.off()
-
-# outlier correction: quantile normalization with order preserved. Now RPKM is changed to rank normalized gene expression.
-m=apply(expr, 1, mean); sd=apply(expr, 1, sd)
-expr1 = t(apply(expr, 1, rank, ties.method = "average"));
-#expr = qnorm(expr / (ncol(expr)+1));  # to standard normalization
-expr1 = qnorm(expr1 / (ncol(expr1)+1), mean=m, sd=sd)  # or, to preserve the mean and sd of each gene
-
-pdf("individual.hist.beforePEER.afterFilter.afterQuanNorm.pdf",paper="usr", width = 0, height = 0)
-par(mfrow=c(5,5), mar=c(2,2,2,1))
-sapply(colnames(expr1),function(x) hist(expr1[,x],main=x,breaks=100, cex.main=0.8))
-replicate(ceiling(ncol(expr1)/5)*5-ncol(expr1),plot.new())
-sapply(c(paste0("SNDA_",1:5), "MCPY_4", "TCPY_5"),function(x) hist(apply(expr1[,grep(x,colnames(expr1))],1,median),main=x,breaks=100, cex.main=0.9))
-dev.off()
-
-rm(m,sd)
+## like GTEx: Filter on >=10 individuals having >0.05 RPKM.
+## expr=expr[rowSums(expr>0.05)>=10,]  # 57816 --> 36556 remained
+#pdf("individual.hist.beforePEER.beforeFilter.pdf",paper="usr", width = 0, height = 0)
+#par(mfrow=c(5,5), mar=c(2,2,2,1))
+#sapply(colnames(expr),function(x) hist(expr[,x],main=x,breaks=100, cex.main=0.8))
+#replicate(ceiling(ncol(expr)/5)*5-ncol(expr),plot.new())
+#sapply(c(paste0("SNDA_",1:5), "MCPY_4", "TCPY_5"),function(x) hist(apply(expr[,grep(x,colnames(expr))],1,median),main=x,breaks=100, cex.main=0.9))
+#dev.off()
+#
+### Filter criteria: at least 2 samples or 1/2 of samples, whichever is bigger, having expression >0 RPKM.
+##index= apply(expr[,grep("MCPY",colnames(expr))]>-15,1,sum)>=2 | apply(expr[,grep("TCPY",colnames(expr))]>-15,1,sum)>=5 | apply(expr[,grep("SNDA",colnames(expr))]>-15,1,sum)>=44 
+### at least 10 samples have expression > 10^-15.
+##index= rowSums(expr > -15)>=10  # 57816 --> 41730
+#
+## TODO: change to require median > -4 in at least one cell type (see distribution for how to define the cutoff of -4). # 57816 --> 34194
+#index= apply(expr[,grep("SNDA",colnames(expr))],1,median) >= -4 | apply(expr[,grep("TCPY",colnames(expr))],1,median) >= -4 | apply(expr[,grep("MCPY",colnames(expr))],1,median) >= -4
+#
+## how to define cutoff -4
+#pdf("celltype.hist.median.cutoff.pdf", paper='usr', width=0, height=4)
+#par(mfrow=c(1,3))
+#lapply(c("SNDA","TCPY","MCPY"),function(x) hist(apply(expr[,grep(x, colnames(expr))], 1, median), border=NA, col='darkblue', xlab="median of log10(FPKM)", breaks=200, main=x))
+#lapply(c("SNDA","TCPY","MCPY"),function(x) {hist(apply(expr[,grep(x, colnames(expr))], 1, median), border=NA, col='darkblue', xlab="median of log10(FPKM)",breaks=200, xlim=c(-8,5), ylim=c(0,1600), main=x); abline(v=-4,col='red',lwd=3)})
+#lapply(c("SNDA","TCPY","MCPY"),function(x) hist(apply(expr[index,grep(x, colnames(expr))], 1, median), border=NA, col='darkblue', xlab="median of log10(FPKM)",breaks=200, main=x))
+#dev.off()
+#
+#expr = expr[index, ]
+#
+#
+#
+#pdf("individual.hist.beforePEER.afterFilter.pdf",paper="usr", width = 0, height = 0)
+#par(mfrow=c(5,5), mar=c(2,2,2,1))
+#sapply(colnames(expr),function(x) hist(expr[,x],main=x,breaks=100, cex.main=0.8))
+#replicate(ceiling(ncol(expr)/5)*5-ncol(expr),plot.new())
+#sapply(c(paste0("SNDA_",1:5), "MCPY_4", "TCPY_5"),function(x) hist(apply(expr[,grep(x,colnames(expr))],1,median),main=x,breaks=100, cex.main=0.9))
+#dev.off()
+#
+## outlier correction: quantile normalization with order preserved. Now RPKM is changed to rank normalized gene expression.
+#m=apply(expr, 1, mean); sd=apply(expr, 1, sd)
+#expr1 = t(apply(expr, 1, rank, ties.method = "average"));
+##expr = qnorm(expr / (ncol(expr)+1));  # to standard normalization
+#expr1 = qnorm(expr1 / (ncol(expr1)+1), mean=m, sd=sd)  # or, to preserve the mean and sd of each gene
+#
+#pdf("individual.hist.beforePEER.afterFilter.afterQuanNorm.pdf",paper="usr", width = 0, height = 0)
+#par(mfrow=c(5,5), mar=c(2,2,2,1))
+#sapply(colnames(expr1),function(x) hist(expr1[,x],main=x,breaks=100, cex.main=0.8))
+#replicate(ceiling(ncol(expr1)/5)*5-ncol(expr1),plot.new())
+#sapply(c(paste0("SNDA_",1:5), "MCPY_4", "TCPY_5"),function(x) hist(apply(expr1[,grep(x,colnames(expr1))],1,median),main=x,breaks=100, cex.main=0.9))
+#dev.off()
+#
+#rm(m,sd)
 
 save.image("data.RData")
 }
 
+expr1=expr
 
 message("# Run PEER to normalize the expression ...")
 ######################
 require(peer)
 model = PEER()
 PEER_setPhenoMean(model,as.matrix(t(expr1)))
-PEER_setNk(model, 0)  # no hidden factors
+PEER_setNk(model, 0)  
 #PEER_setAdd_mean(model, TRUE)  #
 PEER_setCovariates(model, as.matrix(cvrt)) # include known cvrt as above
 PEER_setNmax_iterations(model, 3000)
@@ -256,10 +261,10 @@ message("# run RLE on PEER normalized quantification data ...")
 
 pdf("RLE.plot.pdf", width=10, height=5)
 res=data.frame(expr)
-rle1=res/apply(res, 1, median)
+rle1=res-apply(res, 1, median)
 
 res=data.frame(residuals)
-rle2=res/apply(res, 1, median)
+rle2=res-apply(res, 1, median)
 
 require(reshape2)
 rle=melt(cbind(ID=rownames(rle1), rle1), variable.name = "Sample",value.name ="FPKM", id="ID")

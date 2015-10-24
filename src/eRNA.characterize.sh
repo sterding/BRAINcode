@@ -217,17 +217,6 @@ cat $ANNOTATION/exons.meta.bed | awk '{OFS="\t"; print $0,$3-$2}' | sort -k4,4 |
 cat $ANNOTATION/introns.meta.bed | awk '{OFS="\t"; print $0,$3-$2}' | sort -k4,4 | groupBy -g 4 -c 7 -o sum | join -1 1 -2 1 -a 1 -e '0' -o '0,1.2,2.2' /tmp/eRNA.tmp3 - | sed 's/ /\t/g' > $ANNOTATION/genes.meta.exon.intron.length.txt
 
 join -1 5 -2 1 -a 1 -e '0' -o '1.4,2.3' <(sort -k5,5 /tmp/eRNA.tmp2) <(sort -k1,1 $ANNOTATION/genes.meta.exon.intron.length.txt) |sed 's/ /\t/g' | sort -k1,1 > eRNA.f22.lenHostgeneMetaintron.txt
-
-cut -f5-7 /tmp/eRNA.tmp2 | sort -k1,1 | join -1 1 -2 1 -e '0' -o '1.1,1.2,1.3,2.2,2.3' - <(sort -k1,1 $ANNOTATION/genes.meta.exon.intron.length.txt) | sort -u | sed 's/ /\t/g;s/___/\t/g' | sort -k5,5nr > Hostgene.length.nHITNE.metaExon.metaIntron.xls
-
-# randomly distribute intronic HiTNEs into genomic intronic regions
-# ====================================
-bedtools complement -i $ANNOTATION/genes.bed -g $ANNOTATION/ChromInfo.txt | cat - $ANNOTATION/exons.meta.bed | cut -f1-3 | sortBed | mergeBed -i - | bedtools shuffle -excl stdin -noOverlapping -i <(awk '{OFS="\t"; if($2>0) {split($1,a,"_"); print a[1],a[2],a[3],$1;}}' eRNA.f01.dis2TSS.txt) -g $ANNOTATION/ChromInfo.txt | intersectBed -a - -b $ANNOTATION/gencode.v19.annotation.gtf.genes.bed -wo | awk '{OFS="\t"; print $0,$7-$6;}' | sort -k4,4 -k12,12nr | awk '{OFS="\t"; if($4!=id) {print; id=$4;}}' | cut -f8,12 | sort | uniq -c | awk '{OFS="\t"; print $2,$3,$1;}' | join -1 1 -2 1 -e '0' -o '1.1,1.2,1.3,2.2,2.3' - <(sort -k1,1 $ANNOTATION/genes.meta.exon.intron.length.txt) | sort -u | sed 's/ /\t/g;s/___/\t/g' | sort -k5,5nr > Hostgene.length.nHITNErandom.metaExon.metaIntron.xls
-
-## intron length vs. n_HITNE in introns
-intersectBed -a $inputbed -b $ANNOTATION/introns.meta.bed -wo | awk '{OFS="\t"; print $8"_"$5"_"$6"_"$7, $7-$6}' | sort | uniq -c | awk '{OFS="\t"; print $2,$3,$1}' > intron.length.n_HITNE.txt
-
-bedtools complement -i $ANNOTATION/genes.bed -g $ANNOTATION/ChromInfo.txt | cat - $ANNOTATION/exons.meta.bed | cut -f1-3 | sortBed | mergeBed -i - | bedtools shuffle -excl stdin -noOverlapping -i <(awk '{OFS="\t"; if($2>0) {split($1,a,"_"); print a[1],a[2],a[3],$1;}}' eRNA.f01.dis2TSS.txt) -g $ANNOTATION/ChromInfo.txt | intersectBed -a stdin -b $ANNOTATION/introns.meta.bed -wo | awk '{OFS="\t"; print $8"_"$5"_"$6"_"$7, $7-$6}' | sort | uniq -c | awk '{OFS="\t"; print $2,$3,$1}' > intron.length.n_HITNE.random.txt
  
 # ====================================
 # overlap with HeLa S3 enhancers (defined by CAGE)

@@ -1,13 +1,16 @@
 #Rscript to fit distribution of random trancriptional signal
 # Author: Xianjun Dong
-# Date: July 20, 2015
+# Date: Oct 21, 2015
+# Version: 2.0
 
-args<-commandArgs(TRUE)
-workdir=args[1] # ~/eRNAseq/HCILB_SNDA
+# input as (N, value)
+#df=read.table("transcriptional.noise.rpm.txt", comment.char = "", nrows = 1000000)  # read 1 million lines
+#df=log10(as.numeric(do.call('c',apply(df, 1, function(x) rep(x[2],x[1])))))
 
-setwd(workdir)
-df=read.table("transcriptional.noise.rpm.txt", comment.char = "", nrows = 1000000)  # read 1 million lines
-df=log10(as.numeric(do.call('c',apply(df, 1, function(x) rep(x[2],x[1])))))
+# # input as value at single nt
+df=read.table("transcriptional.noise.rpm.txt", comment.char = "")  # read 1 million lines
+df=log10(df[,1])
+
 library(fitdistrplus) # install.packages('fitdistrplus')
 fitn=fitdist(df,'norm')
 pdf("transcriptional.noise.distribution.pdf", width=8, height=6)

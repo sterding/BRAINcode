@@ -7,7 +7,7 @@
 ## 
 #!/bin/bash
 
-cd ~/neurogen/rnaseq_PD/external_download/roadmap
+cd ~/neurogen/external_download/roadmap
 
 mark=$1
 

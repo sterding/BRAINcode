@@ -27,7 +27,7 @@ module load cufflinks/2.2.1
 #module load bowtie/1.0.0
 module load bowtie2-2.1.0
 module load tophat-2.0.8
-module load bedtools2/2.18.2
+module load bedtools2/2.25.0
 module load samtools-0.1.18
 module load RSeQC/2.4
 

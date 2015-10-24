@@ -1,8 +1,8 @@
 [Mon Oct  5 14:14:24 EDT 2015]
-1. xyplot for all replicates with +1 pseudocount e.g. log(x+1)
+1. xyplot for all replicates with +1 pseudocount e.g. log(x+1)  ==> done! 
 2. HTNE for non-neuronal, and pyramidal neurons
 3. correlation for eRNA and GENCODE genes  -- send data to GL
-4. running - merge Histone data from Roadmap  --> use brain-only samples if it will quit again due to the memory limit.
+4. running - merge Histone data from Roadmap --> using peaks called from merged samples to infer HTNE classification
 
 [Tue Aug 11 14:11:20 EDT 2015]
 1. eQTL for eRNA -- to check the job status of 10k permutations and run permutations

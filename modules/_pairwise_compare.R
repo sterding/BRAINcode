@@ -11,9 +11,9 @@ sample1=args[1]
 sample2=args[2]
 FPKMfile = ifelse(is.na(args[3]), "/data/neurogen/rnaseq_PD/results/merged/genes.fpkm.allSamples.uniq.xls", args[3])
 
-PSEUDOCOUNT=1
+PSEUDOCOUNT=1 #1e-5 
 
-# sample1="HC_M0235-4_PBMC_6_rep1.amplified"; sample2="HC_M0235-4_PBMC_6_rep1.unamplified"; FPKMfile="/data/neurogen/rnaseq_PD/results/merged/genes.fpkm.allSamples.uniq.xls";
+# setwd("~/neurogen/rnaseq_PD/results/merged/"); sample1="HC_M0235-4_PBMC_6_rep1.amplified"; sample2="HC_M0235-4_PBMC_6_rep1.unamplified"; FPKMfile="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.allSamples.uniq.xls";PSEUDOCOUNT=1e-5
 print(paste(sample1, sample2, FPKMfile))
 message("loading data...")
 
@@ -29,12 +29,18 @@ message("ploting data...")
 
 x=log10(x + PSEUDOCOUNT); y=log10(y + PSEUDOCOUNT);
 
-pdf(paste("xyplot", sample1, "vs", sample2, "pdf", sep="."), width=5, height=5, paper='us')
+pdf(paste("xyplot", sample1, "vs", sample2, PSEUDOCOUNT, "pdf", sep="."), width=5, height=5, paper='us')
 par(pty="s"); # to make sure the frame is a square (width=height)
-plot(x, y, pch='.', cex=0.6, main=basename(FPKMfile), xlab=paste(sample1, "log10(FPKM+1)"), ylab=paste(sample2, "log10(FPKM+1)"), xlim=range(x,y), ylim=range(x,y), xaxs="r", yaxs="r")
+plot(x, y, pch='.', cex=0.6, main=basename(FPKMfile), xlab=paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")"), ylab=paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"), xlim=range(x,y), ylim=range(x,y), xaxs="r", yaxs="r")
 abline(a=0, b=1, col='red', lty=2, lwd=1)
 legend("topleft", paste("Pearson's r =", round(cor(x,y), 3)), bty='n')
 dev.off()
+
+library("ggExtra"); library("ggplot2");
+df=data.frame(x=x,y=y)
+p=ggplot(df, aes(x,y))+ geom_point(size=.6, alpha=0.6) + xlab(paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")")) + ylab(paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"))
+p=ggMarginal(p)
+ggsave(paste("xyplot+density", sample1, "vs", sample2, PSEUDOCOUNT, "pdf", sep="."), p)
 
 quit('no')
 

@@ -1,5 +1,7 @@
 # ===========================================================================
-#: background region to measure transcriptional noise: genomic regions excluding the known regions with RNA activities (known exons+/-500bp, rRNA, CAGE-defined enhancers, promoters)
+# output:
+# 1. blacklist.bed: The background region to measure transcriptional noise, defined as genomic regions excluding the known regions with RNA activities (known exons+/-500bp, rRNA, CAGE-defined enhancers, promoters)
+# 2. toExclude.bed: the above blacklist - known enhancers regions (e.g. FANTOM5 permissive enhancers)
 # ===========================================================================
 
 cd ~/projects/PD/results/eRNA
@@ -13,6 +15,7 @@ grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/TSS_human.bed | grep 
 #cat $ANNOTATION/SINE.bed $ANNOTATION/LINE.bed | cut -f1-3 >> /tmp/bg.bed  # LINE and SINE
 cat $ANNOTATION/hg19.gap.bed >> /tmp/bg.bed  # genomic gap
 cat /tmp/bg.bed | sortBed | mergeBed -i - > toExclude.bed
+
 grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/permissive_enhancers.bed | cut -f1-3 >> /tmp/bg.bed # CAGE-enhancer
 cat /tmp/bg.bed | sortBed | mergeBed -i - > blacklist.bed
 

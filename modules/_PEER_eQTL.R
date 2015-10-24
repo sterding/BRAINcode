@@ -299,10 +299,10 @@ message("# run RLE on PEER normalized quantification data ...")
 
 pdf("RLE.plot.pdf", width=10, height=5)
 res=data.frame(expr)
-rle1=res/apply(res, 1, median)
+rle1=res-apply(res, 1, median)
 
 res=data.frame(residuals)
-rle2=res/apply(res, 1, median)
+rle2=res-apply(res, 1, median)
 
 rle=melt(cbind(ID=rownames(rle1), rle1), variable.name = "Sample",value.name ="FPKM", id="ID")
 bymedian <- with(rle, reorder(Sample, FPKM, IQR))  # sort by IQR

@@ -193,12 +193,12 @@ Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgse
 # 2.2 combined bigwig into 
 #--------------------------
 #for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HCILB_SNDA HC_SN HC_PBMC HC_FB HC_SNDAstranded;
-for i in HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SNDAstranded;
+for i in HC_PY HC_nonNeuron HC_Neuron;
 do
-    bsub -J combine_bw -oo _combin_bw.$i.log -eo _combin_bw.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_bigwig.sh $i
+    [ -e trimmedmean.uniq.normalized.$i.bw ] || bsub -J combine_bw -oo _combin_bw.$i.log -eo _combin_bw.$i.log -q normal -n 4 -M 6000 -R rusage[mem=6000] _combine_bigwig.sh $i
 
-    # if bedGraph files are not there, convert back using bigwig
-    [ -f trimmedmean.uniq.normalized.$i.bedGraph ] || bigWigToBedGraph trimmedmean.uniq.normalized.$i.bw trimmedmean.uniq.normalized.$i.bedGraph
+    ## if bedGraph files are not there, convert back using bigwig
+    #[ -f trimmedmean.uniq.normalized.$i.bedGraph ] || bigWigToBedGraph trimmedmean.uniq.normalized.$i.bw trimmedmean.uniq.normalized.$i.bedGraph
 done
 
 
