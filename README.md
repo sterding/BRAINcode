@@ -50,7 +50,22 @@ Each sub-module has its own status hidden file (e.g. .status.$modulename.adaptor
 ```
 $grep touch ~/pipeline/modules/_RNAseq.sh | grep -v "#" | sed 's/.*modulename\.//g' | while read i; do echo $i `ll ~/neurogen/rnaseq_PD/run_output/*/.status._RNAseq.sh.$i | wc -l`; done
 ```
-List of moduels:
+
+### Main script:
+RNAseq.pipeline.sh
+- Usage: `RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`
+- Function: Main script for submitting RNAseq data analysis jobs to high-properformance computing cluster in batch. For now, it's configured to support only HPC environment with LSF job scheduler.
+- Input: absolute path of folder for the raw fastq files
+- Output: Tophat/Cufflinks/htseq-count/callSNP etc. runs for each sample using both multiple and unique mappers
+
+### Modules:
+#### _RNAseq.sh
+- Usage: _RNAseq.sh HC_BN10-39_2.R1.fastq.gz HC_BN10-39_2.R2.fastq.gz
+- Function: Routine steps for pair-end RNAseq data
+- Input: a pair of fastq files from PE RNAsequencing
+- Output: BAM/SAM (from alignment), BED/GTF (from assembly) etc. 
+
+List of sub-moduels in the core script _RNAseq.sh:
 ```
 $ grep touch ~/pipeline/modules/_RNAseq.sh | grep -v "#" | sed 's/.*modulename\.//g'
 adaptorremoval 
@@ -79,20 +94,6 @@ uniq.htseqcount
 uniq.metaexon
 makelinks
 ```
-
-### Main script:
-RNAseq.pipeline.sh
-- Usage: `RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`
-- Function: Main script for submitting RNAseq data analysis jobs to high-properformance computing cluster in batch. For now, it's configured to support only HPC environment with LSF job scheduler.
-- Input: absolute path of folder for the raw fastq files
-- Output: Tophat/Cufflinks/htseq-count/callSNP etc. runs for each sample using both multiple and unique mappers
-
-### Modules:
-#### _RNAseq.sh
-- Usage: _RNAseq.sh HC_BN10-39_2.R1.fastq.gz HC_BN10-39_2.R2.fastq.gz
-- Function: Routine steps for pair-end RNAseq data
-- Input: a pair of fastq files from PE RNAsequencing
-- Output: BAM/SAM (from alignment), BED/GTF (from assembly) etc. 
 
 #### _bam2vcf.sh
 - Usage:
