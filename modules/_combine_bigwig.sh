@@ -33,10 +33,11 @@ cd ~/neurogen/rnaseq_PD/results/merged/
 
 echo $group_lable, "$pattern";
 ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"
-ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern" | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' > samplelist.$group_lable
     
 echo "["`date`"] computing trimmed mean of bedGraph"
 #-------------------
+# the nuclear genome size:
+# curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/hg19.chrom.sizes | grep -v "_" | grep -v chrM | awk '{s+=$2}END{print s}'  # 3095677412
 
 unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"` \
 | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \

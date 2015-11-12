@@ -122,7 +122,7 @@ intersectBed -a $inputbed -b externalData/Segment/15_coreMarks_segments.E6E7E12.
 # ====================================
 # overlap with VISTA enhancers
 # ====================================
-intersectBed -a $inputbed -b externalData/VISTA/hg19.tested_regions.bed -wao  | sort -k4,4 | awk '{OFS="\t"; print $4, ($6==-1)?"NONE":$8"___"$10"___"$11}' > eRNA.f10.VISTA.txt
+intersectBed -a $inputbed -b <(cut -f1-4,7 externalData/VISTA/hg19.tested_regions.bed) -wao  | sort -k4,4 | awk '{OFS="\t"; print $4, ($6==-1)?"NA":$8"|"$9}' > eRNA.f10.VISTA.txt
 
 # ====================================
 # DNase signal density 
@@ -159,8 +159,8 @@ bigWigAverageOverBed externalData/Conservation/vertebrate/phyloP46way.wigFix.big
 # ====================================
 ## download liftover chain 
 #curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToDanRer7.over.chain.gz | gunzip > externalData/Conservation/hg19ToDanRer7.over.chain
-# require a minimum ratio of 30% that must remap
-liftOver $inputbed externalData/Conservation/hg19ToDanRer7.over.chain stdout unmapped.liftover -minMatch=0.3 | awk '{OFS="\t"; print $4, "zv9|"$1":"$2"-"$3;}' | sort -k1,1 | join -1 4 -2 1 -a 1 -o '0,2.2' -e 'NA' <(sort -k4,4 $inputbed) - | sed 's/ /\t/' > eRNA.f14.bConserved2zf.txt
+# require a minimum ratio of 10% that must remap
+liftOver $inputbed externalData/Conservation/hg19ToDanRer7.over.chain stdout unmapped.liftover -minMatch=0.1 | awk '{OFS="\t"; print $4, "zv9|"$1":"$2"-"$3;}' | sort -k1,1 | join -1 4 -2 1 -a 1 -o '0,2.2' -e 'NA' <(sort -k4,4 $inputbed) - | sed 's/ /\t/' > eRNA.f14.bConserved2zf.txt
 
 # ====================================
 # Conservation - overlap with HCNE or not
@@ -219,20 +219,25 @@ cat $ANNOTATION/introns.meta.bed | awk '{OFS="\t"; print $0,$3-$2}' | sort -k4,4
 join -1 5 -2 1 -a 1 -e '0' -o '1.4,2.3' <(sort -k5,5 /tmp/eRNA.tmp2) <(sort -k1,1 $ANNOTATION/genes.meta.exon.intron.length.txt) |sed 's/ /\t/g' | sort -k1,1 > eRNA.f22.lenHostgeneMetaintron.txt
  
 # ====================================
-# overlap with HeLa S3 enhancers (defined by CAGE)
+# overlap with HeLa S3 enhancers (defined by CAGE or histone)
 # ====================================
 # download the Binary matrix of enhancer usage file, if the enhancer is 1 in HeLa cell line, it should be a HeLa enhancer
-# curl -s http://enhancer.binf.ku.dk/presets/hg19_permissive_enhancer_usage.csv.gz > ../CAGE/hg19_permissive_enhancer_usage.csv.gz
-#zcat ../CAGE/hg19_permissive_enhancer_usage.csv.gz | rowsToCols stdin stdout -fs=',' | grep -P "858648|Hela"  | rowsToCols stdin stdout -tab | awk '{OFS="\t"; if(($1+$2+$3)>0) print $4}' | sed 's/"//g;s/[:-]/\t/g' > ../CAGE/hg19_permissive_enhancer.HeLaS3.bed
+# curl -s http://enhancer.binf.ku.dk/presets/hg19_permissive_enhancer_usage.csv.gz > externalData/CAGE/hg19_permissive_enhancer_usage.csv.gz
+#zcat externalData/CAGE/hg19_permissive_enhancer_usage.csv.gz | rowsToCols stdin stdout -fs=',' | grep -P "858648|Hela"  | rowsToCols stdin stdout -tab | awk '{OFS="\t"; for(i=1;i<NF;i++) s+=$i; if(s>0) print $NF}' | sed 's/"//g;s/[:-]/\t/g' > externalData/CAGE/hg19_permissive_enhancer.HeLaS3.bed
 intersectBed -a $inputbed -b externalData/CAGE/hg19_permissive_enhancer.HeLaS3.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f23.CAGE_HeLa.txt
 
-# ====================================
-# overlap with HeLa S3 enhancers (defined by histone)
-# ====================================
 # Use the enhancers from the combined segmentation (Segway + chromHMM) in HeLaS3 cell line. See reference:
 # http://genome-test.cse.ucsc.edu/cgi-bin/hgTrackUi?hgsid=389206706_Fowrtl09k5DnQ80vvZaeHZAP4hkI&c=chr21&g=wgEncodeAwgSegmentation
 #curl -s http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeAwgSegmentation/wgEncodeAwgSegmentationCombinedHelas3.bed.gz | gunzip | fgrep E > externalData/Segment/wgEncodeAwgSegmentationCombinedHelas3.Enh.bed
 intersectBed -a $inputbed -b externalData/Segment/wgEncodeAwgSegmentationCombinedHelas3.Enh.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f24.chromHMM_HeLa.txt
+
+# ====================================
+# overlap with SK-N-MC enhancers (defined by CAGE)
+# ====================================
+# download the Binary matrix of enhancer usage file, if the enhancer is 1 in HeLa cell line, it should be a HeLa enhancer
+# curl -s http://enhancer.binf.ku.dk/presets/hg19_permissive_enhancer_usage.csv.gz > externalData/CAGE/hg19_permissive_enhancer_usage.csv.gz
+#zcat externalData/CAGE/hg19_permissive_enhancer_usage.csv.gz | rowsToCols stdin stdout -fs=',' | grep -P "858648|SK-N-MC"  | rowsToCols stdin stdout -tab | awk '{OFS="\t"; for(i=1;i<NF;i++) s+=$i; if(s>0) print $NF}' | sed 's/"//g;s/[:-]/\t/g' > externalData/CAGE/hg19_permissive_enhancer.SK-N-MC.bed
+intersectBed -a $inputbed -b externalData/CAGE/hg19_permissive_enhancer.SK-N-MC.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f25.CAGE_SK-N-MC.txt
 
 # ====================================
 # if overlap with any eQTL of genes
@@ -240,11 +245,29 @@ intersectBed -a $inputbed -b externalData/Segment/wgEncodeAwgSegmentationCombine
 fgrep -w -f <(cut -f1 ~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/final.cis.eQTL.FDR.05.xls | grep -v SNP | sort -u) /data/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID | awk '{OFS="\t"; print $2,$3-1,$3,$1}' | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f28.eGene.txt
 
 
-## merge into a big file
-Rscript $HOME/neurogen/pipeline/RNAseq/src/eRNA.characterize.merge.R `ls eRNA.f*.txt`
+## merge into a big file: eRNA.characterize.xls
+Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.characterize.merge.R `ls eRNA.f*.txt`
 
 
 exit;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # ====================================

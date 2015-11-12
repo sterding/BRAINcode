@@ -87,11 +87,6 @@ echo "["`date`"] STEP 4. mapping"
 tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strandoption --max-multihits $MAX_HIT --no-coverage-search $GENOME/Sequence/Bowtie2Index/genome $R1 $R2 && \
 touch $outputdir/$samplename/.status.$modulename.mapping
 
-#[ ! -f $outputdir/$samplename/.status.$modulename.smallRNAmapping ] && \
-#tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strandoption --max-multihits $MAX_HIT --no-coverage-search genome $R1 $R2 && \
-#touch $outputdir/$samplename/.status.$modulename.smallRNAmapping
-
-
 ## Using BWA-MEM to prepare alignment for calling cirRNA with CIRI
 #bwa mem $R1 $R2
 
@@ -123,7 +118,7 @@ mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
 touch .status.$modulename.sam2bam
 
-## ONLY NEEDED FOR GTEx PROJECT (which has different chromosome names)
+## ONLY NEEDED FOR GTEx RNAseq data (which has different chromosome names)
 #[ ! -f .status.$modulename.rehead ] && \
 #_header_change.sh && \
 #touch .status.$modulename.rehead
@@ -245,7 +240,7 @@ cufflinks --no-update-check $strandoption -o ./ -p $CPU -G $ANNOTATION_GTF -M $M
 touch $outputdir/$samplename/.status.$modulename.uniq
 
 ## convert bam to bigwig # OLD VERSION
-#[ ! -f $outputdir/$samplename/.status.$modulename.sam2bw ] && \
+#[ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
 #sam2bed -v bed12=T accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
 #sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g' > accepted_hits.bedGraph && \
 #bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
@@ -253,7 +248,7 @@ touch $outputdir/$samplename/.status.$modulename.uniq
 #echo "total_mapped_reads:$total_mapped_reads" && \
 #awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
 #bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
-#touch $outputdir/$samplename/.status.$modulename.sam2bw
+#touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
 
 split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split" 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
@@ -287,6 +282,10 @@ echo "## calcualte RPKM (based on TOTAL reads mapped to nuclear genome)"
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.cufflinks.rpkm ] && \
 cufflinks --no-update-check $strandoption -o ./rpkm -p $CPU -G $ANNOTATION_GTF accepted_hits.bam.non-rRNA-mt.bam 2> cufflinks.rpkm.log && \
 touch $outputdir/$samplename/.status.$modulename.uniq.cufflinks.rpkm
+
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.cuffquant.rpkm ] && \
+cuffquant --no-update-check $strandoption -o ./rpkm -p $CPU $ANNOTATION_GTF accepted_hits.bam.non-rRNA-mt.bam 2> cuffquant.rpkm.log && \
+touch $outputdir/$samplename/.status.$modulename.uniq.cuffquant.rpkm
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.htseqcount ] && \
 htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \

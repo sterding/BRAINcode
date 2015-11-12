@@ -1,5 +1,7 @@
+why batch6 (N=57817) has different gene number in fpkm file than the other batches (N=55041)?
+
+
 [Mon Oct  5 14:14:24 EDT 2015]
-1. xyplot for all replicates with +1 pseudocount e.g. log(x+1)  ==> done! 
 2. HTNE for non-neuronal, and pyramidal neurons
 3. correlation for eRNA and GENCODE genes  -- send data to GL
 4. running - merge Histone data from Roadmap --> using peaks called from merged samples to infer HTNE classification

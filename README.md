@@ -45,6 +45,41 @@ Pipeline requirement
 Pipeline structure
 ------------------
 ![flowchart_rnaseq] (./src/flowchart_rnaseq.png "Flowchart of RNAseq pipeline")
+
+Each sub-module has its own status hidden file (e.g. .status.$modulename.adaptorremoval). To check if any sample not completed at any step, use script below:
+```
+$grep touch ~/pipeline/modules/_RNAseq.sh | grep -v "#" | sed 's/.*modulename\.//g' | while read i; do echo $i `ll ~/neurogen/rnaseq_PD/run_output/*/.status._RNAseq.sh.$i | wc -l`; done
+```
+List of moduels:
+```
+$ grep touch ~/pipeline/modules/_RNAseq.sh | grep -v "#" | sed 's/.*modulename\.//g'
+adaptorremoval 
+shortReadsExtract 
+shortReadsExtract_stemloop
+fastqc
+mapping
+circRNA
+sam2bam
+bam2stat
+sam2bw
+rpm_vs_coverage
+cufflinks.multi.denovo
+cufflinks 
+htseqcount
+metaexon
+uniq
+uniq.sam2bw
+uniq.bam2stat
+cufflinks.denovo
+uniq.bam2annotation
+uniq.normalize
+uniq.cufflinks.rpkm
+uniq.cuffquant.rpkm
+uniq.htseqcount
+uniq.metaexon
+makelinks
+```
+
 ### Main script:
 RNAseq.pipeline.sh
 - Usage: `RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles`

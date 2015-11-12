@@ -4,10 +4,10 @@
 # for hpcc cluster
 # ==============================
 
-CPU=4
+CPU=8
 EMAIL=xdong@rics.bwh.harvard.edu
-QUEUE=normal
-MEMORY=6000 # unit in megabase
+QUEUE=big-multi
+MEMORY=10000 # unit in megabase
 
 # ==============================
 # to pre-load the needed tools

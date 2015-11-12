@@ -46,8 +46,8 @@ result_dir=$input_dir/../results
 ########################
 cd $input_dir
 
-for i in *.R1.fastq.gz; #ILB*SNDA_2_rep1.R1.fastq.gz;
-#for i in *_6_*.R1.fastq.gz;
+#for i in *.R1.fastq.gz;
+for i in ILB_BN09-34_SNDA_2_rep1.R1.fastq.gz ILB_MCL7878_SNDA_2_rep1.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -188,6 +188,13 @@ Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgse
 Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking | grep -v PD_` genes.fpkm.HCILB.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking | grep -v PD_` isoforms.fpkm.HCILB.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab | grep -v PD_` genes.htseqcount.HCILB.uniq.xls
+
+## UPdate: use cuffdiff to calculate normalized expression FPKM
+bsub -J cuffdiff -oo _cuffdiff.log -eo _cuffdiff.log -q big-multi -n 8 -M 6000 -R rusage[mem=6000] cuffdiff -o ./cuffdiff --no-update-check -L `ls $output_dir |tr '\n' ','` -p 8 -total-hits-norm -library-norm-method quartile $ANNOTATION_GTF `ls $output_dir/*/uniq/accepted_hits.bam.non-rRNA-mt.bam`
+
+# cuffquant --> cuffnorm
+bsub -J cuffnorm -oo _cuffnorm.log -eo _cuffnorm.log -q big-multi -n 8 -M 2000 -R rusage[mem=2000] cuffnorm -o ./cuffnorm --no-update-check -L `ls /data/neurogen/rnaseq_PD/run_output/*/uniq/rpkm/abundances.cxb | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' | tr '\n' ','` -p 8 -total-hits-norm -library-norm-method quartile $ANNOTATION_GTF `ls /data/neurogen/rnaseq_PD/run_output/*/uniq/rpkm/abundances.cxb`
+
 
 #--------------------------
 # 2.2 combined bigwig into 

@@ -24,6 +24,17 @@
 # cat gwascatalog2015Apr.gwas+Nalls32SNPs.hg19.rsID.SNAP_r2pt8_250kb_1kg.* | grep -v Proxy | grep -v WARNING | awk '{OFS="\t"; if($1!=$2 && $7!="N/A") print $7,$8-1,$8,$1":"$2;}' | sort -u | liftOver stdin hg18ToHg19.over.chain.gz gwascatalog2015Apr.gwas+Nalls32SNPs.hg19.rsID.SNAP_r2pt8_250kb_1kg_anypop-clean-hg19.bed unlifted.bed 
 # cat gwascatalog2015Apr.gwas+Nalls32SNPs.hg19.bed | while IFS=$'\t' read chr start end name score strand disease rest; do rsid=`echo $name | sed 's/.*_\(rs.*\)/\1/'`; echo -e $chr"\t"$start"\t"$end"\t"$name"\t"$score"\t"$strand"\t"$disease"\t"`fgrep -w $rsid gwascatalog2015Apr.gwas+Nalls32SNPs.hg19.rsID.SNAP_r2pt8_250kb_1kg_anypop-clean-hg19.bed | fgrep -w $chr | awk -vrsid=$rsid '{split($4,a,":"); id=(a[1]==rsid)?a[2]:a[1]; ID=id";"ID; E=$3";"E;}END{printf ID"|"E}'`; done > gwascatalog2015Apr.gwas+Nalls32SNPs.hg19.snps_in_LD.SNAP.r2.0.8.bed
 
+## pre-steps to get LD data for GWAS SNPs
+## dir: ~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog
+## --------------------------------------
+## step1: download GWAS SNPs into bed format
+# curl -s https://www.ebi.ac.uk/gwas/api/search/downloads/full > gwas_catalog_v1.0-downloaded_2015-11-04.tsv
+## step2: convert to bed format and liftover to hg19 (from hg38) # header description: https://www.ebi.ac.uk/gwas/docs/fileheaders#_file_headers_for_catalog_version_1_0
+# wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz
+# awk '{FS="\t"; OFS="\t"; if(NR>1 && $13!="") print "chr"$12,$13-1,$13,"hg38_chr"$12"_"$13"_"$22,1,".",$8}'  gwas_catalog_v1.0-downloaded_2015-11-04.tsv | liftOver -bedPlus=4 -tab stdin hg38ToHg19.over.chain.gz stdout unmapped | sort -u > gwas_catalog_v1.0-downloaded.hg19.bed
+## step3: run plink2 to get LD info
+# cat gwascatalog2015Apr.gwas-clean-hg19.uniq.bed | while IFS=$'\t' read chr start end name score strand disease rest; do echo -e $chr"\t"$start"\t"$end"\t"$name"\t"$score"\t"$strand"\t"$disease"\t"`fgrep -w $end ../Variation/1000G/LD/LD_$chr.ld | awk -vend=$end '{if($7>0.4) {id=($2==end)?$6:$3; ID=id";"ID; e=($2==end)?$5:$2; E=e";"E; R2=$7";"R2; D=$8";"D;;}}END{printf ID"|"E"|"R2"|"D}'`; done > gwascatalog2015Apr.gwas-clean-hg19.uniq.snps_in_LD.PLINK.r2.0.4.bed
+
 snps_in_LD=$GENOME/Annotation/GWASCatalog/gwascatalog2015Apr.gwas+Nalls32SNPs.hg19.snps_in_LD.SNAP.r2.0.8.bed
 snps_in_LD=$GENOME/Annotation/GWASCatalog/gwascatalog2015Apr.gwas-clean-hg19.uniq.snps_in_LD.SNAP.r2.0.8.bed
 

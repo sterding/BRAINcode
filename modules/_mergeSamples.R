@@ -11,13 +11,14 @@ args<-commandArgs(TRUE)
 n=length(args)
 outputfile=args[n]
 
-fpkm=read.table(args[1], header=T);
+fpkm=read.table(args[1], header=T, stringsAsFactors=T);
 fpkm=subset(fpkm, select=c('tracking_id', 'class_code', 'nearest_ref_id', 'gene_id', 'gene_short_name', 'tss_id', 'locus', 'length'))
 
 for(i in 1:(n-1)){
     message(paste("[Merging file", args[i], "...] %", round(100*i/(n-1), 1), "Done"));
-    df=read.table(args[i], header=T)
-    #fpkm=cbind(fpkm, FPKM=df[match(fpkm$tracking_id, df$tracking_id), 'FPKM'])  # potential issue if df has less number of rows than fpkm
+    df=read.table(args[i], header=T, stringsAsFactors=T)
+    ## only include the genes with FPKM_status==OK 
+    df=subset(df, FPKM_status=="OK")
     common=intersect(fpkm$tracking_id, df$tracking_id)
     fpkm=cbind(fpkm[match(common,fpkm$tracking_id),], FPKM=df[match(common,df$tracking_id), 'FPKM'])
 }

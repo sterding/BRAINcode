@@ -1,11 +1,11 @@
 ## script to define HTNE with the following definition
 # Usage: $pipeline_path/src/eRNA.define.sh HCILB_SNDA
-# for i in HCILB_SNDA HC_nonNeuron HC_PY; do bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.define.sh $i; done
+# for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC PD_SNDA HC_MCPY HC_TCPY; do bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.define.sh $i; done
 # Author: Xianjun Dong
 # Version: 2.0
 # Date: Oct 23, 2015
 # preqisition: 
-# 1. run bash /data/neurogen/pipeline/RNAseq/src/get.background.sh to generate the background regions (../blacklist.bed and ../toExclude.bed)
+# 1. run bash /data/neurogen/pipeline/RNAseq/src/get.background.sh to generate the background regions (../toExclude.bed)
 
 ################################################
 # HTNE definition:
@@ -14,7 +14,7 @@
 # 3) located in non-generic regions (e.g. 500bp away from any annotated exons),
 # 4) at least 100bp in length,
 # 5) don't contain any splicing sites (>10 reads in at least 5 samples) from Tophat
-# 6) consistenly strong (q-value<0.05 in at least 3 samples) when comparing with random non-functional background
+# 6) compute p-value for each HTNE candidate given each sample's random background, then test the number of samples with p<0.05 with the binomial test, adjust p-value from binomial test with HB correction. Final HTNEs have adjusted p-value <0.05.
 ################################################
 
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
@@ -34,15 +34,16 @@ echo "# step0: measure transcriptional noise in background genomic regions"
 # make merged signal if not existed
 [ -e $inputBG ] || _combine_bigwig.sh $SAMPLE_GROUP
 
+_sample_list.sh $SAMPLE_GROUP  > samplelist
+
 # RNAseq signal distribution in the background region
-bedtools random -seed 3 -g $GENOME/Annotation/Genes/ChromInfo.txt -l 1 -n 1000000 | sortBed | intersectBed -a - -b ../blacklist.bed -v -sorted | intersectBed -a $inputBG -b - -sorted -u | cut -f4 > transcriptional.noise.rpm.txt
-#intersectBed -a $inputBG -b ../blacklist.bed -sorted -v | awk '{OFS="\t"; print $3-$2, $4}' | shuf -n 1000000 > transcriptional.noise.rpm.txt # TOO SLOW!
+bedtools random -seed 3 -g $GENOME/Annotation/Genes/ChromInfo.txt -l 1 -n 1000000 | sortBed | intersectBed -a - -b ../toExclude.bed -v -sorted | intersectBed -a $inputBG -b - -sorted -u | cut -f4 > transcriptional.noise.rpm.txt
 Rscript /data/neurogen/pipeline/RNAseq/src/_fit.Tx.noise.R
 #for HCILB_SNDA: Dsig: 10**-1.105 == 0.079
 #for HC_nonNeuron: 0.124
 Dsig=`tail -n1 transcriptional.noise.rpm.pvalues.txt`  
 
-echo "# step1: any regions with summit RPM > peakLevel and border > baseLevel"
+echo "# step1: any regions with value > baseLevel (i.e. average sequencing depth)"
 # =================
 basalLevel=`tail -n1 $inputBG | cut -f2 -d'=' | cut -f1`
 awk -vmin=$basalLevel '{OFS="\t"; if($4>=min) print $1,$2,$3,".",$4}' $inputBG | mergeBed -c 5 -o max > eRNA.tmp1
@@ -61,7 +62,7 @@ awk '{OFS="\t"; if(($3-$2)>100) print $1,$2,$3,$1"_"$2"_"$3}' eRNA.tmp3 > eRNA.t
 
 echo "# step5: don't contain any splicing sites (donor or acceptor from trinity/cufflinks de novo assembly)"
 # =================
-# cd ~/neurogen/rnaseq_PD/results2/merged/denovo_assembly/
+# cd ~/neurogen/rnaseq_PD/results/merged/denovo_assembly/
 # cat cufflinks-cuffmerge/merged.bed trinity-cuffmerge/all_strand_spliced.chr.bed | awk '{OFS="\t";split($11,a,","); split($12,b,","); A=""; B=""; for(i=1;i<length(a)-1;i++) {A=A""(b[i+1]-b[i]-a[i])",";B=B""(b[i]+a[i]-(b[1]+a[1]))",";} if($10>1) print $1,$2+a[1], $3-a[length(a)-1], $4,$5,$6,$2+a[1], $3-a[length(a)-1],$9,$10-1,A,B;}' | bed12ToBed6 | awk '{OFS="\t"; print $1, $2-10,$2+10; print $1,$3-10,$3+10;}' | sortBed | uniq > trinitycufflinks.merged.splicingsites.flanking20nt.bed
 
 # more than 10 splicing reads in at least 5 samples
@@ -72,20 +73,26 @@ intersectBed -a eRNA.tmp4 -b ~/neurogen/rnaseq_PD/results/merged/denovo_assembly
 echo "# step6: calculate the significance of eRNA"
 # =================
 
-#1: create 100,000 random regions (400bp each) as background and calculate their signals
+#1: create random background regions (same number and same length distribution as HTNEs) and calculate their signals
 i=~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$SAMPLE_GROUP.bw
 bedtools shuffle -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg
-#bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM
+bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM
+
 while read line
 do
-    echo " - sample:", $line;
+    echo " - sample:" $line;
     i=~/neurogen/rnaseq_PD/run_output/$line/uniq/accepted_hits.normalized2.bw
     bedtools shuffle -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg
-    #bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM
-done < ~/neurogen/rnaseq_PD/results/merged/samplelist.$SAMPLE_GROUP
+    bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM
+done < samplelist
 
-### 2: distribution of random background, in order to define the cutoff with p=0.0001 significance
-Rscript /data/neurogen/pipeline/RNAseq/src/_HTNE.consistency.R $SAMPLE_GROUP
+#2. compute p-value for each HTNE candidate in each sample's random background, then test the number of samples with p<0.05 with the binomial test, adjust p-value from binomial test with HB correction
+Rscript /data/neurogen/pipeline/RNAseq/src/_HTNE.consistency.R $SAMPLE_GROUP  # output is eRNA.pvalues.adjusted.xls
 
-# consistence definition: q<0.05 in at least 3 samples (NEED TO CONFIRM WITH JOHN)
-awk '{OFS="\t"; split($1,a,"_"); S=0; if($1~/^chr/) {for(i=2;i<=NF;i++) if($i<=0.05) S++; if(S>=3) print a[1],a[2],a[3],$1}}' eRNA.$SAMPLE_GROUP.qvalue.xls > eRNA.bed
+# multi-test correction to adjust p: 
+# bonferroni for the major groups
+[[ "$SAMPLE_GROUP" == "HCILB_SNDA" || "$SAMPLE_GROUP" == "HC_PY" || "$SAMPLE_GROUP" == "HC_nonNeuron" ]] && awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($4<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls > eRNA.bed
+# FDR with method <=0.05
+[[ "$SAMPLE_GROUP" == "HC_FB" || "$SAMPLE_GROUP" == "HC_PBMC" || "$SAMPLE_GROUP" == "HC_MCPY" || "$SAMPLE_GROUP" == "HC_TCPY" ]] && awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($5<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls > eRNA.bed
+
+echo "THE END!"
