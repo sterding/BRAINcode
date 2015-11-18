@@ -5,14 +5,32 @@ source $pipeline_path/config.txt
 
 cd ~/projects/PD/results/eRNA/externalData/RNAseq
 
-inputBG=/data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph
-
 ################################################################################################
 # define eRNA
 ################################################################################################
-$pipeline_path/src/eRNA.define.sh $inputBG eRNA.bed
+for i in HCILB_SNDA HC_nonNeuron HC_PY; do bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.define.sh $i; done
+for i in HC_FB HC_PBMC PD_SNDA HC_MCPY HC_TCPY; do bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.define.sh $i; done
 
-rsync -azv eRNA.bed xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/merged
+# ven diagram for overlap of 3 major groups (a: SNDA; b:PY; c:NN)
+echo a `intersectBed -a HCILB_SNDA/eRNA.bed -b <(cat HC_PY/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l`
+echo b `intersectBed -a HC_PY/eRNA.bed -b <(cat HCILB_SNDA/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l`
+echo c `intersectBed -a HC_nonNeuron/eRNA.bed -b <(cat HC_PY/eRNA.bed HCILB_SNDA/eRNA.bed) -v | wc -l`
+echo ab `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_PY/eRNA.bed -u | intersectBed -a stdin -b HC_nonNeuron/eRNA.bed -v | wc -l`
+echo ac `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -v | wc -l`
+echo bc `intersectBed -a HC_PY/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bed -v | wc -l`
+echo abc `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -u | wc -l`
+
+# celltype-private ones
+intersectBed -a HCILB_SNDA/eRNA.bed -b <(cat HC_PY/eRNA.bed HC_nonNeuron/eRNA.bed) -v > HCILB_SNDA/eRNA.private.bed
+intersectBed -a HC_PY/eRNA.bed -b <(cat HCILB_SNDA/eRNA.bed HC_nonNeuron/eRNA.bed) -v > HC_PY/eRNA.private.bed
+intersectBed -a HC_nonNeuron/eRNA.bed -b <(cat HC_PY/eRNA.bed HCILB_SNDA/eRNA.bed) -v > HC_nonNeuron/eRNA.private.bed
+
+#############################################################
+# GWAS SNP enrichment
+#############################################################
+
+for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh PLINK $i; done 
+for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP $i; done 
 
 ################################################################################################
 # characterize eRNA
@@ -208,13 +226,6 @@ set -v
     Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.target.correlation.xyplot.R /tmp/xyplot.tab "$x.$y"
 set +v
 done
-
-#############################################################
-# overlap of GWAS SNPs with eRNA, exons etc. 
-#############################################################
-awk 'BEGIN{FS="\t";} $9<=1e-8' /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Variation/gwascatalog2014AUGID.selected.txt | cut -f2 | sed 's/ (.*//g' | sort | uniq -c | sort -k2,2 | awk '$1>30'
-
-
 
 
 # RPM with p=0.001 in all samples is: 0.64

@@ -1,6 +1,3 @@
-why batch6 (N=57817) has different gene number in fpkm file than the other batches (N=55041)?
-
-
 [Mon Oct  5 14:14:24 EDT 2015]
 2. HTNE for non-neuronal, and pyramidal neurons
 3. correlation for eRNA and GENCODE genes  -- send data to GL

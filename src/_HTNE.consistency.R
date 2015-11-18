@@ -30,7 +30,7 @@ EXP=data.frame(); PV=data.frame();
 for(i in samplelist){
   print(i)
   # read background
-  df=read.table(paste0("~/neurogen/rnaseq_PD/run_output/",i,"/uniq/accepted_hits.normalized2.bw.rdbg"), header=F)[,2] # mean RPM (mean0 from bigWigAverageOverBed)
+  df=read.table(paste0("~/neurogen/rnaseq_PD/run_output/",i,"/uniq/accepted_hits.normalized2.bw.", SAMPLE_GROUP, ".rdbg"), header=F)[,2] # mean RPM (mean0 from bigWigAverageOverBed)
   Fn=ecdf(df)
   
 #   # plot the cummulative plot
@@ -41,7 +41,7 @@ for(i in samplelist){
 #   text(g(0.999), 0.999, round(g(0.999),2), cex=5, adj=c(0,1))
   
   # read expression
-  expression=read.table(paste0("~/neurogen/rnaseq_PD/run_output/",i,"/uniq/accepted_hits.normalized2.bw.eRNA.meanRPM"), header=F)
+  expression=read.table(paste0("~/neurogen/rnaseq_PD/run_output/",i,"/uniq/accepted_hits.normalized2.bw.", SAMPLE_GROUP, ".eRNA.meanRPM"), header=F)
   pvalue=as.numeric(format(1-Fn(expression[,2]), digits=3));
 
   # merge
@@ -61,16 +61,3 @@ p.adjusted = cbind(binomial.pvalues=binomial.pvalues, p.adjusted.HB = p.adjust(b
 rownames(p.adjusted) = PV[,1]
 
 write.table(p.adjusted,  "eRNA.pvalues.adjusted.xls", col.names=NA, row.names=T, sep="\t", quote=F)
-
-
-
-#rM=rowMeans(QV[,-1]<=0.05)
-# write.table(EXP[rM>0.25,], paste("eRNA",SAMPLE_GROUP,"meanRPM.xls", sep="."), col.names=T, row.names=F, sep="\t", quote=F)
-# write.table(PV[rM>0.25,],  paste("eRNA",SAMPLE_GROUP,"pvalue.xls", sep="."), col.names=T, row.names=F, sep="\t", quote=F)
-# write.table(QV[rM>0.25,],  paste("eRNA",SAMPLE_GROUP,"qvalue.xls", sep="."), col.names=T, row.names=F, sep="\t", quote=F)
-# 
-# pdf(paste("eRNA",SAMPLE_GROUP,"qvalue.hist.pdf", sep="."), width=8, height=6)
-# h=hist(rM, breaks=80, xlim=c(0,1), main="",xlab=paste("Percentage of",SAMPLE_GROUP, "samples (N=", length(samplelist),"with q-value <= 0.05"), ylab="Count of HTNEs", freq=T)
-# abline(v=0.250, lty=2, col='red')
-# legend('topright', c(bquote(.(sum(rM>0.25)) ~ "HTNEs"), expression("with q-value" <= "0.05"), "in at least 25% of samples"),  bty='n', text.col='red', cex=1.5)
-# dev.off()

@@ -1,9 +1,10 @@
 ## script to define HTNE with the following definition
-# Usage: $pipeline_path/src/eRNA.define.sh HCILB_SNDA
-# for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC PD_SNDA HC_MCPY HC_TCPY; do bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.define.sh $i; done
 # Author: Xianjun Dong
 # Version: 2.0
 # Date: Oct 23, 2015
+# Usage: $pipeline_path/src/eRNA.define.sh HCILB_SNDA
+# for i in HCILB_SNDA HC_nonNeuron HC_PY; do bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.define.sh $i; done
+# for i in HC_FB HC_PBMC PD_SNDA HC_MCPY HC_TCPY; do bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.define.sh $i; done
 # preqisition: 
 # 1. run bash /data/neurogen/pipeline/RNAseq/src/get.background.sh to generate the background regions (../toExclude.bed)
 
@@ -75,15 +76,15 @@ echo "# step6: calculate the significance of eRNA"
 
 #1: create random background regions (same number and same length distribution as HTNEs) and calculate their signals
 i=~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$SAMPLE_GROUP.bw
-bedtools shuffle -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg
+bedtools shuffle -seed 123 -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg
 bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM
 
 while read line
 do
     echo " - sample:" $line;
     i=~/neurogen/rnaseq_PD/run_output/$line/uniq/accepted_hits.normalized2.bw
-    bedtools shuffle -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.rdbg
-    bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.meanRPM
+    bedtools shuffle -seed 123 -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.$SAMPLE_GROUP.rdbg
+    bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.$SAMPLE_GROUP.eRNA.meanRPM
 done < samplelist
 
 #2. compute p-value for each HTNE candidate in each sample's random background, then test the number of samples with p<0.05 with the binomial test, adjust p-value from binomial test with HB correction
@@ -91,8 +92,11 @@ Rscript /data/neurogen/pipeline/RNAseq/src/_HTNE.consistency.R $SAMPLE_GROUP  # 
 
 # multi-test correction to adjust p: 
 # bonferroni for the major groups
-[[ "$SAMPLE_GROUP" == "HCILB_SNDA" || "$SAMPLE_GROUP" == "HC_PY" || "$SAMPLE_GROUP" == "HC_nonNeuron" ]] && awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($4<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls > eRNA.bed
+awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($4<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls > eRNA.bonferroni.bed
 # FDR with method <=0.05
-[[ "$SAMPLE_GROUP" == "HC_FB" || "$SAMPLE_GROUP" == "HC_PBMC" || "$SAMPLE_GROUP" == "HC_MCPY" || "$SAMPLE_GROUP" == "HC_TCPY" ]] && awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($5<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls > eRNA.bed
+awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($5<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls > eRNA.fdr.bed
+
+[[ "$SAMPLE_GROUP" == "HCILB_SNDA" || "$SAMPLE_GROUP" == "HC_PY" || "$SAMPLE_GROUP" == "HC_nonNeuron" ]] && ln -fs eRNA.bonferroni.bed eRNA.bed
+[[ "$SAMPLE_GROUP" == "HC_FB" || "$SAMPLE_GROUP" == "HC_PBMC" || "$SAMPLE_GROUP" == "HC_MCPY" || "$SAMPLE_GROUP" == "HC_TCPY" ]]  && ln -fs eRNA.fdr.bed eRNA.bed
 
 echo "THE END!"
