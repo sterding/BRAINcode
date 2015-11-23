@@ -1,6 +1,8 @@
 ###########################################
 # script to combine bigwig, using trimmed mean of unionBedGraphs for samples from the same group
 # Usage: $0 HC_SNDA
+# bsub -J HC_SN -q normal -n 4 -M 6000 _combine_bigwig.sh HC_SN
+# for i in HCILB_SNDA HC_PY HC_nonNeuron HC_Neuron HC_MCPY HC_TCPY HC_SNDA ILB_SNDA PD_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded; do echo $i; bsub -J $i -q normal -n 4 -M 6000 _combine_bigwig.sh $i; done
 # Author: Xianjun Dong
 # Version: 1.0
 # Date: 2014-Oct-22
@@ -31,8 +33,17 @@ cd ~/neurogen/rnaseq_PD/results/merged/
 [ "$group_lable" = "HC_PBMC" ]  && pattern="HC_.*_PBMC_[^u]*/";
 [ "$group_lable" = "HC_FB" ]  && pattern="HC_.*_FB_";
 
+ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern" | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' > samplelist.$group_lable
+N=`cat samplelist.$group_lable | wc -l`
 echo $group_lable, "$pattern";
-ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"
+echo "N = $N"
+
+if [ "$N" == "1" ]
+then
+  awk '{OFS="\t";S+=$4*($3-$2); if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id; TOTAL=3095677412; bc=S/TOTAL;print "#basalCoverage="bc, "#"S"/"TOTAL;}' `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"` > trimmedmean.uniq.normalized.$group_lable.bedGraph
+  ln -fs `ls ../../run_output/*/uniq/accepted_hits.normalized2.bw | grep -E "$pattern"` trimmedmean.uniq.normalized.$group_lable.bw
+  exit
+fi
     
 echo "["`date`"] computing trimmed mean of bedGraph"
 #-------------------

@@ -20,4 +20,10 @@ for(i in 2:n){
 features=features[,-1];
 colnames(features)=gsub("eRNA.([^/]*).txt", "\\1", args[1:n])
 
+# add class
+df=subset(features, select=c(f06.TFBS, f07.P300, f08.CAGEenhancer, f09.chromHMM_brain, f12.DNaseROADMAP, f15.HCNE))
+df$f06.TFBS=ifelse(df$f06.TFBS>=5,1,0)
+df[df>0]=1;
+features$class=ifelse(apply(df,1,sum)==0, 3, ifelse(df$f12.DNaseROADMAP==1, 1, 2))
+
 write.table(features, "eRNA.characterize.xls", sep="\t", quote = F, col.names = NA, row.names = T)

@@ -1,6 +1,7 @@
 ###########################################
 # script to generate sample list per group
 # Usage: $0 HC_SNDA
+# for i in HCILB_SNDA HC_PY HC_nonNeuron HC_Neuron HC_MCPY HC_TCPY HC_SNDA ILB_SNDA PD_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded; do echo $i; _sample_list.sh $i > samplelist.$i; done
 # Author: Xianjun Dong
 # Version: 1.0
 # Date: 2014-Oct-22

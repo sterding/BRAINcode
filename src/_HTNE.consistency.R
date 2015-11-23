@@ -9,7 +9,7 @@ args<-commandArgs(TRUE)
 SAMPLE_GROUP=args[1]
 
 # samplelist is pre-generated in _combine_bigwig.sh script
-samplelist=read.table("samplelist", stringsAsFactors =F)$V1
+samplelist=read.table(paste0("~/neurogen/rnaseq_PD/results/merged/samplelist.", SAMPLE_GROUP), stringsAsFactors =F)$V1
 
 pdf("background.RNAseq.cummulative.plot.pdf")
 # plot the cummulative plot for merged track

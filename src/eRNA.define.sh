@@ -35,7 +35,7 @@ echo "# step0: measure transcriptional noise in background genomic regions"
 # make merged signal if not existed
 [ -e $inputBG ] || _combine_bigwig.sh $SAMPLE_GROUP
 
-_sample_list.sh $SAMPLE_GROUP  > samplelist
+_sample_list.sh $SAMPLE_GROUP  > ~/neurogen/rnaseq_PD/results/merged/samplelist.$SAMPLE_GROUP
 
 # RNAseq signal distribution in the background region
 bedtools random -seed 3 -g $GENOME/Annotation/Genes/ChromInfo.txt -l 1 -n 1000000 | sortBed | intersectBed -a - -b ../toExclude.bed -v -sorted | intersectBed -a $inputBG -b - -sorted -u | cut -f4 > transcriptional.noise.rpm.txt
@@ -85,16 +85,16 @@ do
     i=~/neurogen/rnaseq_PD/run_output/$line/uniq/accepted_hits.normalized2.bw
     bedtools shuffle -seed 123 -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.$SAMPLE_GROUP.rdbg
     bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.$SAMPLE_GROUP.eRNA.meanRPM
-done < samplelist
+done < ~/neurogen/rnaseq_PD/results/merged/samplelist.$SAMPLE_GROUP
 
 #2. compute p-value for each HTNE candidate in each sample's random background, then test the number of samples with p<0.05 with the binomial test, adjust p-value from binomial test with HB correction
 Rscript /data/neurogen/pipeline/RNAseq/src/_HTNE.consistency.R $SAMPLE_GROUP  # output is eRNA.pvalues.adjusted.xls
 
 # multi-test correction to adjust p: 
 # bonferroni for the major groups
-awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($4<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls > eRNA.bonferroni.bed
+awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($4<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls | sortBed > eRNA.bonferroni.bed
 # FDR with method <=0.05
-awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($5<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls > eRNA.fdr.bed
+awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($5<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls | sortBed > eRNA.fdr.bed
 
 [[ "$SAMPLE_GROUP" == "HCILB_SNDA" || "$SAMPLE_GROUP" == "HC_PY" || "$SAMPLE_GROUP" == "HC_nonNeuron" ]] && ln -fs eRNA.bonferroni.bed eRNA.bed
 [[ "$SAMPLE_GROUP" == "HC_FB" || "$SAMPLE_GROUP" == "HC_PBMC" || "$SAMPLE_GROUP" == "HC_MCPY" || "$SAMPLE_GROUP" == "HC_TCPY" ]]  && ln -fs eRNA.fdr.bed eRNA.bed

@@ -37,16 +37,15 @@ results$Disease_or_Trait=gsub("_"," ", results$Disease_or_Trait)
 results = results[with(results, order(type, -OR)), ]
 write.table(results, paste0("eRNA.SNP.enrichments.",type,".xls"), sep="\t", col.names = T, row.names = F)
 
-
-results = subset(results, type!='HTNE') # using private-HTNE
+results = subset(results, type!='pHTNE') # using private-HTNE
 
 pdf(paste0("eRNA.SNP.enrichments.",type,".pdf"), width=24, height=12); 
+# Note: Don't use ggsave() with Rscript, which will generate another Rplot.pdf unnecessarily. See http://stackoverflow.com/questions/19382384/ggplot2-overwrite-one-another-in-rplots-pdf
 
 # re-order the levels in the order of appearance in the data.frame
 results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
 p = ggplot(results, aes(x=Disease_or_Trait2, y=OR, fill=type, ymax=max(OR)*1.1)) + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") + theme_bw() + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) + geom_text(aes(label=paste0(observed," (",round(-log10(pvalue),1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) + ggtitle(paste0(basename(getwd()), " -- SNP enrichments (LD from ",type,", sorted by OR)")) 
 
-#ggsave(paste0("eRNA.SNP.enrichments.",type,".OR.pdf"), width=18, height=12) # this will generate another Rplot.pdf unnecessarily. See http://stackoverflow.com/questions/19382384/ggplot2-overwrite-one-another-in-rplots-pdf
 print(p);
 
 results = results[with(results, order(type, pvalue)), ]

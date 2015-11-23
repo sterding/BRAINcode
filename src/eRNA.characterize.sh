@@ -1,5 +1,5 @@
 ## script to characterize eRNAs with the following features
-# $pipeline_path/bin/eRNA.characterize.sh
+# $pipeline_path/src/eRNA.characterize.sh HCILB_SNDA
 #
 #Features	            Data type	    Description
 #========               =========       ==================================
@@ -27,32 +27,36 @@
 #enhancer_CAGE.HeLa	    boolean	        if overlap with any CAGE-defined enhancers in HeLa cell line  -- for in vitro validation purpose only
 #enhancer_histone.HeLa	boolean	        if overlap with any histone marks-defined enhancers (chromHMM states of E6|E7|E12) from HeLa Cell -- for in vitro validation purpose only
 
-ANNOTATION=$GENOME/Annotation/Genes
-
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
 
-inputbed=eRNA.bed #$1
+SAMPLE_GROUP=$1
+inputBG=/data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$SAMPLE_GROUP.bedGraph
+EXTERNAL_FEATURE=~/eRNAseq/externalData
 
-bedtools shuffle -excl ../toExclude.bed -noOverlapping -i $inputbed -g $ANNOTATION/ChromInfo.txt > random.bed
+cd ~/eRNAseq/$SAMPLE_GROUP
+
+inputbed=eRNA.bed
+
+[ -e eRNA.random.bed ] || bedtools random -n 100000 -l 400 -seed 1234 -g $GENOME/Annotation/Genes/ChromInfo.txt | intersectBed -a stdin -b <(cat ../blacklist.bed eRNA.bed | cut -f1-3 | sortBed | mergeBed -i -) -v > eRNA.random.bed
 
 # ====================================
 ## dis2TSS (distance btw middle of HiTNE and the nearest TSS)
 # ====================================
-#fgrep -w gene $ANNOTATION/gencode.v19.annotation.gtf | sed 's/[;"]//g'  | awk '{OFS="\t"; print $1, $4-1, $5, $18"___"$10"___"$14, 0, $7}' > $ANNOTATION/gencode.v19.annotation.gtf.genes.bed
+#fgrep -w gene $GENOME/Annotation/Genes/gencode.v19.annotation.gtf | sed 's/[;"]//g'  | awk '{OFS="\t"; print $1, $4-1, $5, $18"___"$10"___"$14, 0, $7}' > $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.genes.bed
 # have to deal with intronic and intergenic separately
 # intronic ones (if located in two genes' intron, just randomly pick the first hit in the file.)
-awk '{OFS="\t"; mid=int(($3+$2)/2); print $1, mid, mid+1,$4}' $inputbed | closestBed -a - -b $ANNOTATION/gencode.v19.annotation.gtf.genes.bed -d -t first | awk '$11==0' | awk '{OFS="\t"; tss=($10=="+")?$6:$7; d=tss-$2; if(d<0) d=-d; print $4, d;}' > /tmp/eRNA.tmp
+TMPFILE=`mktemp /tmp/example.XXXXXXXXXX`
+awk '{OFS="\t"; mid=int(($3+$2)/2); print $1, mid, mid+1,$4}' $inputbed | closestBed -a - -b <(sortBed -i $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.genes.bed) -d -t first | awk '$11==0' | awk '{OFS="\t"; tss=($10=="+")?$6:$7; d=tss-$2; if(d<0) d=-d; print $4, d;}' > $TMPFILE
 # intergenic ones
-awk '{OFS="\t"; mid=int(($3+$2)/2); print $1, mid, mid+1,$4}' $inputbed | closestBed -a - -b $ANNOTATION/gencode.v19.annotation.gtf.genes.bed -d -t first | awk '$11!=0' | cut -f1-4 | sort -k1,1 -k2,2n -u | closestBed -a - -b <(awk '{OFS="\t"; tss=($6=="+")?$2:($3-1);  print $1, tss, tss+1, $4, $3-$2, $6}' $ANNOTATION/gencode.v19.annotation.gtf.genes.bed) -D b -t first | awk '{OFS="\t"; print $4,($11<0)?$11:-$11;}' >> /tmp/eRNA.tmp
+awk '{OFS="\t"; mid=int(($3+$2)/2); print $1, mid, mid+1,$4}' $inputbed | closestBed -a - -b <(sortBed -i $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.genes.bed) -d -t first | awk '$11!=0' | cut -f1-4 | sort -k1,1 -k2,2n -u | closestBed -a - -b <(awk '{OFS="\t"; tss=($6=="+")?$2:($3-1);  print $1, tss, tss+1, $4, $3-$2, $6}' $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.genes.bed | sortBed) -D b -t first | awk '{OFS="\t"; print $4,($11<0)?$11:-$11;}' >> $TMPFILE
 
-sort -k1,1 /tmp/eRNA.tmp > eRNA.f01.dis2TSS.txt
+sort -k1,1 $TMPFILE > eRNA.f01.dis2TSS.txt
 
 # ====================================
 ## RPKM (Note: this RPKM is different from the normal RPKM, they might have a factor of read length difference)
 # ====================================
 # mean0: average over bases with non-covered bases counting as zeroes
-inputBG=/data/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph
 bigWigAverageOverBed ${inputBG/bedGraph/bw} $inputbed stdout | cut -f1,5 | sort -k1,1 | awk '{OFS="\t"; print $1, $2*1000+0}' > eRNA.f02.RPKM.txt
 
 # ====================================
@@ -67,12 +71,12 @@ bedtools getfasta -name -tab -fi $GENOME/Sequence/WholeGenomeFasta/genome.fa -be
 $pipeline_path/bin/getNormalizedCpGscore.awk eRNA.seq.tab | sort -k1,1  > eRNA.f05.CpG.txt
 #textHistogram -col=2 -real -binSize=0.02 -maxBinCount=50 -minVal=0 eRNA.f05.CpG.tab
 
-bedtools getfasta -name -tab -fi $GENOME/Sequence/WholeGenomeFasta/genome.fa -bed random.bed -fo random.seq.tab
+bedtools getfasta -name -tab -fi $GENOME/Sequence/WholeGenomeFasta/genome.fa -bed eRNA.random.bed -fo random.seq.tab
 $pipeline_path/bin/getNormalizedCpGscore.awk random.seq.tab | sort -k1,1 > random.f05.CpG.txt
 #textHistogram -col=2 -real -binSize=0.02 -maxBinCount=50 -minVal=0 random.f05.CpG.tab
 
-grep protein_coding /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | head -n10000 | awk '{OFS="\t"; tss=($7=="+")?$2:$3; print $1,tss-500,tss+500,$5}' | bedtools getfasta -name -tab -fi $GENOME/Sequence/WholeGenomeFasta/genome.fa -bed stdin -fo promoters.seq.txt
-$pipeline_path/bin/getNormalizedCpGscore.awk promoters.seq.tab | sort -k1,1 > promoters.f05.CpG.txt
+grep protein_coding.protein_coding $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 | awk '{OFS="\t"; s=($6=="+")?($2-200):($3-200); if(s<0) s=0; print $1,s,s+400,$4}' | bedtools getfasta -name -tab -fi $GENOME/Sequence/WholeGenomeFasta/genome.fa -bed stdin -fo promoters.seq.txt
+$pipeline_path/bin/getNormalizedCpGscore.awk promoters.seq.txt | sort -k1,1 > promoters.f05.CpG.txt
 #textHistogram -col=2 -real -binSize=0.02 -maxBinCount=50 -minVal=0 promoters.f05.CpG.tab
 
 # ====================================
@@ -81,13 +85,13 @@ $pipeline_path/bin/getNormalizedCpGscore.awk promoters.seq.tab | sort -k1,1 > pr
 ## TFBS data for 161 transcription factors in 91 cell types was downloaded from ENCODE
 #curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeRegTfbsClustered/wgEncodeRegTfbsClusteredWithCellsV3.bed.gz | gunzip | awk '{OFS="\t"; $6=1+gsub(",",",",$6); print}' > ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed
 # number of TF ChIP-seq peaks in the region (only if it occurs in at least one cell lines ## only TF peaks supported by >=5 cell lines are counted)
-awk '$6>=1' ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f06.TFBS.txt
+awk '$6>=1' $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f06.TFBS.txt
 
 # ====================================
 # P300 binding
 # ====================================
 # if any P300 biding site found in the region
-awk '$4=="EP300"' ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f07.P300.txt
+awk '$4=="EP300"' $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f07.P300.txt
 
 # ====================================
 # CAGE-defined enhancers
@@ -96,8 +100,8 @@ awk '$4=="EP300"' ../TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed
 # curl -s http://enhancer.binf.ku.dk/presets/permissive_enhancers.bed > ../CAGE/permissive_enhancers.bed  #N=43011
 # curl -s http://fantom.gsc.riken.jp/5/datafiles/latest/extra/Enhancers/human_permissive_enhancers_phase_1_and_2.bed.gz | gunzip > ../CAGE/human_permissive_enhancers_phase_1_and_2.bed  # N=65423
 
-intersectBed -a $inputbed -b externalData/CAGE/permissive_enhancers.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f08.CAGEenhancer.txt
-intersectBed -a $inputbed -b externalData/CAGE/human_permissive_enhancers_phase_1_and_2.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f08.CAGEenhancer.1n2.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/CAGE/permissive_enhancers.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f08.CAGEenhancer.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/CAGE/human_permissive_enhancers_phase_1_and_2.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f08.CAGEenhancer.1n2.txt
 
 # ====================================
 # overlap with histone-defined enhancers
@@ -117,32 +121,32 @@ intersectBed -a $inputbed -b externalData/CAGE/human_permissive_enhancers_phase_
 #Fetal Brain Male
 #for i in E067 E068 E069 E070 E071 E072 E073 E074 E082 E081; do echo $i; curl -s http://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/${i}_15_coreMarks_segments.bed > ../Segment/${i}_15_coreMarks_segments.bed; done
 # cat externalData/Segment/E*_15_coreMarks_segments.bed | awk '$4~/E6|E7|E12/' > externalData/Segment/15_coreMarks_segments.E6E7E12.bed
-intersectBed -a $inputbed -b externalData/Segment/15_coreMarks_segments.E6E7E12.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f09.chromHMM_brain.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/Segment/15_coreMarks_segments.E6E7E12.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f09.chromHMM_brain.txt
 
 # ====================================
 # overlap with VISTA enhancers
 # ====================================
-intersectBed -a $inputbed -b <(cut -f1-4,7 externalData/VISTA/hg19.tested_regions.bed) -wao  | sort -k4,4 | awk '{OFS="\t"; print $4, ($6==-1)?"NA":$8"|"$9}' > eRNA.f10.VISTA.txt
+intersectBed -a $inputbed -b <(cut -f1-4,7 $EXTERNAL_FEATURE/VISTA/hg19.tested_regions.bed) -wao  | sort -k4,4 | awk '{OFS="\t"; print $4, ($6==-1)?"NA":$8"|"$9}' | groupBy -g 1 -c 2 -o concat > eRNA.f10.VISTA.txt
 
 # ====================================
 # DNase signal density 
 # ====================================
-## download fetal brain DNase data from Roadmap 
-#curl -s http://www.genboree.org/EdaccData/Current-Release/sample-experiment/Fetal_Brain/Chromatin_Accessibility/UW.Fetal_Brain.ChromatinAccessibility.H-24510.DNase.DS20780.wig.gz | gunzip | wigToBigWig stdin $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size ../DNase/UW.Fetal_Brain.ChromatinAccessibility.H-24510.DNase.DS20780.bw
+# fetal brain DNase data from Roadmap (E72, E73)
+# https://docs.google.com/spreadsheets/d/1yikGx4MsO9Ei36b64yOy9Vb6oPC5IBGlFbYEt-N6gOM/edit#gid=15
 
-bigWigAverageOverBed externalData/DNase/UW.Fetal_Brain.ChromatinAccessibility.H-24510.DNase.DS20780.bw $inputbed stdout | sort -k1,1 | cut -f1,6 > eRNA.f11.DNase.txt
+bigWigAverageOverBed $EXTERNAL_FEATURE/DNase/DNase.Roadmap.fBrain.pval.bigwig $inputbed stdout | sort -k1,1 | cut -f1,6 > eRNA.f11.DNase.txt
 
 # ====================================
 # DNase cluster 
 # ====================================
 # download from ENCODE DNase cluster
 # ( DNase cluster in V2: minimal score 500, at least 5 cell lines): http://genome.ucsc.edu/cgi-bin/hgTrackUi?g=wgEncodeRegDnaseClustered
-zcat externalData/DNase/wgEncodeRegDnaseClusteredV2.bed.gz | awk '$5>=500 && $4>=5' | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f12.DNaseENCODE.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/DNase/wgEncodeRegDnaseClusteredV2.filtered.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f12.DNaseENCODE.txt
 
 # Roadmap DNase (http://egg2.wustl.edu/roadmap/web_portal/DNase_reg.html#delieation)
 #for i in E071 E074 E068 E069 E072 E067 E073 E070 E082 E081; do echo $i; curl -s http://egg2.wustl.edu/roadmap/data/byDataType/dnase/BED_files_enh/regions_enh_${i}.bed.gz > externalData/DNase/regions_enh_${i}.bed.gz; done
 #zcat externalData/DNase/regions_enh_*.bed.gz | sortBed | mergeBed -i - > externalData/DNase/regions_enh_merged.brain.bed
-intersectBed -a $inputbed -b externalData/DNase/regions_enh_merged.brain.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f12.DNaseROADMAP.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/DNase/regions_enh_merged.brain.narrowPeak -c | sort -k4,4 | cut -f4,5 > eRNA.f12.DNaseROADMAP.txt
 
 
 # ====================================
@@ -152,7 +156,7 @@ intersectBed -a $inputbed -b externalData/DNase/regions_enh_merged.brain.bed -c 
 #zcat ../Conservation/vertebrate/chr*.gz | gzip -c > ../Conservation/vertebrate/phyloP46way.wigFix.gz
 #wigToBigWig ../Conservation/vertebrate/phyloP46way.wigFix.gz $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size ../Conservation/vertebrate/phyloP46way.wigFix.bigwig
 
-bigWigAverageOverBed externalData/Conservation/vertebrate/phyloP46way.wigFix.bigwig $inputbed stdout | sort -k1,1 | cut -f1,6 > eRNA.f13.phyloP.txt
+bigWigAverageOverBed $EXTERNAL_FEATURE/Conservation/Conservation.phyloP46way.bigwig $inputbed stdout | sort -k1,1 | cut -f1,6 > eRNA.f13.phyloP.txt
 
 # ====================================
 # bConserved2zf - conserved to zebrafish
@@ -160,14 +164,14 @@ bigWigAverageOverBed externalData/Conservation/vertebrate/phyloP46way.wigFix.big
 ## download liftover chain 
 #curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToDanRer7.over.chain.gz | gunzip > externalData/Conservation/hg19ToDanRer7.over.chain
 # require a minimum ratio of 10% that must remap
-liftOver $inputbed externalData/Conservation/hg19ToDanRer7.over.chain stdout unmapped.liftover -minMatch=0.1 | awk '{OFS="\t"; print $4, "zv9|"$1":"$2"-"$3;}' | sort -k1,1 | join -1 4 -2 1 -a 1 -o '0,2.2' -e 'NA' <(sort -k4,4 $inputbed) - | sed 's/ /\t/' > eRNA.f14.bConserved2zf.txt
+liftOver $inputbed $EXTERNAL_FEATURE/Conservation/hg19ToDanRer7.over.chain stdout unmapped.liftover -minMatch=0.1 | awk '{OFS="\t"; print $4, "zv9|"$1":"$2"-"$3;}' | sort -k1,1 | join -1 4 -2 1 -a 1 -o '0,2.2' -e 'NA' <(sort -k4,4 $inputbed) - | sed 's/ /\t/' > eRNA.f14.bConserved2zf.txt
 
 # ====================================
 # Conservation - overlap with HCNE or not
 # ====================================
 # overlap with HCNE
 # curl -s http://ancora.genereg.net/downloads/hg19/vs_zebrafish/HCNE_hg19_danRer7_70pc_50col.bed.gz | gunzip > ../Conservation/HCNE_hg19_danRer7_70pc_50col.bed
-intersectBed -a $inputbed -b externalData/Conservation/HCNE_hg19_danRer7_70pc_50col.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f15.HCNE.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/Conservation/HCNE_hg19_danRer7_70pc_50col.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f15.HCNE.txt
 
 # ====================================
 # GWAS (see eRNA.SNP.enrichment.sh for data preparation)
@@ -175,8 +179,8 @@ intersectBed -a $inputbed -b externalData/Conservation/HCNE_hg19_danRer7_70pc_50
 # 1. merge the recent PD-GWAS and NHGRI GWAS catalog SNPs 
 # Annotation/GWASCatalog/gwascatalog2015Apr.gwas-clean-hg19.uniq.bed (generated by Ganqiang)
 # 2. get SNPs in LD
-snps_in_LD="$GENOME/Annotation/GWASCatalog/gwascatalog2015Apr.gwas-clean-hg19.uniq.snps_in_LD.SNAP.r2.0.8.bed"
-awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$2,$3,$7; for(i=1;i<n;i++) print $1,b[i]-1,b[i],$7;}' $snps_in_LD | cut -f1-3 | sort -u | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f16.GWAS.txt
+snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.PLINK.LD_w250.r2_0.8.bed.autosomal.associations.bed
+intersectBed -a $inputbed -b $snps_in_LD -c | sort -k4,4 | cut -f4,5 > eRNA.f16.GWAS.txt
 # optional TODO: filter only the brain specific GWAS SNPs, or just PD GWAS
 
 # ====================================
@@ -191,32 +195,32 @@ awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$
 #module unload R/3.0.2; module load R/3.1.0
 #cd ..
 
-cut -f2 ../eQTL/eRNA/final.cis.eQTL.FDR.05.xls | grep chr  | sort | uniq -c | sed 's/^\s*//g;s/ /\t/g' | join -1 4 -2 2 -a 1 -t $'\t' -e 0 -o '0,2.1' <(sort -k4,4 $inputbed) -  > eRNA.f18.eSNP.txt
+cut -f2 ../../eQTL/eRNA/final.cis.eQTL.FDR.05.xls | grep chr  | sort | uniq -c | sed 's/^\s*//g;s/ /\t/g' | join -1 4 -2 2 -a 1 -t $'\t' -e 0 -o '0,2.1' <(sort -k4,4 $inputbed) -  > eRNA.f18.eSNP.txt
 
 # ====================================
 # number of HiTNEs in host genes.
 # ====================================
 # if overlap with multiple genes, take the longest one
-intersectBed -a $inputbed -b $ANNOTATION/gencode.v19.annotation.gtf.genes.bed -wao | awk '{OFS="\t"; print $0,$7-$6;}' | sort -k4,4 -k12,12nr | awk '{OFS="\t"; if($4!=id) {print; id=$4;}}' | cut -f1-4,8,12 | sed 's/\t\./\tNA/g' > /tmp/eRNA.tmp
+intersectBed -a $inputbed -b $GENOME/Annotation/Genes/gencode.v19.annotation.gtf.genes.bed -wao | awk '{OFS="\t"; print $0,$7-$6;}' | sort -k4,4 -k12,12nr | awk '{OFS="\t"; if($4!=id) {print; id=$4;}}' | cut -f1-4,8,12 | sed 's/\t\./\tNA/g' > $TMPFILE
 # host gene (if any); otherwise NA
-cut -f4-5 /tmp/eRNA.tmp > eRNA.f19.Hostgene.txt
+cut -f4-5 $TMPFILE > eRNA.f19.Hostgene.txt
 
-grep -vw NA /tmp/eRNA.tmp | cut -f5 | sort | uniq -c | join -1 5 -2 2 -a 1 -e '0' -o '1.1,1.2,1.3,1.4,1.5,1.6,2.1' <(sort -k5,5 /tmp/eRNA.tmp) - | sed 's/ /\t/g' > /tmp/eRNA.tmp2
+grep -vw NA $TMPFILE | cut -f5 | sort | uniq -c | join -1 5 -2 2 -a 1 -e '0' -o '1.1,1.2,1.3,1.4,1.5,1.6,2.1' <(sort -k5,5 $TMPFILE) - | sed 's/ /\t/g' > $TMPFILE.2
 
-cut -f4,7 /tmp/eRNA.tmp2 | sort -k1,1 > eRNA.f20.nHostgene.txt
+cut -f4,7 $TMPFILE.2 | sort -k1,1 > eRNA.f20.nHostgene.txt
 
 # ====================================
 # length of host genes
 # ====================================
-cut -f4,6 /tmp/eRNA.tmp2 | sort -k1,1 > eRNA.f21.lenHostgene.txt
+cut -f4,6 $TMPFILE.2 | sort -k1,1 > eRNA.f21.lenHostgene.txt
 
 # ====================================
-# length of meta intron of host gene (see REAME.txt in $ANNOTATION for how to generate meta intron and exons)
+# length of meta intron of host gene (see REAME.txt in $GENOME/Annotation/Genes for how to generate meta intron and exons)
 # ====================================
-cat $ANNOTATION/exons.meta.bed | awk '{OFS="\t"; print $0,$3-$2}' | sort -k4,4 | groupBy -g 4 -c 7 -o sum > /tmp/eRNA.tmp3
-cat $ANNOTATION/introns.meta.bed | awk '{OFS="\t"; print $0,$3-$2}' | sort -k4,4 | groupBy -g 4 -c 7 -o sum | join -1 1 -2 1 -a 1 -e '0' -o '0,1.2,2.2' /tmp/eRNA.tmp3 - | sed 's/ /\t/g' > $ANNOTATION/genes.meta.exon.intron.length.txt
+cat $GENOME/Annotation/Genes/exons.meta.bed | awk '{OFS="\t"; print $0,$3-$2}' | sort -k4,4 | groupBy -g 4 -c 7 -o sum > $TMPFILE.3
+cat $GENOME/Annotation/Genes/introns.meta.bed | awk '{OFS="\t"; print $0,$3-$2}' | sort -k4,4 | groupBy -g 4 -c 7 -o sum | join -1 1 -2 1 -a 1 -e '0' -o '0,1.2,2.2' $TMPFILE.3 - | sed 's/ /\t/g' > $GENOME/Annotation/Genes/genes.meta.exon.intron.length.txt
 
-join -1 5 -2 1 -a 1 -e '0' -o '1.4,2.3' <(sort -k5,5 /tmp/eRNA.tmp2) <(sort -k1,1 $ANNOTATION/genes.meta.exon.intron.length.txt) |sed 's/ /\t/g' | sort -k1,1 > eRNA.f22.lenHostgeneMetaintron.txt
+join -1 5 -2 1 -a 1 -e '0' -o '1.4,2.3' <(sort -k5,5 $TMPFILE.2) <(sort -k1,1 $GENOME/Annotation/Genes/genes.meta.exon.intron.length.txt) |sed 's/ /\t/g' | sort -k1,1 > eRNA.f22.lenHostgeneMetaintron.txt
  
 # ====================================
 # overlap with HeLa S3 enhancers (defined by CAGE or histone)
@@ -224,12 +228,12 @@ join -1 5 -2 1 -a 1 -e '0' -o '1.4,2.3' <(sort -k5,5 /tmp/eRNA.tmp2) <(sort -k1,
 # download the Binary matrix of enhancer usage file, if the enhancer is 1 in HeLa cell line, it should be a HeLa enhancer
 # curl -s http://enhancer.binf.ku.dk/presets/hg19_permissive_enhancer_usage.csv.gz > externalData/CAGE/hg19_permissive_enhancer_usage.csv.gz
 #zcat externalData/CAGE/hg19_permissive_enhancer_usage.csv.gz | rowsToCols stdin stdout -fs=',' | grep -P "858648|Hela"  | rowsToCols stdin stdout -tab | awk '{OFS="\t"; for(i=1;i<NF;i++) s+=$i; if(s>0) print $NF}' | sed 's/"//g;s/[:-]/\t/g' > externalData/CAGE/hg19_permissive_enhancer.HeLaS3.bed
-intersectBed -a $inputbed -b externalData/CAGE/hg19_permissive_enhancer.HeLaS3.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f23.CAGE_HeLa.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/CAGE/hg19_permissive_enhancer.HeLaS3.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f23.CAGE_HeLa.txt
 
 # Use the enhancers from the combined segmentation (Segway + chromHMM) in HeLaS3 cell line. See reference:
 # http://genome-test.cse.ucsc.edu/cgi-bin/hgTrackUi?hgsid=389206706_Fowrtl09k5DnQ80vvZaeHZAP4hkI&c=chr21&g=wgEncodeAwgSegmentation
 #curl -s http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeAwgSegmentation/wgEncodeAwgSegmentationCombinedHelas3.bed.gz | gunzip | fgrep E > externalData/Segment/wgEncodeAwgSegmentationCombinedHelas3.Enh.bed
-intersectBed -a $inputbed -b externalData/Segment/wgEncodeAwgSegmentationCombinedHelas3.Enh.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f24.chromHMM_HeLa.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/Segment/wgEncodeAwgSegmentationCombinedHelas3.Enh.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f24.chromHMM_HeLa.txt
 
 # ====================================
 # overlap with SK-N-MC enhancers (defined by CAGE)
@@ -237,7 +241,7 @@ intersectBed -a $inputbed -b externalData/Segment/wgEncodeAwgSegmentationCombine
 # download the Binary matrix of enhancer usage file, if the enhancer is 1 in HeLa cell line, it should be a HeLa enhancer
 # curl -s http://enhancer.binf.ku.dk/presets/hg19_permissive_enhancer_usage.csv.gz > externalData/CAGE/hg19_permissive_enhancer_usage.csv.gz
 #zcat externalData/CAGE/hg19_permissive_enhancer_usage.csv.gz | rowsToCols stdin stdout -fs=',' | grep -P "858648|SK-N-MC"  | rowsToCols stdin stdout -tab | awk '{OFS="\t"; for(i=1;i<NF;i++) s+=$i; if(s>0) print $NF}' | sed 's/"//g;s/[:-]/\t/g' > externalData/CAGE/hg19_permissive_enhancer.SK-N-MC.bed
-intersectBed -a $inputbed -b externalData/CAGE/hg19_permissive_enhancer.SK-N-MC.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f25.CAGE_SK-N-MC.txt
+intersectBed -a $inputbed -b $EXTERNAL_FEATURE/CAGE/hg19_permissive_enhancer.SK-N-MC.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f25.CAGE_SK-N-MC.txt
 
 # ====================================
 # if overlap with any eQTL of genes
@@ -248,6 +252,7 @@ fgrep -w -f <(cut -f1 ~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/final
 ## merge into a big file: eRNA.characterize.xls
 Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.characterize.merge.R `ls eRNA.f*.txt`
 
+cd ~/eRNAseq
 
 exit;
 

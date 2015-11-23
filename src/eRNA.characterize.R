@@ -7,11 +7,7 @@
 ##############################################
 
 features = read.table("~/eRNAseq/eRNA.characterize.xls", header=T, stringsAsFactors =F)
-# add class
-df=subset(features, select=c(f06.TFBS, f07.P300, f08.CAGEenhancer, f09.chromHMM_brain, f12.DNaseROADMAP, f15.HCNE))
-df$f06.TFBS=ifelse(df$f06.TFBS>=5,1,0)
-df[df>0]=1;
-features$class=ifelse(apply(df,1,sum)==0, 3, ifelse(df$f12.DNaseROADMAP==1, 1, 2))
+
 features$gene_ENSID=sub(".*___(.*)___.*","\\1", features$f19.Hostgene)
 # ===========================================================================
 # GO enrichment for host genes of different HiTNE categories

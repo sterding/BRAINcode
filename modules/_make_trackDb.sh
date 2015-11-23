@@ -1,125 +1,120 @@
 # Uage:
-# bash ~/neurogen/pipeline/RNAseq/modules/_make_trackDb.sh > ~/neurogen/rnaseq_PD/for_display/trackDb.RNAseq.v3.txt; chmod 644 ~/neurogen/rnaseq_PD/for_display/trackDb.RNAseq.v3.txt; scp ~/neurogen/rnaseq_PD/for_display/trackDb.RNAseq.v3.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
+# cd ~/neurogen/rnaseq_PD/for_display/; _make_trackDb.sh > trackDb.RNAseq.v4.txt; chmod 644 trackDb.RNAseq.v4.txt; scp trackDb.RNAseq.v4.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
 # to get the sample list: ls -1 ~/neurogen/rnaseq_PD/run_output/ | sed 's/_/\t/g' | cut -f2 | sort -u | awk '{printf $1"="$1" "}'
 #
 # color selected from: http://colorbrewer2.org/
-## TODO: change color according to the color code: https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs/edit#gid=1995457670
+# Note: use the Google doc to define/change the color code: https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs/edit#gid=1995457670
+
+curl -sk "https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs/pub?gid=1995457670&single=true&output=tsv" > /tmp/braincode.colors.txt
 
 # output the general header [superTrack]
 
 echo "track RNAseq_PD
 shortLabel RNA-seq
-longLabel BRAINCODE RNA-seq (version 3)
-dataVersion Version 3 (Apr 2015)
+longLabel BRAINCODE RNA-seq (version 4)
+dataVersion Version 4 (Nov 2015)
 type bed 3
 visibility full
 boxedCfg on
-priority 24
+priority 1
 superTrack on show
 "
 
-# output the combined track [container multiWig]
+# output the combined track [container multiWig]  -- MAJOR group
 
-echo "track merged_by_trimmedmean
-    shortLabel combined_track
-    longLabel BRAINCODE RNA-seq combined tracks by trimmed mean (5%)
+echo "
+    track merged_by_trimmedmean_major
+    shortLabel combined_track_major
+    longLabel BRAINCODE RNA-seq combined tracks for the major cell groups
     container multiWig
     aggregate none
     showSubtrackColorOnUi on
     type bigWig 0 1000
     viewLimits 0:10
-    maxHeighPixels 100:50:5
+    maxHeighPixels 100:60:5
     viewLimitsMax 0:30
     visibility full
     autoScale on
     alwaysZero on
     yLineOnOff on
+    transformFunc LOG
     windowingFunction maximum
     parent RNAseq_PD
-    
-        track HC_MCPY_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel HC_MCPY trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( HC_MCPY trimmedmean N=3)
-        color 153,216,201	
-        type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version2/merged/trimmedmean.uniq.normalized.HC_MCPY.bw
-        yLineMark 0.0349904	#1.08319e+08/3095677412
-    
-        track HC_TCPY_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel HC_TCPY trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( HC_TCPY trimmedmean N=9)
-        color 158,188,218	
-        type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version2/merged/trimmedmean.uniq.normalized.HC_TCPY.bw
-        yLineMark 0.0321161	#9.94209e+07/3095677412
-        
-        track HC_SNDA_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel HC_SNDA trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( HC_SNDA trimmedmean N=58)
-        color 44,162,95		
-        type bigWig 0 1139
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version2/merged/trimmedmean.uniq.normalized.HC_SNDA.bw
-        yLineMark 0.0358516	#1.10985e+08/3095677412
-        
-        track ILB_SNDA_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel ILB_SNDA trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( ILB_SNDA trimmedmean N=28)
-        color 254,178,76	
-        type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version2/merged/trimmedmean.uniq.normalized.ILB_SNDA.bw
-        yLineMark 0.0311677	#9.64853e+07/3095677412
-    
-        track PD_SNDA_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel PD_SNDA trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( PD_SNDA trimmedmean N=21)
-        color 255,0,0
-        type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version2/merged/trimmedmean.uniq.normalized.PD_SNDA.bw
-        yLineMark 0.0576178	#1.78366e+08/3095677412
-        
-    # control
-
-        track HC_PBMC_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel control HC_PBMC trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( HC_PBMC trimmedmean N=4)
-        color 95,95,95
-        type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version2/merged/trimmedmean.uniq.normalized.HC_PBMC.bw
-        yLineMark 0.0179008 #5.54155e+07/3095693983
-        
-        track HC_FB_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel control HC_FB trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( HC_FB trimmedmean N=3)
-        color 44,44,44
-        type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version2/merged/trimmedmean.uniq.normalized.HC_FB.bw
-        yLineMark 0.0179008 #5.54155e+07/3095693983        
-
-        track HC_SN_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel control HC_SN trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( HC_SN trimmedmean N=1)
-        color 44,255,95
-        type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/HC_UWA616_SN_6_rep1.amplified.uniq.normalized2.bw
-        yLineMark 0.0179008 #5.54155e+07/3095693983
-        
-        track HC_SNDAstranded_trimmedmean_uniq
-        parent merged_by_trimmedmean
-        shortLabel control HC_SNDAstranded trimmedmean uniq rpm
-        longLabel RNAseq uniq Normalized Signal  ( HC_SNDAstranded trimmedmean N=3)
-        color 44,162,95	
-        type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version2/merged/trimmedmean.uniq.normalized.HC_SNDAstranded.bw
-        yLineMark 0.0179008 #5.54155e+07/3095693983   
+    priority 1.1
 "
+
+MAJOR_CELL_TYPES=(HCILB_SNDA HC_PY HC_nonNeuron)
+tLen=${#MAJOR_CELL_TYPES[@]}
+
+for I in `seq 1 $tLen`;
+do
+  i=${MAJOR_CELL_TYPES[`expr $I - 1`]}
+  echo "# $i"
+  yLineMark=`tail -n1 ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bedGraph | cut -f2 -d'='`
+  RGB=`fgrep -w $i /tmp/braincode.colors.txt | cut -f3`
+  N=`cat ~/neurogen/rnaseq_PD/results/merged/samplelist.$i | wc -l`
+  priority=$I
+  
+  echo "
+        track ${i}_trimmedmean_uniq
+        parent merged_by_trimmedmean_major
+        shortLabel $i trimmedmean uniq rpm
+        longLabel RNAseq uniq Normalized Signal  ( $i trimmedmean N=$N)
+        color $RGB
+        type bigWig
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/merged/trimmedmean.uniq.normalized.$i.bw
+        yLineMark $yLineMark
+        priority $priority
+  "        
+done
+
+# output the combined track [container multiWig]  -- MINOR group
+
+echo "
+    track merged_by_trimmedmean_minor
+    shortLabel combined_track_minor
+    longLabel BRAINCODE RNA-seq combined tracks for the minor cell groups
+    container multiWig
+    aggregate none
+    showSubtrackColorOnUi on
+    type bigWig 0 1000
+    viewLimits 0:10
+    maxHeightPixels 100:60:5
+    viewLimitsMax 0:30
+    visibility full
+    autoScale on
+    alwaysZero on
+    yLineOnOff on
+    transformFunc LOG
+    windowingFunction maximum
+    parent RNAseq_PD
+    priority 1.2
+    "
+
+
+MINOR_CELL_TYPES=(HC_SNDA ILB_SNDA HC_SN HC_SNDAstranded PD_SNDA HC_MCPY HC_TCPY HC_PBMC HC_FB)
+tLen=${#MINOR_CELL_TYPES[@]}
+
+for I in `seq 1 $tLen`;
+do
+  i=${MINOR_CELL_TYPES[`expr $I - 1`]}
+  yLineMark=`tail -n1 ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bedGraph | cut -f2 -d'='`
+  RGB=`fgrep -w $i /tmp/braincode.colors.txt | cut -f3`
+  N=`cat ~/neurogen/rnaseq_PD/results/merged/samplelist.$i | wc -l`
+  priority=$I
+  
+  echo "
+        track ${i}_trimmedmean_uniq
+        parent merged_by_trimmedmean_minor
+        shortLabel $i trimmedmean uniq rpm
+        longLabel RNAseq uniq Normalized Signal  ( $i trimmedmean N=$N)
+        color $RGB
+        type bigWig
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/merged/trimmedmean.uniq.normalized.$i.bw
+        yLineMark $yLineMark
+        priority 1$priority
+  "
+done
 
 # output the individual track [compositeTrack]
 
@@ -129,7 +124,7 @@ echo "
     longLabel BRAINCODE RNA-seq tracks for all samples
     visibility full
     boxedCfg on
-    priority 24
+    priority 3
     compositeTrack on
     dragAndDrop subTracks
     parent RNAseq_PD
@@ -165,7 +160,7 @@ echo "
         yLineMark 0
         alwaysZero on
         windowingFunction maximum
-        maxHeightPixels 25:15:5
+        maxHeightPixels 50:15:5
         parent RNAseq_PD_individual
 "
 for i in `ls -1 ~/neurogen/rnaseq_PD/run_output/`;
@@ -184,22 +179,13 @@ do
     amplified='amplified'; [ "$treated" = "unamplified" ] && amplified='unamplified'
     strandness='unstranded'; [ "$treated" = "stranded" ] && strandness='stranded'
     
-    
     # format
     [ "$condition" = "ND" ] && condition='HC'
     
     sampleID=$condition"_"$sample"_"$cell"_"$batch"_"$rep"."$amplified"."$strandness
     
-    color="44,162,95"  # HC_SNDA
-    [[ "$condition" = "PD" ]] && [[ "$cell" = "SNDA" ]] && color="255,0,0"
-    [[ "$condition" = "ILB" ]] && [[ "$cell" = "SNDA" ]] && color="254,178,76"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "MCPY" ]] && color="153,216,201"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "TCPY" ]] && color="158,188,218"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "SNDA" ]] && color="44,162,95"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "SN" ]] && color="44,255,95"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "FB" ]] && color="44,44,44"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "PBMC" ]] && color="95,95,95"
-    
+    color=`fgrep -w ${condition}_$cell /tmp/braincode.colors.txt | cut -f3`
+
     cell_sorted=$cell
     [[ "$cell" = "MCPY" ]] && cell_sorted="aMCPY"
     [[ "$cell" = "TCPY" ]] && cell_sorted="aTCPY"
@@ -214,63 +200,8 @@ do
             shortLabel $sampleID.$j.rpm
             longLabel RNAseq $j Normalized Signal  ( $condition $sample $cell batch$batch $rep $amplified $strandness)
             color $color
-            priority 1
             subGroups view=rpmSignal sample=$sample condition=$condition cellType=$cell_sorted batch=batch$batch rep=$rep amp=$amplified str=$strandness mapper=$j
             parent RNAseqRPMsignal
-        "
-    done
-done
-
-############
-exit
-############
-
-# output the header for raw signal (*bw)
-echo "
-        track RNAseqRawsignal
-        shortLabel Raw Signal
-        view rawSignal
-        visibility full
-        autoScale on
-        viewLimits 0:10
-        viewLimitsMax 0:30
-        yLineOnOff on
-        yLineMark 0
-        alwaysZero on
-        windowingFunction maximum
-        maxHeightPixels 20:15:5
-        parent RNAseq_PD_individual
-"
-for i in `ls -1 ~/neurogen/rnaseq_PD/run_output/`;
-do
-    echo "## $i";
-    
-    # split $i, e.g. ILB_BN03-50_3 into 3 parts: ILB, BN03-50 and 3
-    condition=`echo $i | cut -f1 -d'_'`
-    sample=`echo $i | cut -f2 -d'_'`
-    cell=`echo $i | cut -f3 -d'_'`
-    batch=`echo $i | cut -f4 -d'_'`
-    
-    color="44,162,95"  # HC_SNDA
-    [[ "$condition" = "PD" ]] && color="255,0,0"
-    [[ "$condition" = "ILB" ]] && color="254,178,76"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "MCPY" ]] && color="153,216,201"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "TCPY" ]] && color="153,216,201"
-    [[ "$condition" = "HC" ]] && [[ "$cell" = "SNDA" ]] && color="44,162,95"
-    
-    
-    for j in multi uniq;
-    do
-        echo "
-            track ${i}_RawSignal_${j}
-            bigDataUrl http://panda.partners.org/~xd010/rnaseq_PD/$i.$j.accepted_hits.bw
-            type bigWig
-            shortLabel $i $j raw
-            longLabel RNAseq $j Raw Signal  ( $condition $sample batch$batch )
-            color $color
-            priority 2
-            subGroups view=rawSignal sample=$sample condition=$condition cellType=$cell batch=batch$batch mapper=$j
-            parent RNAseqRawsignal
         "
     done
 done

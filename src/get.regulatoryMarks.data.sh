@@ -49,6 +49,11 @@ curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeRegTfbs
 sort -k1,1 wgEncodeRegTfbsClusteredV3.bed12 | bedItemOverlapCount hg19 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g' > wgEncodeRegTfbsClusteredV3.bg
 bedGraphToBigWig wgEncodeRegTfbsClusteredV3.bg $ANNOTATION/ChromInfo.txt TFBS.ENCODE.all.count.bigwig
 
+echo "getting VISTA region"
+# ---------------------------------
+[ -d $externalData/VISTA ] || mkdir $externalData/VISTA
+cd $externalData/VISTA
+curl -s "http://enhancer.lbl.gov/cgi-bin/imagedb3.pl?show=1;page=1;form=ext_search;search.status=Does%20not%20matter;search.org=Human;page_size=20000;search.result=yes;action=search;search.gene=;search.sequence=1" | grep Human | sed 's/:/\t/g;s/-/\t/g;s/>Human|//g;s/ | /\t/g;s/positive /+/g;s/negative /-/g;s/ /_/g' | cut -f1-5 > hg19.tested_regions.bed
 
 echo "getting Conservation"
 # ---------------------------------
@@ -73,8 +78,8 @@ echo "getting DNase"
 cd $externalData/DNase
 
 # # ref: http://genome.ucsc.edu/cgi-bin/hgTrackUi?hgsid=377332155_oXR9pqyaZLzzFHxgO4t0YzyQseGN&c=chr1&g=wgEncodeRegDnaseClusteredV2
-# # at least occuring in 20 cell lines (out of 125), and 800 cluster score (out of 1000) --> 100180 regions remained
-# curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeRegDnaseClustered/wgEncodeRegDnaseClusteredV2.bed.gz | gunzip | awk '$4>20 && $5>800' | intersectBed -a - -b ../toExclude.bed -v | awk '{OFS="\t"; mid=int(($3+$2)/2); if(mid>500) print $1, mid-500, mid+500;}' > DNase.distal.bed 
+# Note: V3 differs from V2 as it includes clusters having only 1 cell type contributing to the cluster (previously excluded). For us, V2 is fine.
+curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeRegDnaseClustered/wgEncodeRegDnaseClusteredV2.bed.gz | gunzip | awk '$5>=500 && $4>=5' > wgEncodeRegDnaseClusteredV2.filtered.bed
 
 # ENCODE Hela
 curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwDnase/wgEncodeUwDnaseHelas3RawRep1.bigWig > DNase.ENCODE.Hela.bigwig

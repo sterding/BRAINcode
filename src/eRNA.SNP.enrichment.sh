@@ -1,6 +1,7 @@
 # Usage: 
 # for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh PLINK $i; done 
 # for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP $i; done 
+# bsub -n 1 -q normal -J HCILB_SNDA bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP HCILB_SNDA
 
 type=$1
 samplegroup=$2
