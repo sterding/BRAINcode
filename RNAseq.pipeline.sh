@@ -46,8 +46,7 @@ result_dir=$input_dir/../results
 ########################
 cd $input_dir
 
-#for i in *.R1.fastq.gz;
-for i in ILB_BN09-34_SNDA_2_rep1.R1.fastq.gz ILB_MCL7878_SNDA_2_rep1.R1.fastq.gz;
+for i in *.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -268,6 +267,15 @@ module unload R/3.1.0
 module load R/3.0.2
 Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.HCILB.uniq.xls 
 module unload R/3.0.2; module load R/3.1.0
+
+## eQTL with SVA normalization
+cd ~/$result_dir/eQTL/HCILB_SNDA
+bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/modules/_SVA.eQTL.R  # "HCILB_SNDA" only
+## run permutations in bash
+for i in `seq 1 10000`; do [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
+# post-eQTL analysis
+bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
+
 #########################
 ### 5. post-normalization QC
 #########################

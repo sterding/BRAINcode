@@ -50,8 +50,8 @@ for(i in samplelist){
 }
 
 colnames(EXP)=c("locus",samplelist); colnames(PV)=c("locus",samplelist); 
-write.table(EXP, "eRNA.meanRPM.xls", col.names=T, row.names=F, sep="\t", quote=F)
-write.table(PV,  "eRNA.pvalues.xls", col.names=T, row.names=F, sep="\t", quote=F)
+write.table(EXP, "eRNA.tmp5.meanRPM.xls", col.names=T, row.names=F, sep="\t", quote=F)
+write.table(PV,  "eRNA.tmp5.pvalues.xls", col.names=T, row.names=F, sep="\t", quote=F)
 
 ## binomial test for the significant HTNE (p<0.05)
 N=length(samplelist)
@@ -60,4 +60,4 @@ binomial.pvalues = sapply(rowSums(PV[,-1]<=0.05), function(x) binom.test(x,N,0.0
 p.adjusted = cbind(binomial.pvalues=binomial.pvalues, p.adjusted.HB = p.adjust(binomial.pvalues, method = "holm"), p.adjusted.bonferroni=p.adjust(binomial.pvalues, method = "bonferroni"),p.adjusted.FDR=p.adjust(binomial.pvalues, method = "fdr"))
 rownames(p.adjusted) = PV[,1]
 
-write.table(p.adjusted,  "eRNA.pvalues.adjusted.xls", col.names=NA, row.names=T, sep="\t", quote=F)
+write.table(p.adjusted,  "eRNA.tmp5.pvalues.adjusted.xls", col.names=NA, row.names=T, sep="\t", quote=F)

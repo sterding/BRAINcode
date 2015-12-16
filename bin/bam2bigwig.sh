@@ -22,6 +22,7 @@
 #2. 10/10/13: change to use hg19 as default reference 
 #3. 10/15/13: allow to convert reads from specific region (only works for BAM format now)
 #4. 11/21/14: also generate RPM normalized bigwig
+#5. 12/16/15: add normalizationFactor. If ==0, then no normalization; otherwise, use it as the M (in RPM) for normalization
  
 species=hg19
 
@@ -29,7 +30,8 @@ ANNOTATION=/pub/genome_references/UCSC/Homo_sapiens/UCSC/hg19/Annotation/Genes
 
 inputfile=$1
 split=$2
-region=$3 # in the following format: ‘chr2’ (the whole chr2), ‘chr2:1000000’ (region starting from 1,000,000bp) or ‘chr2:1,000,000-2,000,000’ (region between 1,000,000 and 2,000,000bp including the end points). The coordinate is 1-based.
+normalizationFactor=$3
+region=$4 # in the following format: ‘chr2’ (the whole chr2), ‘chr2:1000000’ (region starting from 1,000,000bp) or ‘chr2:1,000,000-2,000,000’ (region between 1,000,000 and 2,000,000bp including the end points). The coordinate is 1-based.
 
 #[[ -e "$1" ] && 
 [ "$2" != "" -a -e "$1" ] || {
@@ -90,10 +92,11 @@ then
     bedGraphToBigWig $bname.plus.bedGraph $ANNOTATION/ChromInfo.txt $bname.plus.bw
     bedGraphToBigWig $bname.minus.bedGraph $ANNOTATION/ChromInfo.txt $bname.minus.bw
     
-    echo "generated normalized bg..."
-    awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.plus.bedGraph > $bname.plus.normalized.bedGraph
-    awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.minus.bedGraph > $bname.minus.normalized.bedGraph
-    bedGraphToBigWig $bname.plus.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.plus.normalized.bw
+    [ "$normalizationFactor" -gt 0 ] && \
+    echo "generated normalized bg..."  && \
+    awk -v tmr=$normalizationFactor 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.plus.bedGraph > $bname.plus.normalized.bedGraph && \
+    awk -v tmr=$normalizationFactor 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.minus.bedGraph > $bname.minus.normalized.bedGraph && \
+    bedGraphToBigWig $bname.plus.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.plus.normalized.bw && \
     bedGraphToBigWig $bname.minus.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.minus.normalized.bw
 
     #echo "removing temp files..."
@@ -116,8 +119,9 @@ then
     echo "bedGraph2bw..."
     bedGraphToBigWig $bname.bedGraph $ANNOTATION/ChromInfo.txt $bname.bw
 
-    echo "generated normalized bg..."
-    awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.bedGraph > $bname.normalized.bedGraph
+    [ "$normalizationFactor" -gt 0 ] && \
+    echo "generated normalized bg..." && \
+    awk -v tmr=$normalizationFactor 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' $bname.bedGraph > $bname.normalized.bedGraph && \
     bedGraphToBigWig $bname.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.normalized.bw
     
     #echo "removing temp files..."

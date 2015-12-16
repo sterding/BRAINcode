@@ -193,12 +193,35 @@ do
     #for j in multi uniq;
     for j in uniq;
     do
+        [ "$strandness" == "unstranded" ] && \
         echo "
             track ${sampleID}_rpmSignal_${j}
-            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/$i.$j.accepted_hits.normalized2.bw
+            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/$i.$j.accepted_hits.normalized.bw
             type bigWig
             shortLabel $sampleID.$j.rpm
             longLabel RNAseq $j Normalized Signal  ( $condition $sample $cell batch$batch $rep $amplified $strandness)
+            color $color
+            subGroups view=rpmSignal sample=$sample condition=$condition cellType=$cell_sorted batch=batch$batch rep=$rep amp=$amplified str=$strandness mapper=$j
+            parent RNAseqRPMsignal
+        "
+        
+        # for stranded
+        [ "$strandness" == "stranded" ] && \
+        echo "
+            track ${sampleID}_rpmSignal_${j}_plus
+            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/$i.$j.accepted_hits.plus.normalized.bw
+            type bigWig
+            shortLabel $sampleID.$j.rpm.plus
+            longLabel RNAseq $j Normalized Signal  ( $condition $sample $cell batch$batch $rep $amplified $strandness plus)
+            color $color
+            subGroups view=rpmSignal sample=$sample condition=$condition cellType=$cell_sorted batch=batch$batch rep=$rep amp=$amplified str=$strandness mapper=$j
+            parent RNAseqRPMsignal
+
+            track ${sampleID}_rpmSignal_${j}_minus
+            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/$i.$j.accepted_hits.minus.normalized.bw
+            type bigWig
+            shortLabel $sampleID.$j.rpm.minus
+            longLabel RNAseq $j Normalized Signal  ( $condition $sample $cell batch$batch $rep $amplified $strandness minus)
             color $color
             subGroups view=rpmSignal sample=$sample condition=$condition cellType=$cell_sorted batch=batch$batch rep=$rep amp=$amplified str=$strandness mapper=$j
             parent RNAseqRPMsignal

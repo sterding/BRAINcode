@@ -9,16 +9,19 @@
 require(reshape2)
 require(peer)
 require(MatrixEQTL)
+require(RCurl)
 
-covs_file="~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/covariance_tablel_109SNDAsubjects_v08072015.tab";
+SAMPLE_GROUP="HCILB_SNDA"
+setwd(paste0("~/eRNAseq/",SAMPLE_GROUP))
+
+covarianceTableURL="https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118&single=true&output=tsv"  # for all 140 samples
+#covs_file="~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/covariance_tablel_109SNDAsubjects_v08072015.tab";
 snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 93 unique subjects
 snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
 
 # for eRNAs
-expr_file="~/eRNAseq/eRNA.140samples.meanRPM.xls";  
-geneloc="~/eRNAseq/eRNA.loci.txt"; #awk 'BEGIN{OFS="\t"; print "id","chr","s1","s2";}{print $4,$1,$2,$3;}' eRNA.bed > eRNA.loci.txt
-
-if(file.exists("data.RData")) load("data.RData") else{
+expr_file="eRNA.meanRPM.xls";  
+geneloc="eRNA.loci.txt"; #awk 'BEGIN{OFS="\t"; print "id","chr","s1","s2";}{print $4,$1,$2,$3;}' eRNA.bed > eRNA.loci.txt
     
 message("## loading expression data...")
 ######################
@@ -29,13 +32,26 @@ rownames(expr) = expr[,1]; expr = expr[, -1];
 
 message(" # remove outlier and replicate...")
 ######################
-covs=read.table(covs_file, header=T, stringsAsFactors = FALSE);
-covs=subset(covs, Diagnosis<2)  # only HC and ILB
-covs=subset(covs, !(RNAseq_ID %in% outliers))  # remove outliers
-expr=subset(expr, select = covs$RNAseq_ID)
+#covs=read.table(covs_file, header=T, stringsAsFactors = FALSE);
+covs=read.table(textConnection(getURL(covarianceTableURL)), header=T, stringsAsFactors = FALSE);
+covs=subset(covs, outlier==0 & replicate=="rep1")  # remove outliers and rep2
+covs=covs[grep("stranded|unamplified",covs$sampleName, invert = T),]  # remove tech rep, e.g. unamplified, strand
+common=intersect(names(expr), covs$sampleName)
+covs=covs[match(common, covs$sampleName), ]
+expr=subset(expr, select = common)
 
 # change the sample ID to subject ID
 colnames(expr)=gsub(".*_(.*)_.*_.*_rep.*", "\\1", colnames(expr))
+
+# Create new dummy variable columns from categorical variable
+covs$batch = as.factor(covs$batch)
+covs$sex = as.factor(covs$sex)
+covs$readsLength = as.factor(covs$readsLength)
+covs$batch = model.matrix( ~ batch -1, covs) 
+covs$sex = model.matrix( ~ sex -1, covs) 
+covs$readsLength = model.matrix( ~ readsLength -1, covs) 
+names(covs) = grep()
+
 
 message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
 
@@ -43,8 +59,8 @@ message(" # filtering expression data...")
 ######################
 # GTEx: Filter on >=10 individuals having >0.1 RPKM.
 # BRAINCODE: filter on >=50% sampes having >0.05 RPKM
-expr=expr[rowMeans(expr>0.05)>=0.5,]  # 76355 --> 18554 remained
-hist(log10(rowMeans(expr)), nclass=100)
+expr=expr[rowMeans(expr>0.05)>=0.5,]  # 71022 --> 58299 remained
+hist(log10(rowMeans(expr)), breaks=100)
 message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
 
 message(" # transforming RPKM to rank normalized gene expression ...")
@@ -62,6 +78,7 @@ rm(m,sd)
 message("## loading SNP data...")
 ######################
 
+if(file.exists("snps.RData")) load("snps.RData") else{
 snps = SlicedData$new();  # # GxN matrix
 snps$fileDelimiter = "\t";      # the TAB character
 snps$fileOmitCharacters = "NA"; # denote missing values;
@@ -70,11 +87,14 @@ snps$fileSkipColumns = 1;       # one column of row labels
 snps$fileSliceSize = 5000;      # read file in slices of 5,000 rows
 snps$LoadFile(snps_file);
 
+save(snps, file ="snps.RData");
+}
+
 # extract the samples with both RNAseq and genotyped, and reorder both snps and expression
 snps$ColumnSubsample(match(intersect(colnames(snps), colnames(expr)), colnames(snps)))
 expr=expr[,intersect(colnames(snps), colnames(expr))]
 
-message("# filter out SNPs with MAF<=0.05 ...");
+message("# filter out SNPs with local MAF<=0.05 ...");
 # Note: here Minor allele is the minor one for the samples, not necessary the same one as the population)
 maf.list = vector('list', length(snps))
 na.list = vector('list', length(snps))
@@ -87,9 +107,9 @@ for(sl in 1:length(snps)) {
 }
 maf = unlist(maf.list)
 na  = unlist(na.list)
-cat('SNPs before filtering:',nrow(snps), "\n")  # 6109238
+cat('SNPs before filtering:',nrow(snps), "\n")  # 6,123,982
 snps$RowReorder(!na & maf>0.05);  # remove rows including NA
-cat('SNPs after filtering:',nrow(snps), "\n")  # 4320519
+cat('SNPs after filtering:',nrow(snps), "\n")  # 4,289,136
 
 rm(maf, na, maf.list, na.list)
 
@@ -116,8 +136,6 @@ snpspos = read.table(snpsloc, header = TRUE, stringsAsFactors = FALSE);
 snpspos=snpspos[,1:3]
 genepos = read.table(geneloc, header = TRUE, stringsAsFactors = FALSE);
 
-save.image("data.RData")
-}
 
 ## two marriage strategies of PEER and Matrix-eQTL
 ######################

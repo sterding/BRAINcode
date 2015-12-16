@@ -10,12 +10,13 @@ i=args[1]
 Rdata=args[2] # "~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/data.RData"
 expr=args[3] # '~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls.postPEER.xls'
 
-residuals=read.table(expr, header=T)
+residuals=read.table(expr, header=T, check.names = F)
 dim(residuals)
 genes = SlicedData$new();
 genes$CreateFromMatrix(as.matrix(residuals))
 
 load(Rdata)
+if(!file.exists("permutations")) dir.create("permutations");
 
 message(paste(" -- performing the",i,"permutation  ..."))
 snps_shuffled=snps$Clone();
@@ -30,15 +31,16 @@ me2 = Matrix_eQTL_main(
   useModel = modelLINEAR, 
   errorCovariance = numeric(), 
   verbose = FALSE,
-  output_file_name.cis = paste0("final.cis.eQTL.permutation.K",i,".xls"),
+  output_file_name.cis = paste0("permutations/final.cis.eQTL.permutation.K",i,".xls"),
   pvOutputThreshold.cis = 1e-5,
   snpspos = snpspos, 
   genepos = genepos,
   cisDist = 1e6,
   pvalue.hist = FALSE,
-  min.pv.by.genesnp = TRUE,
+  min.pv.by.genesnp = TRUE,  #The minimum p-values are recorded even if if they are above the corresponding thresholds of pvOutputThreshold and pvOutputThreshold.cis.
   noFDRsaveMemory = TRUE);
 
 mpg=me2$cis$min.pv.gene
 mpg=mpg[match(sort(names(mpg)), names(mpg))]
+
 write.table(mpg,paste0("permutations/permutation",i,".txt"))

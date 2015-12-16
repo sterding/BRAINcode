@@ -1,6 +1,6 @@
 # Uage:
-# bash ~/neurogen/pipeline/RNAseq/modules/_CAGE_make_trackDb.sh > ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.txt
-# rsync -azv ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
+# bash ~/neurogen/pipeline/RNAseq/modules/_CAGE_make_trackDb.sh > ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.v3.txt
+# rsync -azv ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.v3.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
 # to get the sample list: ls -1 ~/neurogen/cage_PD/run_output/ | sed 's/_/\t/g' | cut -f2 | sort -u | awk '{printf $1"="$1" "}'
 #
 # color selected from: http://colorbrewer2.org/

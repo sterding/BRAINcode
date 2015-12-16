@@ -128,30 +128,21 @@ echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samto
 samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
 touch .status.$modulename.bam2stat
 
+[ ! -f $outputdir/$samplename/.status.$modulename.bam2annotation ] && \
+_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
+Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
+touch $outputdir/$samplename/.status.$modulename.bam2annotation
+
 ### bigwig for UCSC
 echo "## generating bigwig files for UCSC display"
 
-## PREVIOUS VERSION (for BATCH 1-5)
-#[ ! -f .status.$modulename.sam2bw ] && \
-#sam2bed -v bed12=T -v sCol=NH accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
-#sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g'> accepted_hits.bedGraph && \
-#bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
-#touch .status.$modulename.sam2bw 
-#
-## normalized bigwig (rpm)
-#[ ! -f .status.$modulename.sam2normalizedbw ] && \
-##total_mapped_reads=`cat logs/bowtie.*t_kept_reads.log | grep -P "1\stime" | awk '{s=$1+s;}END{print s}'` && 
-#total_mapped_reads=`grep primary accepted_hits.bam.stat | cut -f1 -d' '` && \
-#echo "total_mapped_reads:$total_mapped_reads" && \
-#awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
-#bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
-#touch .status.$modulename.sam2normalizedbw
-
-## NEW VERSION (for BATCH 6)
+## NEW VERSION (rerun for BATCH 1-7)
 split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split" 
-[ ! -f .status.$modulename.sam2bw ] && \
-bam2bigwig.sh accepted_hits.sam $split && \
-touch .status.$modulename.sam2bw
+[ ! -f $outputdir/$samplename/.status.$modulename.sam2bw ] && \
+echo "## normalization using total reads mapped to non_rRNA_mt" && \
+total_mapped_reads=`grep -w total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
+bam2bigwig.sh accepted_hits.sam $split $total_mapped_reads && \
+touch $outputdir/$samplename/.status.$modulename.sam2bw
 
 # % of genome coverage vs. RNAseq density (e.g. >1rpm)
 [ ! -f .status.$modulename.rpm_vs_coverage ] && \
@@ -250,12 +241,6 @@ touch $outputdir/$samplename/.status.$modulename.uniq
 #bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
 #touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
 
-split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split" 
-[ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
-bam2bigwig.sh accepted_hits.sam $split && \
-touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
-
-
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2stat ] && \
 echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
 samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
@@ -272,11 +257,19 @@ Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotatio
 touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
 
 echo "## normalizing: instead of using total reads, use reads only mapped to non-rRNA-mtRNA for normalization"
-[ ! -f $outputdir/$samplename/.status.$modulename.uniq.normalize ] && \
-total_mapped_reads2=`grep total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
-awk -v tmr=$total_mapped_reads2 'BEGIN{OFS="\t"; print "# total-rRNA-chrM="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized2.bedGraph && \
-bedGraphToBigWig accepted_hits.normalized2.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized2.bw && \
-touch $outputdir/$samplename/.status.$modulename.uniq.normalize
+[ -e accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
+split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split" && \
+total_mapped_reads2=`grep -w total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
+bam2bigwig.sh accepted_hits.sam $split $total_mapped_reads2 && \
+touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
+
+## DEPRECATED: Now all normalized.bw are changed to use total reads mapped to non-rRNA_mt 
+# [ ! -f $outputdir/$samplename/.status.$modulename.uniq.normalize ] && \
+# total_mapped_reads2=`grep total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
+# awk -v tmr=$total_mapped_reads2 'BEGIN{OFS="\t"; print "# total-rRNA-chrM="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized2.bedGraph && \
+# bedGraphToBigWig accepted_hits.normalized2.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized2.bw && \
+# touch $outputdir/$samplename/.status.$modulename.uniq.normalize
 
 echo "## calcualte RPKM (based on TOTAL reads mapped to nuclear genome)"
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.cufflinks.rpkm ] && \
@@ -323,24 +316,10 @@ cd $inputdir/../for_display
 [ ! -f $outputdir/$samplename/.status.$modulename.makelinks ] && \
 # make soft link
 # multi
-ln -fs $outputdir/$samplename/accepted_hits.bam $samplename.multi.accepted_hits.bam && \
-ln -fs $outputdir/$samplename/accepted_hits.bam.bai $samplename.multi.accepted_hits.bam.bai && \
-ln -fs $outputdir/$samplename/isoforms.fpkm_tracking $samplename.multi.isoforms.fpkm_tracking && \
-ln -fs $outputdir/$samplename/genes.fpkm_tracking $samplename.multi.genes.fpkm_tracking && \
-ln -fs $outputdir/$samplename/hgseqcount.by.gene.tab $samplename.multi.hgseqcount.by.gene.tab && \
-ln -fs $outputdir/$samplename/accepted_hits.bw $samplename.multi.accepted_hits.bw && \
-ln -fs $outputdir/$samplename/accepted_hits.normalized.bw $samplename.multi.accepted_hits.normalized.bw && \
-ln -fs $outputdir/$samplename/transcripts.gtf $samplename.multi.transcripts.gtf && \
+for i in $outputdir/$samplename/{accepted_hits.bam,accepted_hits.bam.bai,*tracking,hgseqcount.by.gene.tab,transcripts.gtf,*.bw}; do ii=${i/.*\//} ln -fs $i $samplename.multi.$ii; done && \
+
 # uniq
-ln -fs $outputdir/$samplename/uniq/accepted_hits.bam $samplename.uniq.accepted_hits.bam && \
-ln -fs $outputdir/$samplename/uniq/accepted_hits.bam.bai $samplename.uniq.accepted_hits.bam.bai && \
-ln -fs $outputdir/$samplename/uniq/isoforms.fpkm_tracking $samplename.uniq.isoforms.fpkm_tracking && \
-ln -fs $outputdir/$samplename/uniq/genes.fpkm_tracking $samplename.uniq.genes.fpkm_tracking && \
-ln -fs $outputdir/$samplename/uniq/hgseqcount.by.gene.tab $samplename.uniq.hgseqcount.by.gene.tab && \
-ln -fs $outputdir/$samplename/uniq/accepted_hits.bw $samplename.uniq.accepted_hits.bw && \
-ln -fs $outputdir/$samplename/uniq/accepted_hits.normalized.bw $samplename.uniq.accepted_hits.normalized.bw && \
-ln -fs $outputdir/$samplename/uniq/accepted_hits.normalized2.bw $samplename.uniq.accepted_hits.normalized2.bw && \
-ln -fs $outputdir/$samplename/uniq/transcripts.gtf $samplename.uniq.transcripts.gtf && \
+for i in $outputdir/$samplename/uniq/{accepted_hits.bam,accepted_hits.bam.bai,*tracking,hgseqcount.by.gene.tab,transcripts.gtf,*.bw}; do ii=${i/.*\//} ln -fs $i $samplename.uniq.$ii; done && \
 
 ## QC
 ln -fs $outputdir/$samplename/$samplename.R1_fastqc $samplename.R1_fastqc && \

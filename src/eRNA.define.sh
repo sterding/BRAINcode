@@ -88,15 +88,21 @@ do
 done < ~/neurogen/rnaseq_PD/results/merged/samplelist.$SAMPLE_GROUP
 
 #2. compute p-value for each HTNE candidate in each sample's random background, then test the number of samples with p<0.05 with the binomial test, adjust p-value from binomial test with HB correction
-Rscript /data/neurogen/pipeline/RNAseq/src/_HTNE.consistency.R $SAMPLE_GROUP  # output is eRNA.pvalues.adjusted.xls
+Rscript /data/neurogen/pipeline/RNAseq/src/_HTNE.consistency.R $SAMPLE_GROUP  # output is eRNA.tmp5.pvalues.adjusted.xls
 
 # multi-test correction to adjust p: 
 # bonferroni for the major groups
-awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($4<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls | sortBed > eRNA.bonferroni.bed
+awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($4<=0.05) print a[1],a[2],a[3],$1}}' eRNA.tmp5.pvalues.adjusted.xls | sortBed > eRNA.bonferroni.bed
 # FDR with method <=0.05
-awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($5<=0.05) print a[1],a[2],a[3],$1}}' eRNA.pvalues.adjusted.xls | sortBed > eRNA.fdr.bed
+awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($5<=0.05) print a[1],a[2],a[3],$1}}' eRNA.tmp5.pvalues.adjusted.xls | sortBed > eRNA.fdr.bed
 
-[[ "$SAMPLE_GROUP" == "HCILB_SNDA" || "$SAMPLE_GROUP" == "HC_PY" || "$SAMPLE_GROUP" == "HC_nonNeuron" ]] && ln -fs eRNA.bonferroni.bed eRNA.bed
-[[ "$SAMPLE_GROUP" == "HC_FB" || "$SAMPLE_GROUP" == "HC_PBMC" || "$SAMPLE_GROUP" == "HC_MCPY" || "$SAMPLE_GROUP" == "HC_TCPY" ]]  && ln -fs eRNA.fdr.bed eRNA.bed
+##[[ "$SAMPLE_GROUP" == "HCILB_SNDA" || "$SAMPLE_GROUP" == "HC_PY" || "$SAMPLE_GROUP" == "HC_nonNeuron" ]] && ln -fs eRNA.bonferroni.bed eRNA.bed
+##[[ "$SAMPLE_GROUP" == "HC_FB" || "$SAMPLE_GROUP" == "HC_PBMC" || "$SAMPLE_GROUP" == "HC_MCPY" || "$SAMPLE_GROUP" == "HC_TCPY" ]]  && ln -fs eRNA.fdr.bed eRNA.bed
+
+# use FDR for all celltypes
+ln -fs eRNA.fdr.bed eRNA.bed
+awk 'BEGIN{OFS="\t"; print "id","chr","s1","s2";}{print $4,$1,$2,$3;}' eRNA.bed > eRNA.loci.txt  # required for eQTL
+
+paste eRNA.tmp5.pvalues.adjusted.xls eRNA.tmp5.meanRPM.xls | awk 'NR ==1 || $5<=0.05' | cut -f6- > eRNA.meanRPM.xls
 
 echo "THE END!"

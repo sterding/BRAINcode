@@ -11,6 +11,9 @@
 
 args<-commandArgs(TRUE)
 
+require(ggplot2)
+require(grid)
+
 FPKMfile=args[1]  # either filename or stdin
 outputfile=args[2]
 projectCODE=args[3] # GTEx or PD
@@ -30,8 +33,6 @@ if(projectCODE=="GTEx"){
 df$tracking_id=paste(df$tracking_id, " (", df$gene_short_name, ")", sep="")
 
 # plot
-library('ggplot2')
-require(grid)
 p <- ggplot(df, aes(colour=tracking_id, y=value, x=variable))
 p +  geom_boxplot() +
      ylab("FPKM") +

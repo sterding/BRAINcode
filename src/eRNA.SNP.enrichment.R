@@ -15,7 +15,7 @@ require(ggplot2)
 
 s=read.table(paste0("SNP.",type,".counts.summary"), header=F,row.names=1); 
 results=data.frame();
-for(i in c('HTNE','pHTNE','exon','promoter','random')){
+for(i in c('HTNE','exon','promoter','random')){
   n1=s[i,1]; n2=s['all',1];
   all=read.table(paste0("SNP.",type,".count.all")); rownames(all)=all[,1]
   x=read.table(paste0("SNP.",type,".count.",i)); rownames(x)=x[,1]
@@ -36,8 +36,6 @@ results$Disease_or_Trait=gsub("_"," ", results$Disease_or_Trait)
 
 results = results[with(results, order(type, -OR)), ]
 write.table(results, paste0("eRNA.SNP.enrichments.",type,".xls"), sep="\t", col.names = T, row.names = F)
-
-results = subset(results, type!='pHTNE') # using private-HTNE
 
 pdf(paste0("eRNA.SNP.enrichments.",type,".pdf"), width=24, height=12); 
 # Note: Don't use ggsave() with Rscript, which will generate another Rplot.pdf unnecessarily. See http://stackoverflow.com/questions/19382384/ggplot2-overwrite-one-another-in-rplots-pdf

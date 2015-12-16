@@ -1,3 +1,17 @@
+[Wed Dec 16 13:13:13 EST 2015]
+1. update normalized RNAseq tracks with non-rRNA-MT for all samples; re-generate RNAseq track
+2. re-run eQTL with corrected genotype data from GL
+3. correlation for eRNA and GENCODE genes  -- send data to GL
+4. clustering HTNEs to show cell-specific block
+6. bam-->wig, then load German's CAGE data to UCSC
+
+[Fri Dec 11 16:10:36 EST 2015]
+1. back to check stranded-RNAseq jobs:306238, 306239
+2. re-run eQTL with corrected genotype data from GL
+3. correlation for eRNA and GENCODE genes  -- send data to GL
+4. clustering HTNEs to show cell-specific block
+6. bam-->wig, then load German's CAGE data to UCSC
+
 [Mon Oct  5 14:14:24 EDT 2015]
 2. HTNE for non-neuronal, and pyramidal neurons
 3. correlation for eRNA and GENCODE genes  -- send data to GL
