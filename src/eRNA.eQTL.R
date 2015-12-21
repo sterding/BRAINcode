@@ -14,71 +14,77 @@ require(sva) # source("http://bioconductor.org/biocLite.R"); biocLite("sva")
 SAMPLE_GROUP="HCILB_SNDA"
 setwd(paste0("~/eRNAseq/",SAMPLE_GROUP))
 
-covarianceTableURL="https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118&single=true&output=tsv"  # for all 140 samples
-snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 93 unique subjects
-snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
-
-# for eRNAs
-expr_file="eRNA.meanRPM.xls";  
-geneloc="eRNA.loci.txt"; #awk 'BEGIN{OFS="\t"; print "id","chr","s1","s2";}{print $4,$1,$2,$3;}' eRNA.bed > eRNA.loci.txt
-    
-message("## loading expression data...")
-######################
-expr = read.table(expr_file, header=T, check.names = F)  # GxN where G is number of genes and N is number of samples
-rownames(expr) = expr[,1]; expr = expr[, -1];
-
-message(" # remove outlier and replicate...")
-######################
-covs=read.table(textConnection(getURL(covarianceTableURL)), header=T, stringsAsFactors = FALSE);
-covs=subset(covs, outlier==0 & replicate=="rep1")  # remove outliers and rep2
-covs=covs[grep("stranded|unamplified",covs$sampleName, invert = T),]  # remove tech rep, e.g. unamplified, strand
-common=intersect(names(expr), covs$sampleName)
-covs=covs[match(common, covs$sampleName), ]
-expr=subset(expr, select = common)
-
-# change the sample ID to subject ID
-colnames(expr)=gsub(".*_(.*)_.*_.*_rep.*", "\\1", colnames(expr))
-
-# convert to factor
-covs$batch = as.factor(covs$batch)
-covs$sex = as.factor(covs$sex)
-covs$readsLength = as.factor(covs$readsLength)
-
-message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
-
-message(" # filtering expression data...")
-######################
-# GTEx: Filter on >=10 individuals having >0.1 RPKM.
-# BRAINCODE: filter on more than half sampes having >0.05 RPKM  ## TO REMOVE?
-expr=expr[rowMeans(expr>0.05)>=0.5,]  # 71022 --> 58299 remained
-hist(log10(rowMeans(expr)), breaks=100)
-message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
-
-message(" # transforming RPKM to rank normalized gene expression ...")
-######################
-# logorithm
-expr=log10(expr+0.01)  # so row value of 0 will be -2 in the transformed value
-# # outlier correction: quantile normalization with order preserved. Now RPKM is changed to rank normalized gene expression.
-# m=apply(expr, 1, mean); sd=apply(expr, 1, sd)
-# expr = t(apply(expr, 1, rank, ties.method = "average"));
-# #expr = qnorm(expr / (ncol(expr)+1));  # to standard normalization
-# expr = qnorm(expr / (ncol(expr)+1), mean=m, sd=sd)  # or, to preserve the mean and sd of each gene
-# 
-# rm(m,sd)
-
-message("## loading SNP data...")
-######################
-
 if(file.exists("data.RData")) load("data.RData") else{
+  
+  covarianceTableURL="https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118&single=true&output=tsv"  # for all 140 samples
+  snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 93 unique subjects
+  snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
+  
+  # for eRNAs
+  expr_file="eRNA.meanRPM.xls";  
+  geneloc="eRNA.loci.txt"; #awk 'BEGIN{OFS="\t"; print "id","chr","s1","s2";}{print $4,$1,$2,$3;}' eRNA.bed > eRNA.loci.txt
+      
+  message("## loading expression data...")
+  ######################
+  expr = read.table(expr_file, header=T, check.names = F)  # GxN where G is number of genes and N is number of samples
+  rownames(expr) = expr[,1]; expr = expr[, -1];
+  
+  message(" # remove outlier and replicate...")
+  ######################
+  covs=read.table(textConnection(getURL(covarianceTableURL)), header=T, stringsAsFactors = FALSE);
+  covs=subset(covs, outlier==0 & replicate=="rep1")  # remove outliers and rep2
+  covs=covs[grep("stranded|unamplified",covs$sampleName, invert = T),]  # remove tech rep, e.g. unamplified, strand
+  common=intersect(names(expr), covs$sampleName)
+  covs=covs[match(common, covs$sampleName), ]
+  expr=subset(expr, select = common)
+  
+  # change the sample ID to subject ID
+  colnames(expr)=gsub(".*_(.*)_.*_.*_rep.*", "\\1", colnames(expr))
+  
+  # convert to factor
+  covs$batch = as.factor(covs$batch)
+  covs$sex = as.factor(covs$sex)
+  covs$readsLength = as.factor(covs$readsLength)
+  
+  message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
+  
+  message(" # filtering expression data...")
+  ######################
+  # GTEx: Filter on >=10 individuals having >0.1 RPKM.
+  # BRAINCODE: filter on more than half sampes having >0.05 RPKM  ## TO REMOVE?
+  expr=expr[rowMeans(expr>0.05)>=0.5,]  # 71022 --> 58299 remained
+  hist(log10(rowMeans(expr)), breaks=100)
+  message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
+  
+  message(" # transforming RPKM to rank normalized gene expression ...")
+  ######################
+  # logorithm
+  expr=log10(expr+0.01)  # so row value of 0 will be -2 in the transformed value
+  # # outlier correction: quantile normalization with order preserved. Now RPKM is changed to rank normalized gene expression.
+  # m=apply(expr, 1, mean); sd=apply(expr, 1, sd)
+  # expr = t(apply(expr, 1, rank, ties.method = "average"));
+  # #expr = qnorm(expr / (ncol(expr)+1));  # to standard normalization
+  # expr = qnorm(expr / (ncol(expr)+1), mean=m, sd=sd)  # or, to preserve the mean and sd of each gene
+  # 
+  # rm(m,sd)
+  
+  message("## loading SNP data...")
+  ######################
+  
   snps = SlicedData$new();  # # GxN matrix
   snps$fileDelimiter = "\t";      # the TAB character
   snps$fileOmitCharacters = "NA"; # denote missing values;
   snps$fileSkipRows = 1;          # one row of column labels
   snps$fileSkipColumns = 1;       # one column of row labels
-  snps$fileSliceSize = 5000;      # read file in slices of 5,000 rows
+  snps$fileSliceSize = 10000;      # read file in slices of 5,000 rows
   snps$LoadFile(snps_file);
   
-  
+  message("# loading SNP and gene position files...")
+  ######################
+  snpspos = read.table(snpsloc, header = TRUE, stringsAsFactors = FALSE);
+  snpspos=snpspos[,1:3]
+  genepos = read.table(geneloc, header = TRUE, stringsAsFactors = FALSE);
+
   # extract the samples with both RNAseq and genotyped, and reorder both snps and expression
   common = intersect(colnames(snps), colnames(expr))
   
@@ -86,7 +92,7 @@ if(file.exists("data.RData")) load("data.RData") else{
   expr=expr[,common];
   covs=covs[match(common, covs$subjectID), ]
   rownames(covs)=covs$subjectID;
-  covs=subset(covs, select=c(batch, readsLength, RIN, sex, age, PMI))
+  covs=subset(covs, select=c(sampleName, batch, readsLength, RIN, sex, age, PMI))
   
   message("# filter out SNPs with local MAF<=0.05 ...");
   # Note: here Minor allele is the minor one for the samples, not necessary the same one as the population)
@@ -107,15 +113,8 @@ if(file.exists("data.RData")) load("data.RData") else{
   
   rm(maf, na, maf.list, na.list)
   
-  message("# loading SNP and gene position files...")
-  ######################
-  snpspos = read.table(snpsloc, header = TRUE, stringsAsFactors = FALSE);
-  snpspos=snpspos[,1:3]
-  genepos = read.table(geneloc, header = TRUE, stringsAsFactors = FALSE);
-  
-  save(snps, snpspos, genepos, file ="data.RData");
+  save.image(file ="data.RData");
 }
-
 message("# adjusting expression with covariates...")
 ######################
 # sva adjusted
@@ -138,6 +137,7 @@ message("# QC on SVA normalized quantification data ...")
 ## ------------------------
 pdf("RLE.plot.pdf", width=10, height=5)
 res=data.frame(expr, check.names = F)
+#res=as.matrix(expr); colnames(res) = covs[match(covs$subjectID, colnames(res)),'sampleName']
 names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
 rle1=res-apply(res, 1, median)
 
@@ -159,54 +159,53 @@ abline(h=0, col='red',lwd=1)
 
 dev.off()
 
-## t-SNE and PCA before and after SVA
-## ------------------------
-if(!require(Rtsne)) {install.packages("Rtsne"); require(Rtsne);}
-pdf("tSNE.PCA.plot.pdf", width=10, height=10)
-par(mfrow=c(2,2))
-
-# before
-res=data.frame(expr, check.names = F)
-names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
-batch=gsub(".*_([0-9])_rep.*","\\1",names(res))
-
-# using tsne
-set.seed(1) # for reproducibility
-tsne <- Rtsne(res, dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
-# visualizing
-colors = rainbow(length(unique(batch)))
-names(colors) = unique(batch)
-#plot(tsne$Y, t='n', main="t-SNE (before)")
-#text(tsne$Y, labels=batch, col=colors[batch], cex = 0.5)
-plot(tsne$Y, col=colors[batch], main="t-SNE (before)", cex=0.5)
-
-# compare with pca
-pca = princomp(res)$scores[,1:2]
-#plot(pca, t='n', main="PCA (before)")
-#text(pca, labels=batch, col=colors[batch])
-plot(pca, col=colors[batch], main="PCA (before)", cex=0.5)
-
-
-# after
-res=data.frame(residuals, check.names = F)
-names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
-batch=gsub(".*_([0-9])_rep.*","\\1",names(res))
-
-# using tsne
-set.seed(1) # for reproducibility
-tsne <- Rtsne(res, dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
-# visualizing
-colors = rainbow(length(unique(batch)))
-names(colors) = unique(batch)
-plot(tsne$Y, t='n', main="tsne-after")
-text(tsne$Y, labels=batch, col=colors[batch])
-
-# compare with pca
-pca = princomp(res)$scores[,1:2]
-plot(pca, t='n', main="pca-after")
-text(pca, labels=batch, col=colors[batch])
-
-dev.off()
+# ## t-SNE and PCA before and after SVA
+# ## ------------------------
+# if(!require(Rtsne)) {install.packages("Rtsne"); require(Rtsne);}
+# pdf("tSNE.PCA.plot.pdf", width=10, height=10)
+# par(mfrow=c(2,2))
+# 
+# # before
+# res=data.frame(expr, check.names = F)
+# names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
+# batch=gsub(".*_([0-9])_rep.*","\\1",names(res))
+# 
+# # using tsne
+# set.seed(1) # for reproducibility
+# tsne <- Rtsne(res, dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
+# # visualizing
+# colors = rainbow(length(unique(batch)))
+# names(colors) = unique(batch)
+# plot(tsne$Y, t='n', main="t-SNE (before)")
+# text(tsne$Y, labels=batch, col=colors[batch], cex = 0.5)
+# #plot(tsne$Y, col=colors[batch], main="t-SNE (before)", cex=0.5)
+# 
+# # compare with pca
+# pca = princomp(res)$scores[,1:2]
+# plot(pca, t='n', main="PCA (before)")
+# text(pca, labels=batch, col=colors[batch])
+# #plot(pca, col=colors[batch], main="PCA (before)", cex=0.5)
+# 
+# # after
+# res=data.frame(residuals, check.names = F)
+# names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
+# batch=gsub(".*_([0-9])_rep.*","\\1",names(res))
+# 
+# # using tsne
+# set.seed(1) # for reproducibility
+# tsne <- Rtsne(res, dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
+# # visualizing
+# colors = rainbow(length(unique(batch)))
+# names(colors) = unique(batch)
+# plot(tsne$Y, t='n', main="tsne-after", cex=0.5)
+# text(tsne$Y, labels=batch, col=colors[batch])
+# 
+# # compare with pca
+# pca = princomp(res)$scores[,1:2]
+# plot(pca, t='n', main="pca-after", cex=0.5)
+# text(pca, labels=batch, col=colors[batch])
+# 
+# dev.off()
 
 # expression distribution
 ## ------------------------
@@ -219,10 +218,9 @@ dev.off()
 
 message("# save final quantification data into file")
 ######################
-write.table(format(residuals, digits=4,nsmall=4), file = "expression.postSVA.xls", sep="\t", col.names = NA, quote=F,row.names = TRUE)
+write.table(residuals, file = "expression.postSVA.xls", sep="\t", col.names = NA, quote=F,row.names = TRUE)
 
-residuals=as.matrix(read.table("expression.postSVA.xls", header=T))
-
+#residuals=as.matrix(read.table("expression.postSVA.xls", header=T))
 
 message("# step4: run eQTL with final quantifications")
 ######################
@@ -242,12 +240,12 @@ me = Matrix_eQTL_main(
     errorCovariance = numeric(),
     verbose = FALSE,
     output_file_name.cis = "final.cis.eQTL.xls",
-    pvOutputThreshold.cis = 1e-2,  # no effect when min.pv.by.genesnp = TRUE
+    pvOutputThreshold.cis = 1e-2,  # so that all pairs are recorded: ntests = neqtls
     snpspos = snpspos, 
     genepos = genepos,
     cisDist = 1e6,
     pvalue.hist = "qqplot",
-    min.pv.by.genesnp = TRUE,
+    min.pv.by.genesnp = TRUE, # not effectted by pvOutputThreshold.cis
     noFDRsaveMemory = FALSE);
 
 write.table(me$cis$min.pv.gene, file='final.cis.min.pv.gene.txt')
@@ -256,4 +254,10 @@ pdf(file="diagnostics_matrixeqlt.all.pdf", paper="usr")
 plot(me, pch = 16, cex = 0.7);
 dev.off()
 
-message(paste("eQTL analysis is done and found", me$cis$neqtls,"cis SNP-gene pairs with significance p<1e-2."))
+# include SNP position
+genesnp=read.table("final.cis.eQTL.xls", header=T, stringsAsFactors = FALSE)
+genesnp=cbind(genesnp, SNP.pos=snpspos[match(genesnp$SNP, snpspos$snp),'pos'])
+write.table(genesnp, file="final.cis.eQTL.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
+
+message(paste("eQTL analysis is done and found", me$cis$neqtls,"cis SNP-gene pairs with significance p<1."))
+message(paste("Number of tests:", me$cis$ntests))

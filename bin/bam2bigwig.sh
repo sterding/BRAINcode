@@ -27,6 +27,7 @@
 species=hg19
 
 ANNOTATION=/pub/genome_references/UCSC/Homo_sapiens/UCSC/hg19/Annotation/Genes
+export TMPDIR=/data/neurogen/
 
 inputfile=$1
 split=$2
@@ -64,12 +65,12 @@ case $ext in
         exit;;
 esac
 
-# remove reads mapped to contigs other than chr1/2/.../22/M/X/Y
-awk '{if($1!~/[_#]/ && $1~/^chr/) {n++; print}}END{print "#total_mapped_reads="n;}' $bname.bed > $bname.bed2
-mv $bname.bed2 $bname.bed
-
-# get total mapped reads
-total_mapped_reads=`tail -n1 $bname.bed | cut -f2 -d'='`
+# # remove reads mapped to contigs other than chr1/2/.../22/M/X/Y
+# awk '{if($1!~/[_#]/ && $1~/^chr/) {n++; print}}END{print "#total_mapped_reads="n;}' $bname.bed > $bname.bed2
+# mv $bname.bed2 $bname.bed
+# 
+# # get total mapped reads
+# total_mapped_reads=`tail -n1 $bname.bed | cut -f2 -d'='`
 
 if [ "$2" == "-split" ]
 then
@@ -88,8 +89,9 @@ then
         sort -k1,1 $bname.bed+ | bedItemOverlapCount $species -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > $bname.plus.bedGraph
         sort -k1,1 $bname.bed- | bedItemOverlapCount $species -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | awk '{OFS="\t"; print $1,$2,$3,"-"$4}' > $bname.minus.bedGraph
     fi
-    echo "bedGraph2bw..."
-    bedGraphToBigWig $bname.plus.bedGraph $ANNOTATION/ChromInfo.txt $bname.plus.bw
+    [ "$normalizationFactor" == "0" -o "$normalizationFactor" == "" ] && \
+    echo "bedGraph2bw..." && \
+    bedGraphToBigWig $bname.plus.bedGraph $ANNOTATION/ChromInfo.txt $bname.plus.bw && \
     bedGraphToBigWig $bname.minus.bedGraph $ANNOTATION/ChromInfo.txt $bname.minus.bw
     
     [ "$normalizationFactor" -gt 0 ] && \
@@ -116,7 +118,8 @@ then
         echo "in bed6 format ..."
         sort -k1,1 $bname.bed | bedItemOverlapCount $species -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n > $bname.bedGraph
     fi
-    echo "bedGraph2bw..."
+    [ "$normalizationFactor" == "0" -o "$normalizationFactor" == "" ] && \
+    echo "bedGraph2bw..." && \
     bedGraphToBigWig $bname.bedGraph $ANNOTATION/ChromInfo.txt $bname.bw
 
     [ "$normalizationFactor" -gt 0 ] && \

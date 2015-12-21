@@ -9,8 +9,8 @@
 
 echo "track CAGE_BRAINCODE
 shortLabel CAGE
-longLabel BRAINCODE CAGE (version 1)
-dataVersion Version 1 (Dec 2014)
+longLabel BRAINCODE CAGE (version 3)
+dataVersion Version 3 (Dec 2015)
 type bed 3
 visibility full
 boxedCfg on
@@ -43,7 +43,7 @@ echo "track merged_by_trimmedmean_CAGE
         shortLabel CAGE tags count for merged samplename (fwd)
         longLabel CAGE tags count for merged samplename forward
         type bigWig 
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/trimmedmean.plus.normalized.bw
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/trimmedmean.plus.normalized.bw
         color 255,0,0
         parent merged_by_trimmedmean_CAGE
         
@@ -52,7 +52,7 @@ echo "track merged_by_trimmedmean_CAGE
         shortLabel CAGE tags count for merged samplename (rev)
         longLabel CAGE tags count for merged samplename reverse
         type bigWig 
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/trimmedmean.minus.normalized.bw
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/trimmedmean.minus.normalized.bw
         color 0,0,255
         altColor 0,0,255
         parent merged_by_trimmedmean_CAGE
@@ -60,9 +60,9 @@ echo "track merged_by_trimmedmean_CAGE
 
 # output the individual track [container]
 
-for i in ~/neurogen/CAGE_PDBrainMap/processed/*.plus.bw; do
-    i=${i/*\//}
-    samplename=${i/.plus*/}
+for i in ~/neurogen/CAGE_PDBrainMap/output_dir/*/*.plus.bw; do
+    i=${i/*output_dir\//}
+    samplename=${i/\/*/}
     
 echo "
     track ${samplename}_multiwig
@@ -89,7 +89,7 @@ echo "
         shortLabel CAGE tags count for $samplename (fwd)
         longLabel CAGE tags count for $samplename forward
         type bigWig 
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/$samplename.plus.bw
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/$samplename.accepted_hits.plus.bw
         color 255,0,0
         parent ${samplename}_multiwig
         
@@ -98,7 +98,7 @@ echo "
         shortLabel CAGE tags count for $samplename (rev)
         longLabel CAGE tags count for $samplename reverse
         type bigWig 
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/$samplename.minus.bw
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/$samplename.accepted_hits.minus.bw
         color 0,0,255
         altColor 0,0,255
         parent ${samplename}_multiwig
@@ -106,12 +106,11 @@ echo "
 "
 done
 
-
 # output the individual track [container] -- normalized
 
-for i in ~/neurogen/CAGE_PDBrainMap/processed/[!trimmmed]*.plus.normalized.bw; do
-    i=${i/*\//}
-    samplename=${i/.plus*/}
+for i in ~/neurogen/CAGE_PDBrainMap/output_dir/*/*plus.normalized.bw; do
+    i=${i/*output_dir\//}
+    samplename=${i/\/*/}
     
 echo "
     track ${samplename}_multiwignormalized
@@ -138,7 +137,7 @@ echo "
         shortLabel normalized CAGE tags count for $samplename (fwd)
         longLabel normalized CAGE tags count for $samplename forward
         type bigWig 
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/$samplename.plus.normalized.bw
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/$samplename.accepted_hits.plus.normalized.bw
         color 255,0,0
         parent ${samplename}_multiwignormalized
         
@@ -147,9 +146,105 @@ echo "
         shortLabel normalized CAGE tags count for $samplename (rev)
         longLabel normalized CAGE tags count for $samplename reverse
         type bigWig 
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/$samplename.minus.normalized.bw
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/$samplename.accepted_hits.minus.normalized.bw
         color 0,0,255
         altColor 0,0,255
         parent ${samplename}_multiwignormalized
+"
+done
+
+############################################################
+## -------------------- DZNE alignment ------------------ ##
+############################################################
+
+for i in ~/neurogen/CAGE_PDBrainMap/data_upload_scherzer_20151124/bam_files/*.plus.bw; do
+    i=${i/*\//}
+    samplename=${i/.plus*/}
+    
+echo "
+    track ${samplename}_multiwig_DZNE
+    container multiWig
+    configurable on
+    shortLabel DZNE raw $samplename
+    longLabel DZNE CAGE tags count for $samplename
+    aggregate transparentOverlay
+    dragAndDrop subTracks
+    type bigWig 0 100
+    autoScale on
+    alwaysZero on
+    yLineOnOff on
+    yLineMark 0
+    viewLimits 0:100
+    visibility hide
+    maxHeightPixels 64:50:11
+    showSubtrackColorOnUi on
+    priority 1.3
+    parent CAGE_BRAINCODE
+
+        track ${samplename}_multiwig_DZNE_fwd
+        shortLabel DZNE CAGE tags count for $samplename (fwd)
+        longLabel DZNE CAGE tags count for $samplename forward
+        type bigWig 
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/$samplename.plus.bw
+        color 255,0,0
+        parent ${samplename}_multiwig_DZNE
+        
+        
+        track ${samplename}_multiwig_DZNE_rev
+        shortLabel DZNE CAGE tags count for $samplename (rev)
+        longLabel DZNE CAGE tags count for $samplename reverse
+        type bigWig 
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/$samplename.minus.bw
+        color 0,0,255
+        altColor 0,0,255
+        parent ${samplename}_multiwig_DZNE
+        
+"
+done
+
+
+# output the individual track [container] - normalized
+
+for i in ~/neurogen/CAGE_PDBrainMap/data_upload_scherzer_20151124/bam_files/*.plus.normalized.bw; do
+    i=${i/*\//}
+    samplename=${i/.plus*/}
+    
+echo "
+    track ${samplename}_multiwignormalized_DZNE
+    container multiWig
+    configurable on
+    shortLabel rpm_DNZE_$samplename
+    longLabel DZNE normalized CAGE tags count for $samplename
+    aggregate transparentOverlay
+    dragAndDrop subTracks
+    type bigWig 0 100
+    autoScale on
+    alwaysZero on
+    yLineOnOff on
+    yLineMark 0
+    viewLimits 0:100
+    visibility full
+    maxHeightPixels 64:50:11
+    showSubtrackColorOnUi on
+    priority 1.4
+    parent CAGE_BRAINCODE
+
+        track ${samplename}_multiwignormalizedDZNE_fwd
+        shortLabel DZNE normalized CAGE tags count for $samplename (fwd)
+        longLabel DNZE normalized CAGE tags count for $samplename forward
+        type bigWig 
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/$samplename.plus.normalized.bw
+        color 255,0,0
+        parent ${samplename}_multiwignormalized_DZNE
+        
+        
+        track ${samplename}_multiwignormalized_rev
+        shortLabel DZNE normalized CAGE tags count for $samplename (rev)
+        longLabel DZNE normalized CAGE tags count for $samplename reverse
+        type bigWig 
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/$samplename.minus.normalized.bw
+        color 0,0,255
+        altColor 0,0,255
+        parent ${samplename}_multiwignormalized_DZNE
 "
 done

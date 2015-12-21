@@ -3,7 +3,7 @@
 ## Author: Xianjun Dong
 ## Date: 2015-Dec-2
 ## Version: 0.0
-## Usage: bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
+## Usage: Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.plot.R rs1684902:61633127:A:G_A:G chr10_61632545_61633312
 ###############################################
 #setwd("~/neurogen/rnaseq_PD/results/eQTL/eRNA/")
 require(MatrixEQTL)
@@ -12,19 +12,18 @@ args<-commandArgs(TRUE)
 S=args[1]  
 G=args[2]
 
-G="chr10_61632545_61633312"; S="rs1684902:61633127:A:G"
-# load data
+#G="chr10_61632545_61633312"; S="rs1684902:61633127:A:G_A:G"
+
+message("# load data...")
 load("data.RData")
 
 RS=sub("([^:]*):.*","\\1", S) ## the part before the first ":" in the SNP ID
 REF = strsplit(sub(".*_(.*)","\\1", S),":")[[1]][1]  ## get the REF allele
 ALT = strsplit(sub(".*_(.*)","\\1", S),":")[[1]][2]  ## get the ALT allele
 
-
-
 message("# making eQTL plot ...")
 ######################
-genesnp = read.table("final.cis.eQTL.pos.xls", header=T, stringsAsFactors =F)
+genesnp = read.table("final.cis.eQTL.xls", header=T, stringsAsFactors =F)
 residuals = read.table("expression.postSVA.xls")
 genes = SlicedData$new();
 genes$CreateFromMatrix(as.matrix(residuals))

@@ -23,15 +23,15 @@ for(i in list.files("permutations", pattern="permutation.*.txt", full.names=T)){
 }
 min.pv.gene=min.pv.gene[name, ]
 
-#For each gene, adjusted P value is set to the rank of observedP in the permutation list divided by X
+#For each gene, empirical P value is set to the rank of observedP in the permutation list divided by X
 # ref: https://www.biostars.org/p/13791/
-adjustedP=apply(min.pv.gene <= observedP[,1], 1, mean)  # get the percenage of min(p) <= observedP among the 1000 permutations. 
+empiricalP=apply(min.pv.gene <= observedP[,1], 1, mean)  # get the percenage of min(p) <= observedP among the 1000 permutations. 
 #Note: the idea is similar as the empPvals() function in qvalue:  The p-values are calculated as the proportion of values from stat0 (or null p) that are greater (or smaller) than or equal to that from stat (or observed p).
 
-#Use adjusted P values as input to qvalue to estimate FDR for a given adjust P value cutoff.
-q=qvalue(p = adjustedP)$qvalue
-1-qvalue(p = adjustedP)$pi0  ## 0.0351389
-# 1-pi0= the estimate of the proportion of true alternative tests  (which is 3.5% in this case -- very low)
+#Use empirical P values as input to qvalue to estimate FDR for a given adjust P value cutoff.
+q=qvalue(p = empiricalP)$qvalue
+
+cat("# The estimate of the proportion of true alternative tests  (which is 3.5% in this case -- very low):", 1-qvalue(p = empiricalP)$pi0);
 
 ## now, we can get a list of all significantly associated SNP-gene pairs
 #get the p-value correspinding to the eGene empirical p-value for eGenes at the q-value = 0.05 threshold
@@ -43,10 +43,6 @@ cutoff = apply(min.pv.gene, 1, function(x) max(0, x[p.adjust(x, method='fdr')<=0
 #cutoff = apply(min.pv.gene, 1, quantile, probs=0.05)
 
 genesnp=read.table("final.cis.eQTL.xls", header=T, stringsAsFactors = FALSE)
-# include SNP position
-genesnp=cbind(genesnp, SNP.pos=snpspos[match(genesnp$SNP, snpspos$snp),'pos'])
-write.table(genesnp, file="final.cis.eQTL.pos.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
-
 genesnp=cbind(genesnp, SNPgene.cutoff=cutoff[match(genesnp$gene,names(cutoff))])
 # filter on the eGene
 genesnp=subset(genesnp, gene %in% names(q[q<=0.05]))
@@ -56,7 +52,7 @@ genesnp=subset(genesnp, p.value <= SNPgene.cutoff)
 write.table(genesnp, file="final.cis.eQTL.FDR.05.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
 
 eGenes=aggregate(SNP~gene, data=data.frame(genesnp), FUN=length)
-eGenes=cbind(eGenes, p.value=adjustedP[eGenes$gene], q.value=q[eGenes$gene])
+eGenes=cbind(eGenes, p.value=empiricalP[eGenes$gene], q.value=q[eGenes$gene])
 write.table(eGenes[order(eGenes$gene, -eGenes$SNP),], "final.cis.eGene.qvalue.cutoff0.05.txt", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
 
 

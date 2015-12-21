@@ -1,4 +1,5 @@
 # Uage:
+# transfer files to panda: chmod 644 ~/neurogen/rnaseq_PD/for_display/*bw; rsync --copy-links -azv ~/neurogen/rnaseq_PD/for_display/*bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version4
 # cd ~/neurogen/rnaseq_PD/for_display/; _make_trackDb.sh > trackDb.RNAseq.v4.txt; chmod 644 trackDb.RNAseq.v4.txt; scp trackDb.RNAseq.v4.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
 # to get the sample list: ls -1 ~/neurogen/rnaseq_PD/run_output/ | sed 's/_/\t/g' | cut -f2 | sort -u | awk '{printf $1"="$1" "}'
 #
@@ -12,7 +13,7 @@ curl -sk "https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eC
 echo "track RNAseq_PD
 shortLabel RNA-seq
 longLabel BRAINCODE RNA-seq (version 4)
-dataVersion Version 4 (Nov 2015)
+dataVersion Version 4 (Dec 2015)
 type bed 3
 visibility full
 boxedCfg on
@@ -196,7 +197,7 @@ do
         [ "$strandness" == "unstranded" ] && \
         echo "
             track ${sampleID}_rpmSignal_${j}
-            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/$i.$j.accepted_hits.normalized.bw
+            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version4/$i.$j.accepted_hits.normalized.bw
             type bigWig
             shortLabel $sampleID.$j.rpm
             longLabel RNAseq $j Normalized Signal  ( $condition $sample $cell batch$batch $rep $amplified $strandness)
@@ -209,7 +210,7 @@ do
         [ "$strandness" == "stranded" ] && \
         echo "
             track ${sampleID}_rpmSignal_${j}_plus
-            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/$i.$j.accepted_hits.plus.normalized.bw
+            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version4/$i.$j.accepted_hits.plus.normalized.bw
             type bigWig
             shortLabel $sampleID.$j.rpm.plus
             longLabel RNAseq $j Normalized Signal  ( $condition $sample $cell batch$batch $rep $amplified $strandness plus)
@@ -218,7 +219,7 @@ do
             parent RNAseqRPMsignal
 
             track ${sampleID}_rpmSignal_${j}_minus
-            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/$i.$j.accepted_hits.minus.normalized.bw
+            bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version4/$i.$j.accepted_hits.minus.normalized.bw
             type bigWig
             shortLabel $sampleID.$j.rpm.minus
             longLabel RNAseq $j Normalized Signal  ( $condition $sample $cell batch$batch $rep $amplified $strandness minus)

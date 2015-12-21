@@ -31,6 +31,7 @@ pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
 
 [[ $samplename == *stranded* ]] && strandoption="--library-type fr-firststrand"  # by default we use Illumina SMARTer stranded RNA-Seq kit
+split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split"
 
 inputdir=$PWD
 outputdir=$inputdir/../run_output
@@ -84,7 +85,7 @@ echo "["`date`"] STEP 4. mapping"
 
 ## NOTE: this was done for all batch 1-5 samples with tophat version 2.0.8
 [ ! -f $outputdir/$samplename/.status.$modulename.mapping ] && \
-tophat -o $outputdir/$samplename --no-convert-bam --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strandoption --max-multihits $MAX_HIT --no-coverage-search $GENOME/Sequence/Bowtie2Index/genome $R1 $R2 && \
+tophat -o $outputdir/$samplename --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strandoption --max-multihits $MAX_HIT --no-coverage-search $GENOME/Sequence/Bowtie2Index/genome $R1 $R2 && \
 touch $outputdir/$samplename/.status.$modulename.mapping
 
 ## Using BWA-MEM to prepare alignment for calling cirRNA with CIRI
@@ -112,6 +113,7 @@ echo "["`date`"] STEP 5. post-processing, format converting"
 
 cd $outputdir/$samplename
 
+## NOTE: after changing to output sorted bam from Tophat directly, the following sam-->bam and sorting may not need any more
 [ ! -f .status.$modulename.sam2bam ] && \
 samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted && \
 mv accepted_hits.sorted.bam accepted_hits.bam && \
@@ -137,11 +139,11 @@ touch $outputdir/$samplename/.status.$modulename.bam2annotation
 echo "## generating bigwig files for UCSC display"
 
 ## NEW VERSION (rerun for BATCH 1-7)
-split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split" 
 [ ! -f $outputdir/$samplename/.status.$modulename.sam2bw ] && \
 echo "## normalization using total reads mapped to non_rRNA_mt" && \
 total_mapped_reads=`grep -w total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
-bam2bigwig.sh accepted_hits.sam $split $total_mapped_reads && \
+bam2bigwig.sh accepted_hits.bam $split $total_mapped_reads && \
+rm accepted_hits.bed accepted_hits.bedGraph && \
 touch $outputdir/$samplename/.status.$modulename.sam2bw
 
 # % of genome coverage vs. RNAseq density (e.g. >1rpm)
@@ -202,7 +204,7 @@ touch .status.$modulename.cufflinks
 
 echo "## run htseq for reads count"
 [ ! -f .status.$modulename.htseqcount ] && \
-htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q -f bam accepted_hits.bam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 touch .status.$modulename.htseqcount
 
 echo "## quantification for meta exons"
@@ -222,24 +224,13 @@ cd $outputdir/$samplename/uniq
 
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq ] && \
-samtools view -SH $outputdir/$samplename/accepted_hits.sam > accepted_hits.sam && \
-fgrep -w NH:i:1 $outputdir/$samplename/accepted_hits.sam >> accepted_hits.sam && \
+samtools view -H $outputdir/$samplename/accepted_hits.bam > accepted_hits.sam && \
+samtools view $outputdir/$samplename/accepted_hits.bam | fgrep -w NH:i:1 >> accepted_hits.sam && \
 samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted && \
 mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
 cufflinks --no-update-check $strandoption -o ./ -p $CPU -G $ANNOTATION_GTF -M $MASK_GTF --compatible-hits-norm accepted_hits.bam && \
 touch $outputdir/$samplename/.status.$modulename.uniq
-
-## convert bam to bigwig # OLD VERSION
-#[ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
-#sam2bed -v bed12=T accepted_hits.sam | awk '{if($1!~/_/)print}' > accepted_hits.bed && \
-#sort -k1,1 accepted_hits.bed | bedItemOverlapCount $index -bed12 -chromSize=$ANNOTATION/ChromInfo.txt stdin | sort -k1,1 -k2,2n | sed 's/ /\t/g' > accepted_hits.bedGraph && \
-#bedGraphToBigWig accepted_hits.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.bw && \
-#total_mapped_reads=`wc -l accepted_hits.bed | cut -f1 -d' '` && \
-#echo "total_mapped_reads:$total_mapped_reads" && \
-#awk -v tmr=$total_mapped_reads 'BEGIN{OFS="\t"; print "# total_mapped_reads="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized.bedGraph && \
-#bedGraphToBigWig accepted_hits.normalized.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized.bw && \
-#touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2stat ] && \
 echo `samtools view -cF 0x100 accepted_hits.bam` "primary alignments (from samtools view -cF 0x100)" > accepted_hits.bam.stat && \
@@ -256,12 +247,12 @@ _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
 Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
 touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
 
-echo "## normalizing: instead of using total reads, use reads only mapped to non-rRNA-mtRNA for normalization"
-[ -e accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation
+[ -f accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
-split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split" && \
+echo "## normalizing: instead of using total reads, use reads only mapped to non-rRNA-mtRNA for normalization" && \
 total_mapped_reads2=`grep -w total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
-bam2bigwig.sh accepted_hits.sam $split $total_mapped_reads2 && \
+bam2bigwig.sh accepted_hits.bam $split $total_mapped_reads2 && \
+rm accepted_hits.bed accepted_hits.bedGraph && \
 touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
 
 ## DEPRECATED: Now all normalized.bw are changed to use total reads mapped to non-rRNA_mt 
@@ -281,7 +272,7 @@ cuffquant --no-update-check $strandoption -o ./rpkm -p $CPU $ANNOTATION_GTF acce
 touch $outputdir/$samplename/.status.$modulename.uniq.cuffquant.rpkm
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.htseqcount ] && \
-htseq-count -m intersection-strict -t exon -i gene_id -s no -q accepted_hits.sam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
+htseq-count -m intersection-strict -t exon -i gene_id -s no -q -f bam accepted_hits.bam $ANNOTATION_GTF > hgseqcount.by.gene.tab 2> hgseqcount.by.gene.tab.stderr && \
 touch $outputdir/$samplename/.status.$modulename.uniq.htseqcount
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.metaexon ] && \
@@ -316,10 +307,10 @@ cd $inputdir/../for_display
 [ ! -f $outputdir/$samplename/.status.$modulename.makelinks ] && \
 # make soft link
 # multi
-for i in $outputdir/$samplename/{accepted_hits.bam,accepted_hits.bam.bai,*tracking,hgseqcount.by.gene.tab,transcripts.gtf,*.bw}; do ii=${i/.*\//} ln -fs $i $samplename.multi.$ii; done && \
+for i in $outputdir/$samplename/{accepted_hits.bam,accepted_hits.bam.bai,*tracking,hgseqcount.by.gene.tab,transcripts.gtf,*.bw}; do ii=${i/.*\//}; ln -fs $i $samplename.multi.$ii; done && \
 
 # uniq
-for i in $outputdir/$samplename/uniq/{accepted_hits.bam,accepted_hits.bam.bai,*tracking,hgseqcount.by.gene.tab,transcripts.gtf,*.bw}; do ii=${i/.*\//} ln -fs $i $samplename.uniq.$ii; done && \
+for i in $outputdir/$samplename/uniq/{accepted_hits.bam,accepted_hits.bam.bai,*tracking,hgseqcount.by.gene.tab,transcripts.gtf,*.bw}; do ii=${i/.*\//}; ln -fs $i $samplename.uniq.$ii; done && \
 
 ## QC
 ln -fs $outputdir/$samplename/$samplename.R1_fastqc $samplename.R1_fastqc && \

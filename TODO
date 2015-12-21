@@ -1,9 +1,13 @@
+test the two batch7 stranded libs with unstrand and fr-secondstrand potocal
+
 [Wed Dec 16 13:13:13 EST 2015]
 1. update normalized RNAseq tracks with non-rRNA-MT for all samples; re-generate RNAseq track
 2. re-run eQTL with corrected genotype data from GL
 3. correlation for eRNA and GENCODE genes  -- send data to GL
 4. clustering HTNEs to show cell-specific block
 6. bam-->wig, then load German's CAGE data to UCSC
+## run CAGE-directional
+## copying GTEx to /external/neuro_backup in screen behind; after that will do external_downlaod/gtex
 
 [Fri Dec 11 16:10:36 EST 2015]
 1. back to check stranded-RNAseq jobs:306238, 306239
