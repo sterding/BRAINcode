@@ -12,7 +12,7 @@ args<-commandArgs(TRUE)
 S=args[1]  
 G=args[2]
 
-#G="chr10_61632545_61633312"; S="rs1684902:61633127:A:G_A:G"
+#G="chr10_61632545_61633312"; S="rs1664261:61633042:C:T_C:T"
 
 message("# load data...")
 load("data.RData")
@@ -23,10 +23,13 @@ ALT = strsplit(sub(".*_(.*)","\\1", S),":")[[1]][2]  ## get the ALT allele
 
 message("# making eQTL plot ...")
 ######################
-genesnp = read.table("final.cis.eQTL.xls", header=T, stringsAsFactors =F)
-residuals = read.table("expression.postSVA.xls")
-genes = SlicedData$new();
-genes$CreateFromMatrix(as.matrix(residuals))
+genesnp = read.table("final.cis.eQTL.new.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)
+if(file.exists("genes.RData")) load("genes.RData") else{
+  residuals = read.table("expression.postSVA.xls")
+  genes = SlicedData$new();
+  genes$CreateFromMatrix(as.matrix(residuals))
+  save(genes, file="genes.RData")
+}
 
 # one file for all genes (only the most significant SNP per gene)
 pdf(paste("eQTLplot",G,S,"mostsignificant.pdf",sep="."), width=8, height=8)

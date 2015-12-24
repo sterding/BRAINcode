@@ -94,6 +94,8 @@ if(file.exists("data.RData")) load("data.RData") else{
   rownames(covs)=covs$subjectID;
   covs=subset(covs, select=c(sampleName, batch, readsLength, RIN, sex, age, PMI))
   
+  write.table(covs, "eQTL.covs.tab", quote=F, sep="\t", col.names = NA)
+  
   message("# filter out SNPs with local MAF<=0.05 ...");
   # Note: here Minor allele is the minor one for the samples, not necessary the same one as the population)
   maf.list = vector('list', length(snps))
@@ -137,12 +139,12 @@ message("# QC on SVA normalized quantification data ...")
 ## ------------------------
 pdf("RLE.plot.pdf", width=10, height=5)
 res=data.frame(expr, check.names = F)
-#res=as.matrix(expr); colnames(res) = covs[match(covs$subjectID, colnames(res)),'sampleName']
-names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
+names(res) = covs[match(rownames(covs), names(res)),'sampleName']
+
 rle1=res-apply(res, 1, median)
 
 res=data.frame(residuals, check.names = F)
-names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
+names(res) = covs[match(rownames(covs), names(res)),'sampleName']
 rle2=res-apply(res, 1, median)
 
 rle=melt(cbind(ID=rownames(rle1), rle1), variable.name = "Sample",value.name ="FPKM", id="ID")
@@ -240,7 +242,7 @@ me = Matrix_eQTL_main(
     errorCovariance = numeric(),
     verbose = FALSE,
     output_file_name.cis = "final.cis.eQTL.xls",
-    pvOutputThreshold.cis = 1e-2,  # so that all pairs are recorded: ntests = neqtls
+    pvOutputThreshold.cis = 1,  # so that all pairs are recorded: ntests = neqtls
     snpspos = snpspos, 
     genepos = genepos,
     cisDist = 1e6,

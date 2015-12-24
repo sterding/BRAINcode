@@ -85,7 +85,7 @@ Rscript $pipeline_path/src/eRNA.SNP.enrichment.privateOnly.R SNAP minor
 cd HCILB_SNDA;
 bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R # for HCILB_SNDA only
 ## run permutations in bash
-for i in `seq 1 10000`; do echo $i; [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
+for i in `seq 1 10000`; do echo $i; [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls 1000; done
 # post-eQTL analysis
 bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
 
@@ -93,17 +93,25 @@ bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/e
 # 1. GWAS disease associated
 snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed
 [ -e $snps_in_LD.autosomal.associations.bed ] || awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$2,$3,$7; for(i=1;i<n;i++) print $1,b[i]-1,b[i],$7;}' $snps_in_LD | grep -v chrX | grep -v chrY | sortBed | uniq > $snps_in_LD.autosomal.associations.bed
-more +2 final.cis.eQTL.xls | awk '{OFS="\t"; split($2,a,"_"); print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' | intersectBed -a - -b $snps_in_LD.autosomal.associations.bed -wo | cut -f1-8,15 > final.cis.eQTL.GWAS.xls
+more +2 final.cis.eQTL.xls | awk '{OFS="\t"; split($2,a,"_"); print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' | intersectBed -a - -b $snps_in_LD.autosomal.associations.bed -wo | cut -f1-8,12 > final.cis.eQTL.GWAS.xls
+## out of 495085 GWAS associated SNPs, 440565 (89%) are covered by our SNP sets (genotyping + imputation)
+
 # 2. significant after multi-test correction (FDR or Bonferroni)
 R
-df=read.table("final.cis.eQTL.GWAS.xls", header=F, stringsAsFactors =F)
+df=read.table("final.cis.eQTL.GWAS.xls", header=F, stringsAsFactors =F, sep="\t", quote="\"")
 colnames(df) = c('chr','start','end','SNP','gene','beta','t.stat','p.value','trait')
 df$FDR=p.adjust(df$p.value,method='fdr'); df$bonferroni=p.adjust(df$p.value,method='bonferroni')
 write.table(df, "final.cis.eQTL.GWAS.adjusted.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
 quit('no')
 # 3. disrupt the TFBS motif
 TFBS=../externalData/TFBS/factorbookMotifPos.v3.bed
-intersectBed -a final.cis.eQTL.GWAS.adjusted.xls -b $TFBS -wo
+more +2 final.cis.eQTL.GWAS.adjusted.xls | intersectBed -a - -b $TFBS -wo | awk -vFS="\t" '$11<=0.05' > final.cis.eQTL.GWAS.Bonferroni5pt.TFBS.xls
+more +2 final.cis.eQTL.GWAS.adjusted.xls | intersectBed -a - -b $TFBS -wo | awk -vFS="\t" '$10<=0.05' > final.cis.eQTL.GWAS.FDR5pt.TFBS.xls
+
+cat final.cis.eQTL.GWAS.Bonferroni5pt.TFBS.xls | cut -f9 | sort | uniq -c | sort -k1,1n
+grep Parkinson final.cis.eQTL.GWAS.Bonferroni5pt.TFBS.xls
+
+
 
 
 awk '{OFS="\t"; split($2,a,"_"); if($7>=a[2] && $7<=a[3]) print;}' final.cis.eQTL.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; if($8<2 || $9>10) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo
@@ -111,15 +119,15 @@ more +2 final.cis.eQTL.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05 && $7>
 more +2 final.cis.eQTL.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; if($8<3 || $9>10) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo
 
 ## disease with significant cooccurance of HTNE-eQTL and GWAS 
-more +2 final.cis.eQTL.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -wa | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.with.eSNP.txt
-more +2 final.cis.eQTL.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -v  | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.without.eSNP.txt
+more +2 final.cis.eQTL.new.d1e6.p1e-2.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -u  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.with.eSNP.txt
+more +2 final.cis.eQTL.new.d1e6.p1e-2.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -v  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.without.eSNP.txt
 
 R
 N=as.numeric(system("wc -l $GENOME/Annotation/Variation/snp137.bed.groupped.SNP | cut -f1 -d' '", intern=T)) ## total SNPs in dbSNP
-n=as.numeric(system("more +2 final.cis.eQTL.xls | awk '$6<=0.05' | cut -f1,7 | sort -u | wc -l"))  ## total eSNP
+n=as.numeric(system("more +2 final.cis.eQTL.new.d1e6.p1e-2.xls | awk '$6<=0.05' | cut -f1,7 | sort -u | wc -l", intern=T))  ## total eSNP
 df1=read.table("dSNP.with.eSNP.txt", header=F); rownames(df1)=df1[,1]
-df2=read.table("dSNP.wiou.eSNP.txt", header=F); rownames(df2)=df2[,1]
-df=cbind(df1, df2[df1,2]); df=df[,-1]; colnames(df)=c('observed','all')  ## only the disease with both eSNP and dSNP
+df2=read.table("dSNP.without.eSNP.txt", header=F); rownames(df2)=df2[,1]
+df=cbind(df1, df2[rownames(df1),2]); df=df[,-1]; colnames(df)=c('observed','all')  ## only the disease with both eSNP and dSNP
 results = cbind(Disease_or_Trait=rownames(df), 
                 df, 
                 pvalue=apply(df, 1, function(x) fisher.test(matrix(c(x[1],n-x[1], x[2], N-n-x[2]), nrow = 2), alternative='greater')$p.value), 

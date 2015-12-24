@@ -9,6 +9,11 @@ args<-commandArgs(TRUE)
 i=args[1]
 Rdata=args[2] # "~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/data.RData"
 expr=args[3] # '~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls.postPEER.xls'
+dis=args[4]
+
+# i=1; Rdata="data.RData"; expr="expression.postSVA.xls"; dis=1000
+
+if(dis=="") dis=1e6
 
 residuals=read.table(expr, header=T, check.names = F)
 dim(residuals)
@@ -35,7 +40,7 @@ me2 = Matrix_eQTL_main(
   pvOutputThreshold.cis = 1e-5,
   snpspos = snpspos, 
   genepos = genepos,
-  cisDist = 1e6,
+  cisDist = dis,
   pvalue.hist = FALSE,
   min.pv.by.genesnp = TRUE,  #The minimum p-values are recorded even if if they are above the corresponding thresholds of pvOutputThreshold and pvOutputThreshold.cis.
   noFDRsaveMemory = TRUE);

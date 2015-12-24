@@ -30,7 +30,7 @@ cirRNA_caller = $3
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
 
-[[ $samplename == *stranded* ]] && strandoption="--library-type fr-firststrand"  # by default we use Illumina SMARTer stranded RNA-Seq kit
+#[[ $samplename == *stranded* ]] && strandoption="--library-type fr-secondstrand"  # by default we use Illumina SMARTer stranded RNA-Seq kit
 split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split"
 
 inputdir=$PWD

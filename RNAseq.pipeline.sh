@@ -47,7 +47,7 @@ result_dir=$input_dir/../results
 cd $input_dir
 
 #for i in *.R1.fastq.gz;
-for i in HC_MD5247_SN_7_rep2*.R1.fastq.gz;
+for i in HC_MD5247_SN_7_rep2.stranded.fr-unstrand.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
