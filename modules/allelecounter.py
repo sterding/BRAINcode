@@ -1,13 +1,13 @@
-## python script to count reads per allele in a specific sample by parsing the samtools mpileup output
-## modified based on https://github.com/secastel/allelecounter
-## TODO: allow to work for multiple samples
-
 import argparse;
 #import subprocess;
 import vcf;
 import calendar;
 import time;
 import random;
+
+## python script to count reads per allele in a specific sample by parsing the samtools mpileup output
+## modified based on https://github.com/secastel/allelecounter
+## TODO: allow to work for multiple samples
 
 def main():
 	#Arguments passed 
