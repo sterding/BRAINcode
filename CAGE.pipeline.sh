@@ -106,11 +106,13 @@ for i in ../results/*bw; do scp $i xd010@panda.dipr.partners.org:~/public_html/c
 # prepare bed file for transcription initiation sites (5' bed6 files with score column quantifying the number of mapped reads)
 for i in */accepted_hits.bed; do echo $i; sort -k1,1 -k2,2n -k6,6 $i | groupBy -g 1,2,3,6 -c 6 -o count | awk '{OFS="\t"; print $1,$2,$3,$1"_"$2,$5,$4;}' > $i.merged.BED & done
 
-awk '{print $0 >> $1}' accepted_hits.bed
-for i in chr*; do echo $i; sort -k1,1 -k2,2n -k6,6 $i | groupBy -g 1,2,3,6 -c 6 -o count | awk '{OFS="\t"; print $1,$2,$3,$1"_"$2,$5,$4;}' > $i.merged.BED & done
-cat chr*.merged.BED > 
+awk '{print $0 >> $1".txt"}' accepted_hits.bed
+for i in chr*.txt; do echo $i; sort -k1,1 -k2,2n -k6,6 $i | groupBy -g 1,2,3,6 -c 6 -o count | awk '{OFS="\t"; print $1,$2,$3,$1"_"$2,$5,$4;}' > $i.merged.BED; done
+cat chr*.merged.BED > accepted_hits.bed.merged.BED
+rm chr*
+
 ls -1 */accepted_hits.bed.merged.BED > ctss.filelist
-~/bin/enhancers/scripts/bidir_enhancers -s braincode -m ~/bin/enhancers/mask/hg19_neg_filter_500_merged.bed -f ctss.filelist -o .
+bsub -q big-multi -n 4 -M 10000 ~/bin/enhancers/scripts/bidir_enhancers -s braincode -m ~/bin/enhancers/mask/hg19_neg_filter_500_merged.bed -f ctss.filelist -o .
 
 
 

@@ -1,3 +1,5 @@
+## Rscript to test the enrichment of GWAS SNPs in HTNE
+#
 # The Fisher exact test was performed to test the odds ratio of trait association with enhancers vs non-enhancers taking into account the genomic distribution of SNPs.  
 # OR = (A/B) / (C/D), where
 # 
@@ -41,16 +43,31 @@ pdf(paste0("eRNA.SNP.enrichments.",type,".pdf"), width=24, height=12);
 # Note: Don't use ggsave() with Rscript, which will generate another Rplot.pdf unnecessarily. See http://stackoverflow.com/questions/19382384/ggplot2-overwrite-one-another-in-rplots-pdf
 
 # re-order the levels in the order of appearance in the data.frame
-results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
-p = ggplot(results, aes(x=Disease_or_Trait2, y=OR, fill=type, ymax=max(OR)*1.1)) + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") + theme_bw() + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) + geom_text(aes(label=paste0(observed," (",round(-log10(pvalue),1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) + ggtitle(paste0(basename(getwd()), " -- SNP enrichments (LD from ",type,", sorted by OR)")) 
-
-print(p);
 
 results = results[with(results, order(type, pvalue)), ]
 results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
-p = ggplot(results, aes(x=Disease_or_Trait2, y=-log10(pvalue), fill=type, ymax=max(-log10(pvalue))*1.1)) + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") + theme_bw() + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) + geom_text(aes(label=paste0(observed," (",round(OR,1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) + ggtitle(paste0(basename(getwd()), " -- SNP enrichments (LD from ",type,", sorted by pvalue)")) 
+p = ggplot(results, aes(x=Disease_or_Trait2, y=-log10(pvalue), fill=type, ymax=max(-log10(pvalue))*1.1)) 
+p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
+p = p + geom_hline(yintercept=-log10(0.05/1037), size=.5)  ## Bonferroni correction, where 1037 is the number of disease/traits in GWAS (wc -l SNP.$type.count.all)
+p = p + theme_bw() 
+p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) 
+p = p + geom_text(aes(label=paste0(observed," (",round(OR,1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 
+p = p + ggtitle(paste0(basename(getwd()), " -- SNP enrichments (LD from ",type,", sorted by pvalue)")) 
 
 print(p);
+
+results = results[with(results, order(type, -OR)), ]
+results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
+p = ggplot(results, aes(x=Disease_or_Trait2, y=OR, fill=type, ymax=max(OR)*1.1)) 
+p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
+p = p + theme_bw() 
+p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) 
+p = p + geom_text(aes(label=paste0(observed," (",round(-log10(pvalue),1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 
+p = p + ggtitle(paste0(basename(getwd()), " -- SNP enrichments (LD from ",type,", sorted by OR)")) 
+
+print(p);
+
+
 
 dev.off();
 

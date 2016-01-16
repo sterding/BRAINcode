@@ -88,9 +88,30 @@ bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/e
 for i in `seq 1 10000`; do echo $i; [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls 1000; done
 # post-eQTL analysis
 bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
+Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.plot.R rs1684902:61633127:A:G_A:G chr10_61632545_61633312
+
+cat ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.new.d1e6.p1e-2.xls | awk '$6<=0.05' > ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls
+
+## eQTL analysis
+# HTNE w/ eQTL
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f5 | sort | uniq -c
+# HTNE w/o eQTL
+fgrep -v -f <(awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | cut -f2 | sort -u) eRNA.characterize.xls | cut -f28 | sort | uniq -c
+# Fisher' test in R
+fisher.test(matrix(c(39,23586,106,47291),nrow=2,byrow=T),'greater')  # p-value = 0.1123
+
+## GO analysis for the genes harboring eQTL HTNEs
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f4 | sort -u | sed 's/___/\t/g' | cut -f2 | sed 's/\..*//g'
 
 ## eQTL filters:
-# 1. GWAS disease associated
+## A: colocalize --> FDR --> TFBS/GWAS
+awk '{split($2,a,"_"); if(NR==1 || ($7>(a[2]-500) && $7<(a[3]+500))) print}' final.cis.eQTL.new.d1e6.p1.xls  > final.cis.eQTL.new.d500.p1.xls
+## final.cis.eQTL.new.d500.p1.xls --> final.cis.eQTL.new.d500.adjusted.xl in R
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' final.cis.eQTL.new.d500.adjusted.xls | intersectBed -a - -b $snps_in_LD.autosomal.associations.bed -wo ## one
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' final.cis.eQTL.new.d500.adjusted.xls | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo ## NONE
+
+## B: GWAS --> FDR --> TFBS
+#1. GWAS disease associated
 snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed
 [ -e $snps_in_LD.autosomal.associations.bed ] || awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$2,$3,$7; for(i=1;i<n;i++) print $1,b[i]-1,b[i],$7;}' $snps_in_LD | grep -v chrX | grep -v chrY | sortBed | uniq > $snps_in_LD.autosomal.associations.bed
 more +2 final.cis.eQTL.xls | awk '{OFS="\t"; split($2,a,"_"); print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' | intersectBed -a - -b $snps_in_LD.autosomal.associations.bed -wo | cut -f1-8,12 > final.cis.eQTL.GWAS.xls
@@ -108,13 +129,17 @@ TFBS=../externalData/TFBS/factorbookMotifPos.v3.bed
 more +2 final.cis.eQTL.GWAS.adjusted.xls | intersectBed -a - -b $TFBS -wo | awk -vFS="\t" '$11<=0.05' > final.cis.eQTL.GWAS.Bonferroni5pt.TFBS.xls
 more +2 final.cis.eQTL.GWAS.adjusted.xls | intersectBed -a - -b $TFBS -wo | awk -vFS="\t" '$10<=0.05' > final.cis.eQTL.GWAS.FDR5pt.TFBS.xls
 
+## Note: but none of them have any SNP colocalize with eRNA, even in +/- 500bp window
+
 cat final.cis.eQTL.GWAS.Bonferroni5pt.TFBS.xls | cut -f9 | sort | uniq -c | sort -k1,1n
 grep Parkinson final.cis.eQTL.GWAS.Bonferroni5pt.TFBS.xls
 
+## C: FDR > colocalize --> TFBS: N=0
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05 && $7>=a[2] && $7<=a[3]) print a[1],$7-1,$7,$1,$2;}' final.cis.eQTL.new.d1e6.p1e-2.xls  | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo  # NONE
 
+## D: p<0.01 --> colocalize --> TFBS: N=5
+awk '{OFS="\t"; split($2,a,"_"); if($7>=a[2] && $7<=a[3]) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; if($8<2 || $9>=5) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo > final.cis.eQTL.d0.p1e-2.classI_or_nTFgt5.TFBS.xls
 
-
-awk '{OFS="\t"; split($2,a,"_"); if($7>=a[2] && $7<=a[3]) print;}' final.cis.eQTL.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; if($8<2 || $9>10) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo
 more +2 final.cis.eQTL.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05 && $7>=a[2] && $7<=a[3]) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo
 more +2 final.cis.eQTL.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; if($8<3 || $9>10) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo
 

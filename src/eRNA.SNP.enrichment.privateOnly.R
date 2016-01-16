@@ -46,17 +46,25 @@ pdf(paste0("eRNA.private.",minor,".SNP.enrichments.",type,".pdf"), width=24, hei
 
 # re-order the levels in the order of appearance in the data.frame
 results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
-p = ggplot(results, aes(x=Disease_or_Trait2, y=OR, fill=type, ymax=max(OR)*1.1)) + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") + theme_bw() + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) + geom_text(aes(label=paste0(observed," (",round(-log10(pvalue),1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) + ggtitle(paste0("private HTNE -- SNP enrichments (LD from ",type,", sorted by OR)")) 
+p = ggplot(results, aes(x=Disease_or_Trait2, y=OR, fill=type, ymax=max(OR)*1.1)) 
+p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
+p = p + theme_bw() 
+p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) 
+p = p + geom_text(aes(label=paste0(observed," (",round(-log10(pvalue),1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 
+p = p + ggtitle(paste0("private HTNE -- SNP enrichments (LD from ",type,", sorted by OR)")) 
 
 print(p);
 
 results = results[with(results, order(type, pvalue)), ]
 results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
-p = ggplot(results, aes(x=Disease_or_Trait2, y=-log10(pvalue), fill=type, ymax=max(-log10(pvalue))*1.1)) + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") + theme_bw() + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) + geom_text(aes(label=paste0(observed," (",round(OR,1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) + ggtitle(paste0("private HTNE -- SNP enrichments (LD from ",type,", sorted by pvalue)")) 
-
-p=p+geom_hline(yintercept=-log10(0.05/1288), size=1, linetype="dashed")
-
+p = ggplot(results, aes(x=Disease_or_Trait2, y=-log10(pvalue), fill=type, ymax=max(-log10(pvalue))*1.1)) 
+p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
+p = p + geom_hline(yintercept=-log10(0.05/1037), size=1)  ## Bonferroni correction, where 1037 is the number of disease/traits in GWAS (wc -l SNP.$type.count.all)
+p = p + theme_bw() 
+p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) 
+p = p + geom_text(aes(label=paste0(observed," (",round(OR,1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 
+p = p + ggtitle(paste0("private HTNE -- SNP enrichments (LD from ",type,", sorted by pvalue)")) 
 
 print(p);
 
-dev.off();
+dev.off()

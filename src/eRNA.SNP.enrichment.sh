@@ -1,11 +1,16 @@
 # Usage: 
-# for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh PLINK $i; done 
 # for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP $i; done 
-# bsub -n 1 -q normal -J HCILB_SNDA bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP HCILB_SNDA
 # for i in HCILB_SNDA HC_TCPY HC_MCPY HC_FB HC_PBMC; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP $i; done 
+
+# alternatively,
+## for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh PLINK $i; done 
+# bsub -n 1 -q normal -J HCILB_SNDA bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP HCILB_SNDA
 
 type=$1
 samplegroup=$2
+
+# debug
+# type='SNAP'; samplegroup='HCILB_SNDA'
 
 cd ~/eRNAseq/$samplegroup
 
@@ -20,6 +25,8 @@ awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$
 
 # number of gwas SNPs
 wc -l $snps_in_LD
+# number of diseases/traits
+cut -f7 $snps_in_LD |sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort -u | wc -l
 # number of associations
 wc -l $snps_in_LD.autosomal.associations.bed
 
