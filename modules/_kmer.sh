@@ -1,8 +1,9 @@
 #!/bin/bash
 
 sample=$1
-K=$2
+K=9
 
-kpal count -p $sample -k 9 ${sample}.R1.fa ${sample}.R1.k9
-kpal count -p $sample -k 9 ${sample}.R2.fa ${sample}.R2.k9
-kpal merge ${sample}.R1.k9 ${sample}.R2.k9 ${sample}.k9
+kpal count -p $sample -k $K ${sample}.R1.fa ${sample}.R1.k$K
+kpal count -p $sample -k $K ${sample}.R2.fa ${sample}.R2.k$K
+kpal merge ${sample}.R1.k$K ${sample}.R2.k$K ${sample}.k$K
+rm ${sample}.R1.k$K ${sample}.R2.k$K

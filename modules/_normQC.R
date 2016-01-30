@@ -29,7 +29,7 @@ message("generating RLE plot...")
 
 #Two effects may characterize arrays with lower quality: 1) the spread is greater than that of other arrays from this experiment, and 2) the box is not centered near 0.
 
-pdf(outputfile, width=15, height=15)
+pdf(outputfile, width=7, height=7)
 par(mfrow=c(2,2))
 # filter genes with 0 in >90% samples
 notAllZero <- (rowMeans(fpkm>0)>0.1)

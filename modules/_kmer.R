@@ -24,7 +24,7 @@ df=lower+upper; diag(df)=NA; dim(df)
 kmer=apply(df,1,function(x) median(x,na.rm=T))
 names(kmer)=nms
 
-pdf(outputfile, width=15, height=15)
+pdf(outputfile, width=7, height=7)
 hist(kmer, breaks=100, xlab="Median k-mer distance", ylab="Number of samples")
 legend("topright", paste(names(kmer[kmer>0.001]), kmer[kmer>0.001], sep=": "), bty='n', cex=0.8)
 dev.off()

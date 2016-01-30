@@ -39,16 +39,18 @@ results$Disease_or_Trait=gsub("_"," ", results$Disease_or_Trait)
 results = results[with(results, order(type, -OR)), ]
 write.table(results, paste0("eRNA.SNP.enrichments.",type,".xls"), sep="\t", col.names = T, row.names = F)
 
-pdf(paste0("eRNA.SNP.enrichments.",type,".pdf"), width=24, height=12); 
+pdf(paste0("eRNA.SNP.enrichments.",type,".pdf"), width=20, height=12); 
 # Note: Don't use ggsave() with Rscript, which will generate another Rplot.pdf unnecessarily. See http://stackoverflow.com/questions/19382384/ggplot2-overwrite-one-another-in-rplots-pdf
 
 # re-order the levels in the order of appearance in the data.frame
+
+results=subset(results, pvalue<=0.01/1037)  # only show disease passing the Bonferroni correction
 
 results = results[with(results, order(type, pvalue)), ]
 results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
 p = ggplot(results, aes(x=Disease_or_Trait2, y=-log10(pvalue), fill=type, ymax=max(-log10(pvalue))*1.1)) 
 p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
-p = p + geom_hline(yintercept=-log10(0.05/1037), size=.5)  ## Bonferroni correction, where 1037 is the number of disease/traits in GWAS (wc -l SNP.$type.count.all)
+p = p + geom_hline(yintercept=-log10(0.01/1037), size=.5,linetype = 2)  ## Bonferroni correction, where 1037 is the number of disease/traits in GWAS (wc -l SNP.$type.count.all)
 p = p + theme_bw() 
 p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) 
 p = p + geom_text(aes(label=paste0(observed," (",round(OR,1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 

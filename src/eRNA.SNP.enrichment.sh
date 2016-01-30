@@ -30,10 +30,16 @@ cut -f7 $snps_in_LD |sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort -u | wc -l
 # number of associations
 wc -l $snps_in_LD.autosomal.associations.bed
 
-# random regions
+## random regions
 #bedtools shuffle -excl <(cat blacklist.bed eRNA.bed | cut -f1-3 | sortBed | mergeBed -i -) -noOverlapping -i eRNA.bed -g $GENOME/Annotation/Genes/ChromInfo.txt > eRNA.random.bed
 bedtools random -n 100000 -l 400 -seed 1234 -g $GENOME/Annotation/Genes/ChromInfo.txt | intersectBed -a stdin -b <(cat ../blacklist.bed eRNA.bed | cut -f1-3 | sortBed | mergeBed -i -) -v > eRNA.random.bed
 # wc -l eRNA.random.bed --> N=72202 (close to 71469 lines of eRNA.bed)
+
+## mRNA inner exons
+grep protein_coding.protein_coding $GENOME/Annotation/Genes/exons.bed | awk '{if(id!=$4) id=$4; else print}' | sort -k4,4 -k2,2nr | awk '{if(id!=$4) id=$4; else print}' > $GENOME/Annotation/Genes/mRNA.innner.exon.bed
+
+## promoter -- [-200,+200] of protein-coding GENCODE v19 TSS
+grep protein_coding.protein_coding $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 | awk '{OFS="\t"; s=($6=="+")?($2-200):($3-200); if(s<0) s=0; print $1,s,s+400}' > $GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed
 
 echo "## overlapped SNPs with each dataset"
 ### ##################
@@ -45,9 +51,9 @@ echo "# eRNA-private"
 [ -e eRNA.private.major.bed ] && intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.private.major.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.private.major.HTNE
 [ -e eRNA.private.minor.bed ] && intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.private.minor.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.private.minor.HTNE
 echo "# mRNA inner exons"
-intersectBed -a $snps_in_LD.autosomal.associations.bed -b <(grep protein_coding.protein_coding $GENOME/Annotation/Genes/exons.bed | awk '{if(id!=$4) id=$4; else print}' | sort -k4,4 -k2,2nr | awk '{if(id!=$4) id=$4; else print}')  -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.exon
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $GENOME/Annotation/Genes/mRNA.innner.exon.bed  -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.exon
 echo "# promoter -- [-200,+200] of protein-coding GENCODE v19 TSS"
-intersectBed -a $snps_in_LD.autosomal.associations.bed -b <(grep protein_coding.protein_coding $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 | awk '{OFS="\t"; s=($6=="+")?($2-200):($3-200); if(s<0) s=0; print $1,s,s+400}')  -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.promoter
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.promoter
 echo "# randomly sampling"
 intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.random.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.random
 
@@ -57,8 +63,8 @@ echo "## total overlapped SNPs count with each dataset"
 ### ##################
 echo "all" `wc -l $GENOME/Annotation/Variation/snp137.bed.groupped.SNP | cut -f1 -d' '` > SNP.$type.counts.summary
 echo "HTNE" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
-echo "exon" `grep protein_coding.protein_coding $GENOME/Annotation/Genes/exons.bed | awk '{if(id!=$4) id=$4; else print}' | sort -k4,4 -k2,2nr | awk '{if(id!=$4) id=$4; else print}' | intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b stdin -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
-echo "promoter" `grep protein_coding.protein_coding $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 | awk '{OFS="\t"; s=($6=="+")?($2-200):($3-200); if(s<0) s=0; print $1,s,s+400}'| intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b stdin -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "exon" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $GENOME/Annotation/Genes/mRNA.innner.exon.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "promoter" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "random" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.random.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 
 echo "## Fisher test and make plot"

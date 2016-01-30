@@ -124,10 +124,11 @@ colnames(df) = c('chr','start','end','SNP','gene','beta','t.stat','p.value','tra
 df$FDR=p.adjust(df$p.value,method='fdr'); df$bonferroni=p.adjust(df$p.value,method='bonferroni')
 write.table(df, "final.cis.eQTL.GWAS.adjusted.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
 quit('no')
+more +2 final.cis.eQTL.GWAS.adjusted.xls | awk -vFS="\t" '$10<=0.05' > final.cis.eQTL.GWAS.FDR5pt.xls
 # 3. disrupt the TFBS motif
 TFBS=../externalData/TFBS/factorbookMotifPos.v3.bed
-more +2 final.cis.eQTL.GWAS.adjusted.xls | intersectBed -a - -b $TFBS -wo | awk -vFS="\t" '$11<=0.05' > final.cis.eQTL.GWAS.Bonferroni5pt.TFBS.xls
-more +2 final.cis.eQTL.GWAS.adjusted.xls | intersectBed -a - -b $TFBS -wo | awk -vFS="\t" '$10<=0.05' > final.cis.eQTL.GWAS.FDR5pt.TFBS.xls
+more +2 final.cis.eQTL.GWAS.adjusted.xls | awk -vFS="\t" '$11<=0.05' | intersectBed -a - -b $TFBS -wo > final.cis.eQTL.GWAS.Bonferroni5pt.TFBS.xls
+more +2 final.cis.eQTL.GWAS.adjusted.xls | awk -vFS="\t" '$10<=0.05' | intersectBed -a - -b $TFBS -wo > final.cis.eQTL.GWAS.FDR5pt.TFBS.xls
 
 ## Note: but none of them have any SNP colocalize with eRNA, even in +/- 500bp window
 

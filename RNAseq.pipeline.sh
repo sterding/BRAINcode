@@ -41,13 +41,18 @@ fordisplay_dir=$input_dir/../for_display
 result_dir=$input_dir/../results 
 [ -d $result_dir ] || mkdir $result_dir
 
+## TODO: test the prerequisitions, incl.
+# kpal, fastqc, tophat, bowtie, CIRI, GATK, cufflinks, htseq-count, bedtools, samtools, R, fastq-mcf, python
+# Jim-Kent's utility: bigWigSummary ...
+# R package: DESeq2, MatrixEQTL, SPIA, SVA, PEER, ggplot2 etc.
+
 ########################
 ## 1. Processing per sample 
 ########################
 cd $input_dir
 
-#for i in *.R1.fastq.gz;
-for i in HC_MD5247_SN_7_rep2.stranded.fr-unstrand.R1.fastq.gz;
+for i in *.R1.fastq.gz;
+#for i in HC_MD5247_SN_7_rep2.stranded.fr-unstrand.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -225,14 +230,14 @@ Rscript $pipeline_path/modules/_normQC.R genes.fpkm.HCILB.uniq.xls QC.genes.fpkm
 ## k-mer distance
 cd $filtered_dir/
 for i in *_[12]_*fastq.gz; do echo $i;  [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HWI-ST' $i fa/${i/fastq.gz/fa};  done
-for i in *_[3-6]_*fastq.gz; do echo $i; [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HISEQ' $i fa/${i/fastq.gz/fa};  done
+for i in *_[3-7]_*fastq.gz; do echo $i; [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HISEQ' $i fa/${i/fastq.gz/fa};  done
 cd fa
 for i in [!PD]*.R1.fa; do
     sample=${i/.R1.fa/}
-    bsub -J $sample -oo _$sample.log -eo _$sample.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _kmer.sh $sample
+    [ -e $sample.k9 ] || bsub -J $sample -oo _$sample.log -eo _$sample.log -q normal -n 6 -M 2000 -u $EMAIL -N _kmer.sh $sample
 done
 
-kpal cat *rep?.k9 mergedHCILB_k9
+kpal cat *.k9 mergedHCILB_k9 # not the controls (e.g. stranded, amplified)
 kpal matrix mergedHCILB_k9 mergedHCILB_k9.matrix.txt
 Rscript $pipeline_path/modules/_kmer.R mergedHCILB_k9.matrix.txt
 

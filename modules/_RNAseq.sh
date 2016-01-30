@@ -25,8 +25,6 @@ R1=$1  # filename of R1
 R2=$2  # filename of R2 (for paired-end reads)
 samplename=${R1/[.|_]R1*/}
 
-cirRNA_caller = $3
-
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
 
@@ -76,12 +74,26 @@ fastqc --outdir $outputdir/$samplename --extract -t 2 $R1 $R2 && \
 rm $outputdir/$samplename/*fastqc.zip && \
 touch $outputdir/$samplename/.status.$modulename.fastqc
 
+#############################################
+echo "["`date`"] STEP 3.1 k-mer for outlier detection"
+############################################
+# require to install kpal: http://kpal.readthedocs.org/en/latest/install.html
+[ ! -f $outputdir/$samplename/.status.$modulename.kmers ] && \
+fqHEAD=`zcat $R1 | head -n1 | sed 's/@//g'| cut -f1 -d":"` && \
+fastqToFa -nameVerify=$fqHEAD $R1 stdout | kpal count -p $samplename -k 9 - $outputdir/$samplename/R1.k9 && \
+fastqToFa -nameVerify=$fqHEAD $R2 stdout | kpal count -p $samplename -k 9 - $outputdir/$samplename/R2.k9 && \
+kpal merge $outputdir/$samplename/R1.k9 $outputdir/$samplename/R2.k9 $outputdir/$samplename/k9 && \
+rm $outputdir/$samplename/R1.k9 $outputdir/$samplename/R2.k9 && \
+touch $outputdir/$samplename/.status.$modulename.kmers
+
 ############################################
 echo "["`date`"] STEP 4. mapping"
 ############################################
-## tophat (output accepted_hits.sam, allow up to 100 multiple hits)
-## TODO: 1) use offrated index genome_offrate3;
-## Note: GATK requires @RG group has fields of ID, SM, PL, LB, PU
+cd $inputdir/../filtered
+## tophat 
+## Note: 
+## 1) output sorted accepted_hits.bam, allow up to 100 multiple hits
+## 2) GATK requires @RG group has fields of ID, SM, PL, LB, PU
 
 ## NOTE: this was done for all batch 1-5 samples with tophat version 2.0.8
 [ ! -f $outputdir/$samplename/.status.$modulename.mapping ] && \
@@ -113,10 +125,10 @@ echo "["`date`"] STEP 5. post-processing, format converting"
 
 cd $outputdir/$samplename
 
-## NOTE: after changing to output sorted bam from Tophat directly, the following sam-->bam and sorting may not need any more
+## NOTE: after changing to output sorted bam from Tophat directly, the following sam-->bam and sorting is not needed any more, only index is retained.
 [ ! -f .status.$modulename.sam2bam ] && \
-samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted && \
-mv accepted_hits.sorted.bam accepted_hits.bam && \
+#samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted && \
+#mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
 touch .status.$modulename.sam2bam
 

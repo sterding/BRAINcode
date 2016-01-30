@@ -1,7 +1,8 @@
 #!/usr/bin/perl
 
 ## Modified version by Xianjun Dong
-## Date: 2015-Jan-13
+# 1. add TxID and gene type in the name column (2015-Jan-13)
+# 2. fix bug for the case with spliced codon. (2016-Jan-29)
 #
 # Copyright (c) 2011 Erik Aronesty (erik@q32.com)
 # 
@@ -50,32 +51,36 @@ while (<IN>) {
 		($gene_type) = $f[8]=~ /gene_type "([^"]+)"/;
 		($gene_name) = $f[8]=~ /gene_name "([^"]+)"/;
 		($trans_type) = $f[8]=~ /transcript_type "([^"]+)"/;
-		$id="${gene_name}___${geneid}___${transid}___${gene_type}___${trans_type}";
+		$id="${gene_name}___${geneid}___${transid}___${gene_type}___${trans_type}";  # (by Xianjun)
 	}
 
 	next unless $id && $f[0];
-
+	
 	if ($f[2] eq 'exon') {
 		die "no position at exon on line $." if ! $f[3];
-        # gff3 puts :\d in exons sometimes
-        $id =~ s/:\d+$// if $gff == 3;
+    # gff3 puts :\d in exons sometimes
+    $id =~ s/:\d+$// if $gff == 3;
 		push @{$exons{$id}}, \@f;
 		# save lowest start
 		$trans{$id} = \@f if !$trans{$id};
 	} elsif ($f[2] eq 'start_codon') {
-		#optional, output codon start/stop as "thick" region in bed
-		$sc{$id}->[0] = $f[3];
+		# to save the most left and most right of start_codon and stop_codon. (by Xianjun)
+		$sc{$id}->[0] = $f[3] if !$sc{$id} || $sc{$id}->[0] > $f[3];
+		$sc{$id}->[1] = $f[4] if !$sc{$id} || $sc{$id}->[1] < $f[4];
 	} elsif ($f[2] eq 'CDS') {
-		#optional, output codon start/stop as "thick" region in bed
-		push @{$cds{$id}}, \@f;
-		# save lowest start
-		$cdx{$id} = \@f if !$cdx{$id};
+		push @{$CDS{$id}}, \@f;
+		$cdx{$id} = \@f if !$cdx{$id};  # Note that the CDS of GTF does not contain stop codon (http://mblab.wustl.edu/GTF22.html), so we cannot use the min/max to represent $7,$8 column of bed12
+		# some gene (e.g. ENST00000423372) does not have start codon, so, we define $7=min(CDS, start_codon, stop_codon) and $8=max(CDS, start_codon, stop_codon)
+		$sc{$id}->[0] = $f[3] if !$sc{$id} || $sc{$id}->[0] > $f[3];
+		$sc{$id}->[1] = $f[4] if !$sc{$id} || $sc{$id}->[1] < $f[4];
 	} elsif ($f[2] eq 'stop_codon') {
-		$sc{$id}->[1] = $f[4];
+		$sc{$id}->[0] = $f[3] if !$sc{$id} || $sc{$id}->[0] > $f[3];
+		$sc{$id}->[1] = $f[4] if !$sc{$id} || $sc{$id}->[1] < $f[4];
 	} elsif ($f[2] eq 'miRNA' ) {
 		$trans{$id} = \@f if !$trans{$id};
 		push @{$exons{$id}}, \@f;
 	}
+	
 }
 
 for $id ( 
@@ -86,8 +91,8 @@ for $id (
 		$trans{$a}->[0] cmp $trans{$b}->[0]
 	} (keys(%trans)) ) {
 		my ($chr, undef, undef, undef, undef, undef, $dir, undef, $attr, undef, $cds, $cde) = @{$trans{$id}};
-        my ($cds, $cde);
-        ($cds, $cde) = @{$sc{$id}} if $sc{$id};
+    my ($cds, $cde);
+    ($cds, $cde) = @{$sc{$id}} if $sc{$id};
 
 		# sort by pos
 		my @ex = sort {
@@ -97,14 +102,14 @@ for $id (
 		my $beg = $ex[0][3];
 		my $end = $ex[-1][4];
 		
-		if ($dir eq '-') {
-			# swap
-			$tmp=$cds;
-			$cds=$cde;
-			$cde=$tmp;
-			$cds -= 2 if $cds;
-			$cde += 2 if $cde;
-		}
+# 		if ($dir eq '-') {
+# 			# swap
+# 			$tmp=$cds;
+# 			$cds=$cde;
+# 			$cde=$tmp;
+# 			#$cds -= 2 if $cds;
+# 			#$cde += 2 if $cde;
+# 		}
 
 		# not specified, just use exons
 		$cds = $beg if !$cds;
