@@ -5,6 +5,8 @@
 # the input file is a bed12 file, which can be converted from GTF using gtf2bed
 # the output file is a bed12 file for the required part of gene structure (cds, intron, 3utr, 5utr)
 # Usage: cat input.bed12 | awk -v type=5utr -f bed12toAnnotation.awk
+# Note: for CDS, it's recommended to run "grep protein_coding.protein_coding" before hand.e.g.
+# fgrep protein_coding___protein_coding gencode.v19.annotation.bed12 | awk -v type=cds -f ~/pipeline/bin/bed12toAnnotation.awk > gencode.v19.annotation.gtf.cds.bed12
 #
 #
 # Copyright (c) 2016 Xianjun Dong (sterding@gmail.com)
@@ -36,13 +38,13 @@
   split($11,blockSizes,","); 
   split($12,blockStarts,","); 
   blockCount=$10;
+  A=""; B="";
+  N=0;
   
   ## 5' UTR
   if(type=="5utr" || type=="5UTR" || type=="utr5" || type=="UTR5")
   {
-    A=""; B="";  
     if($7==$8) next; 
-    N=0;
     if($6=="+" && $2<$7) {
       start=$2;end=$7;
       for(i=1;i<=blockCount;i++) if(($2+blockStarts[i]+blockSizes[i])<=$7) {A=A""blockSizes[i]",";B=B""blockStarts[i]","; end=($2+blockStarts[i]+blockSizes[i]); N++;} else { if(($2+blockStarts[i])<$7) {A=A""($7-$2-blockStarts[i])",";B=B""blockStarts[i]","; N++; end=$7;} break; } 
@@ -58,9 +60,7 @@
   ## 3' UTR
   if(type=="3utr" || type=="3UTR" || type=="utr3" || type=="UTR3")
   {
-    A=""; B="";  
     if($7==$8) next; 
-    N=0;
     if($6=="-" && $2<$7) {
       start=$2;end=$7;
       for(i=1;i<=blockCount;i++) if(($2+blockStarts[i]+blockSizes[i])<=$7) {A=A""blockSizes[i]",";B=B""blockStarts[i]","; end=($2+blockStarts[i]+blockSizes[i]); N++;} else { if(($2+blockStarts[i])<$7) {A=A""($7-$2-blockStarts[i])",";B=B""blockStarts[i]","; N++; end=$7;} break; } 
@@ -76,7 +76,6 @@
   ## CDS
   if(type=="cds" || type=="CDS")
   {
-    N=0; 
     for(i=1;i<=blockCount;i++) if(($2+blockStarts[i]+blockSizes[i])>$7 && ($2+blockStarts[i])<$8) {
       N++; 
       start=$2+blockStarts[i]-$7; size=blockSizes[i]; 

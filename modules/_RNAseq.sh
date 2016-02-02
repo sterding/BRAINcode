@@ -80,6 +80,7 @@ echo "["`date`"] STEP 3.1 k-mer for outlier detection"
 # require to install kpal: http://kpal.readthedocs.org/en/latest/install.html
 [ ! -f $outputdir/$samplename/.status.$modulename.kmers ] && \
 fqHEAD=`zcat $R1 | head -n1 | sed 's/@//g'| cut -f1 -d":"` && \
+rm $outputdir/$samplename/*k9 && \
 fastqToFa -nameVerify=$fqHEAD $R1 stdout | kpal count -p $samplename -k 9 - $outputdir/$samplename/R1.k9 && \
 fastqToFa -nameVerify=$fqHEAD $R2 stdout | kpal count -p $samplename -k 9 - $outputdir/$samplename/R2.k9 && \
 kpal merge $outputdir/$samplename/R1.k9 $outputdir/$samplename/R2.k9 $outputdir/$samplename/k9 && \

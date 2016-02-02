@@ -82,7 +82,7 @@ bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.eRNA.mean
 while read line
 do
     echo " - sample:" $line;
-    i=~/neurogen/rnaseq_PD/run_output/$line/uniq/accepted_hits.normalized2.bw
+    i=~/neurogen/rnaseq_PD/run_output/$line/uniq/accepted_hits.normalized.bw
     bedtools shuffle -seed 123 -excl ../toExclude.bed -noOverlapping -i eRNA.tmp5 -g $GENOME/Annotation/Genes/ChromInfo.txt | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $i stdin stdout | cut -f1,5 > $i.$SAMPLE_GROUP.rdbg
     bigWigAverageOverBed $i eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $i.$SAMPLE_GROUP.eRNA.meanRPM
 done < ~/neurogen/rnaseq_PD/results/merged/samplelist.$SAMPLE_GROUP

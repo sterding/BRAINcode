@@ -33,15 +33,15 @@ cd ~/neurogen/rnaseq_PD/results/merged/
 [ "$group_lable" = "HC_PBMC" ]  && pattern="HC_.*_PBMC_[^u]*/";
 [ "$group_lable" = "HC_FB" ]  && pattern="HC_.*_FB_";
 
-ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern" | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' > samplelist.$group_lable
+ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph | grep -E "$pattern" | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' > samplelist.$group_lable
 N=`cat samplelist.$group_lable | wc -l`
 echo $group_lable, "$pattern";
 echo "N = $N"
 
 if [ "$N" == "1" ]
 then
-  awk '{OFS="\t";S+=$4*($3-$2); if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id; TOTAL=3095677412; bc=S/TOTAL;print "#basalCoverage="bc, "#"S"/"TOTAL;}' `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"` > trimmedmean.uniq.normalized.$group_lable.bedGraph
-  ln -fs `ls ../../run_output/*/uniq/accepted_hits.normalized2.bw | grep -E "$pattern"` trimmedmean.uniq.normalized.$group_lable.bw
+  awk '{OFS="\t";S+=$4*($3-$2); if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id; TOTAL=3095677412; bc=S/TOTAL;print "#basalCoverage="bc, "#"S"/"TOTAL;}' `ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph | grep -E "$pattern"` > trimmedmean.uniq.normalized.$group_lable.bedGraph
+  ln -fs `ls ../../run_output/*/uniq/accepted_hits.normalized.bw | grep -E "$pattern"` trimmedmean.uniq.normalized.$group_lable.bw
   exit
 fi
     
@@ -50,7 +50,7 @@ echo "["`date`"] computing trimmed mean of bedGraph"
 # the nuclear genome size:
 # curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/hg19.chrom.sizes | grep -v "_" | grep -v chrM | awk '{s+=$2}END{print s}'  # 3095677412
 
-unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "$pattern"` \
+unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph | grep -E "$pattern"` \
 | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
 | awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.normalized.$group_lable.bedGraph
 
@@ -99,14 +99,14 @@ cd -
 
 ## version 3: trimmed mean (10%)
 #
-#unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "(HC|ND)_.*_MCPY_[2345]"` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > HC_MCPY.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig HC_MCPY.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt HC_MCPY.trimmedmean.uniq.normalized.bw
+#unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph | grep -E "(HC|ND)_.*_MCPY_[2345]"` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > HC_MCPY.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig HC_MCPY.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt HC_MCPY.trimmedmean.uniq.normalized.bw
 #
-#unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "(HC|ND)_.*_TCPY_[2345]"` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > HC_TCPY.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig HC_TCPY.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt HC_TCPY.trimmedmean.uniq.normalized.bw
+#unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph | grep -E "(HC|ND)_.*_TCPY_[2345]"` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > HC_TCPY.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig HC_TCPY.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt HC_TCPY.trimmedmean.uniq.normalized.bw
 #
-#unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized2.bedGraph | grep -E "(HC|ND)_.*_SNDA_[2345]"` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > HC_SNDA.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig HC_SNDA.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt HC_SNDA.trimmedmean.uniq.normalized.bw
+#unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph | grep -E "(HC|ND)_.*_SNDA_[2345]"` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > HC_SNDA.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig HC_SNDA.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt HC_SNDA.trimmedmean.uniq.normalized.bw
 #
-#unionBedGraphs -i `ls ../../run_output/PD*_SNDA_[234]/uniq/accepted_hits.normalized2.bedGraph` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > PD_SNDA.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig PD_SNDA.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt PD_SNDA.trimmedmean.uniq.normalized.bw
+#unionBedGraphs -i `ls ../../run_output/PD*_SNDA_[234]/uniq/accepted_hits.normalized.bedGraph` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > PD_SNDA.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig PD_SNDA.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt PD_SNDA.trimmedmean.uniq.normalized.bw
 #
-#unionBedGraphs -i `ls ../../run_output/ILB*_SNDA_[234]/uniq/accepted_hits.normalized2.bedGraph` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > ILB_SNDA.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig ILB_SNDA.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt ILB_SNDA.trimmedmean.uniq.normalized.bw
+#unionBedGraphs -i `ls ../../run_output/ILB*_SNDA_[234]/uniq/accepted_hits.normalized.bedGraph` | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); s=0; for(i=a+1;i<=(c-a);i++) s+=j[i];return s/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' > ILB_SNDA.trimmedmean.uniq.normalized.bedGraph && bedGraphToBigWig ILB_SNDA.trimmedmean.uniq.normalized.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt ILB_SNDA.trimmedmean.uniq.normalized.bw
 
 

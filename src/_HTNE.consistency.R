@@ -30,7 +30,7 @@ EXP=data.frame(); PV=data.frame();
 for(i in samplelist){
   print(i)
   # read background
-  df=read.table(paste0("~/neurogen/rnaseq_PD/run_output/",i,"/uniq/accepted_hits.normalized2.bw.", SAMPLE_GROUP, ".rdbg"), header=F)[,2] # mean RPM (mean0 from bigWigAverageOverBed)
+  df=read.table(paste0("~/neurogen/rnaseq_PD/run_output/",i,"/uniq/accepted_hits.normalized.bw.", SAMPLE_GROUP, ".rdbg"), header=F)[,2] # mean RPM (mean0 from bigWigAverageOverBed)
   Fn=ecdf(df)
   
 #   # plot the cummulative plot
@@ -41,7 +41,7 @@ for(i in samplelist){
 #   text(g(0.999), 0.999, round(g(0.999),2), cex=5, adj=c(0,1))
   
   # read expression
-  expression=read.table(paste0("~/neurogen/rnaseq_PD/run_output/",i,"/uniq/accepted_hits.normalized2.bw.", SAMPLE_GROUP, ".eRNA.meanRPM"), header=F)
+  expression=read.table(paste0("~/neurogen/rnaseq_PD/run_output/",i,"/uniq/accepted_hits.normalized.bw.", SAMPLE_GROUP, ".eRNA.meanRPM"), header=F)
   pvalue=as.numeric(format(1-Fn(expression[,2]), digits=3));
 
   # merge

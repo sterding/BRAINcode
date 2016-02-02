@@ -179,23 +179,22 @@ dev.off()
 [ -d $result_dir/merged ] || mkdir $result_dir/merged
 cd $result_dir/merged
 
-## multi mapper
-#Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/genes.fpkm_tracking` genes.fpkm.allSamples.multi.xls
-#Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.multi.xls
-#Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.multi.xls
-
 # uniq mapper
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.allSamples.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.allSamples.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.cufflinks.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.cufflinks.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.cufflinks.allSamples.uniq.xls
 
 # HC/ILB only
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking | grep -v PD_` genes.fpkm.HCILB.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking | grep -v PD_` isoforms.fpkm.HCILB.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab | grep -v PD_` genes.htseqcount.HCILB.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking | grep -v PD_` genes.fpkm.cufflinks.HCILB.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking | grep -v PD_` isoforms.fpkm.cufflinks.HCILB.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab | grep -v PD_` genes.htseqcount.cufflinks.HCILB.uniq.xls
 
 ## UPdate: use cuffquant --> cuffnorm to calculate normalized expression FPKM
 bsub -J cuffnorm -oo _cuffnorm.log -eo _cuffnorm.log -q big-multi -n 8 -M 10000 -R rusage[mem=10000] cuffnorm -o ./cuffnorm --no-update-check -L `ls /data/neurogen/rnaseq_PD/run_output/*/uniq/rpkm/abundances.cxb | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' | tr '\n' ','` -p 8 -total-hits-norm -library-norm-method quartile $ANNOTATION_GTF `ls /data/neurogen/rnaseq_PD/run_output/*/uniq/rpkm/abundances.cxb`
+ln -fs cuffnorm/genes.fpkm_table genes.fpkm.cuffnorm.allSamples.uniq.xls
+ln -fs cuffnorm/genes.count_table genes.count.cuffnorm.allSamples.uniq.xls
+ln -fs cuffnorm/isoforms.fpkm_table isoforms.fpkm.cuffnorm.allSamples.uniq.xls
+ln -fs cuffnorm/isoforms.count_table isoforms.count.cuffnorm.allSamples.uniq.xls
 
 #--------------------------
 # 2.2 combined bigwig into 
@@ -211,41 +210,32 @@ done
 #--------------------------
 _make_trackDb.sh > $fordisplay_dir/trackDb.RNAseq.txt
 rsync -azvL $fordisplay_dir/trackDb.RNAseq.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
-rsync -azvL $fordisplay_dir/*uniq.accepted_hits.normalized2.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/
+rsync -azvL $fordisplay_dir/*uniq.accepted_hits.normalized.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/
 rsync -azv *.xls *.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/merged
 
 #--------------------------
 ### expression trend of specific gene(s) along the stages (e.g. HC,ILB,PD)
 #--------------------------
-grep -w -P "tracking_id|SNCA" isoforms.fpkm.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.tx.pdf
-grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.pdf
+grep -w -P "tracking_id|SNCA" isoforms.fpkm.cufflinks.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.tx.pdf
+grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.cufflinks.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.pdf
 
 
 #########################
 ### 3. detect outlier
 #########################
 cd $result_dir/merged
-Rscript $pipeline_path/modules/_normQC.R genes.fpkm.HCILB.uniq.xls QC.genes.fpkm.HCILB.uniq.pdf
-
 ## k-mer distance
-cd $filtered_dir/
-for i in *_[12]_*fastq.gz; do echo $i;  [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HWI-ST' $i fa/${i/fastq.gz/fa};  done
-for i in *_[3-7]_*fastq.gz; do echo $i; [ -e fa/${i/fastq.gz/fa} ] || bsub -q short fastqToFa -nameVerify='HISEQ' $i fa/${i/fastq.gz/fa};  done
-cd fa
-for i in [!PD]*.R1.fa; do
-    sample=${i/.R1.fa/}
-    [ -e $sample.k9 ] || bsub -J $sample -oo _$sample.log -eo _$sample.log -q normal -n 6 -M 2000 -u $EMAIL -N _kmer.sh $sample
-done
-
-kpal cat *.k9 mergedHCILB_k9 # not the controls (e.g. stranded, amplified)
+kpal cat $output_dir/[!PD]*/k9 mergedHCILB_k9 # not the controls (e.g. stranded, amplified)
 kpal matrix mergedHCILB_k9 mergedHCILB_k9.matrix.txt
-Rscript $pipeline_path/modules/_kmer.R mergedHCILB_k9.matrix.txt
+
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cufflinks.HCILB.uniq.xls mergedHCILB_k9.matrix.txt QC.genes.fpkm.cufflinks.HCILB.uniq.pdf
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cuffnorm.HCILB.uniq.xls mergedHCILB_k9.matrix.txt QC.genes.fpkm.cuffnorm.HCILB.uniq.pdf
 
 #########################
 ### 3. check consistency of replicates
 #########################
 cd $result_dir/merged
-Rscript $pipeline_path/modules/_replicates.R genes.fpkm.HCILB.uniq.xls QCrep.genes.fpkm.HCILB.uniq.pdf
+Rscript $pipeline_path/modules/_replicates.R genes.fpkm.cufflinks.HCILB.uniq.xls QCrep.genes.fpkm.HCILB.uniq.pdf
 
 # linear amplification vs. non-amplification
 Rscript $pipeline_path/modules/_pairwise_compare.R HC_M0235-4_PBMC_6_rep1.amplified HC_M0235-4_PBMC_6_rep1.unamplified
@@ -271,7 +261,7 @@ Rscript $pipeline_path/modules/_pairwise_compare.R PD_UWA734_SNDA_2_rep1 PD_UWA7
 cd $result_dir/eQTL
 module unload R/3.1.0
 module load R/3.0.2
-Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.HCILB.uniq.xls 
+Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.cufflinks.HCILB.uniq.xls 
 module unload R/3.0.2; module load R/3.1.0
 
 ## eQTL with SVA normalization
@@ -285,7 +275,7 @@ bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/e
 #########################
 ### 5. post-normalization QC
 #########################
-Rscript $pipeline_path/modules/_normQC.R genes.fpkm.HCILB.uniq.xls QC.genes.fpkm.HCILB.uniq.pdf
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cufflinks.HCILB.uniq.xls QC.genes.fpkm.HCILB.uniq.pdf
 
 ########################
 ## 3. draw aggregation plot for the RNAseq density in the genetic region
