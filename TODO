@@ -1,12 +1,12 @@
-flowchart of eQTL and dSNP enrichment of HTNE (for Clemens)
+flowchart of eQTL and dSNP enrichment of HTNE (for Clemens) 
 correlation for eRNA and GENCODE genes  -- send data to GL for visualization
 clustering HTNEs to show cell-specific block
 HTNE vs. gene: which one is better for cell-type specificity? e.g. CELF2, MAPT locus
-re-ran eQTL with corrected label
-Update UCSC genome with correct label
 waiting SNP.vcf file from GL to proceed the ASE analysis
 test the two batch7 stranded libs with unstrand and fr-secondstrand potocal
 calling CAGE bidirectional enhaner @ jobID: 358835
+DONE: re-ran eQTL with corrected label
+DONE: Update UCSC genome with correct label
 
 [Wed Dec 16 13:13:13 EST 2015]
 1. update normalized RNAseq tracks with non-rRNA-MT for all samples; re-generate RNAseq track

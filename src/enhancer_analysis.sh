@@ -335,8 +335,7 @@ Rscript eRNA.clustering.R eRNA.80samples.rawcount.xls
 #############################################################
 
 cut -f1,9- ~/neurogen/rnaseq_PD/results/merged/genes.fpkm.allSamples.uniq.xls > genes.fpkm.allSamples.uniq.xls
-Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.target.correlation.R eRNA.allsamples.RPKM.tab genes.fpkm.allSamples.uniq.xls eRNA.correlate.gene.in.RPKM
-Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.target.correlation.R eRNA.allsamples.readscount.tab ~/neurogen/rnaseq_PD/results/DE_DESeq2/PDvsHC/htseqcount.raw.allsamples.xls eRNA.correlate.gene.in.readscount.tab
+Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.target.correlation.R eRNA.meanRPM.xls ~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls eRNA.correlate.gene.in.fpkm.rho.tab
 
 # join pcc and rho
 join -j 1 <(awk '{print $1"__"$2,$3;}' eRNA.correlate.gene.in.RPKM.pcc.tab|sort) <(awk '{print $1"__"$2,$3;}' eRNA.correlate.gene.in.RPKM.rho.tab|sort) | sort -r | sed 's/__/\t/g;s/ /\t/g' >eRNA.correlate.gene.in.RPKM.cor.tab

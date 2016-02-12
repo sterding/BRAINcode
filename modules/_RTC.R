@@ -129,14 +129,25 @@ for(i in 1:nrow(eqtl)){
     }
 }
 
-colnames(result) = c("eQTL_SNP", "Gene", "FDR_eQTL", "GWAS_SNP","Complex_Trait", "RTC");
+colnames(result) = c("eQTL_SNP", ifelse(grepl("eRNA|HTNE", eqtl_file_name), "HTNE","Gene"), "FDR_eQTL", "GWAS_SNP","Complex_Trait", "RTC");
+result=as.data.frame(result)
 
 message("## Detected RTC results ...")
 
-write.table(result, paste(eqtl_file_name, "RTC", "xls", sep="."), quote =F, sep="\t", row.names=F)
+# Since the eQTL result might contain redudancey (e.g. if one SNP is reported as eQTL, the other SNPs in a strong LD are usually also eQTL), so we need to prune the output table, e.g. for each GWAS-gene pair by only taking the one with best RTC score 
+result=read.table(paste(eqtl_file_name, "RTC", "xls", sep="."), sep="\t", header=T)
 
-# Since the eQTL result might contain redudancey (e.g. if one SNP is reported as eQTL, the other SNPs in a strong LD are also reported), so we need to clean up in the output table
-# for one GWAS-gene pair, only take the one with best RTC score
-df = aggregate(RTC ~ Gene + GWAS_SNP + Complex_Trait, subset(result, RTC>=0.9, select=c(GWAS_SNP,Gene,Complex_Trait,RTC)), max)
-annotation=read.table("eRNA.characterize.xls", stringsAsFactors =F)
-write.table(cbind(df, hostgene=do.call(rbind,strsplit(annotation$f19.Hostgene[match(df$Gene, rownames(annotation))],"___"))[,1]), paste(eqtl_file_name, "RTC.filtered", "xls", sep="."), quote =F, sep="\t", row.names=F)
+if(grepl("eRNA|HTNE", eqtl_file_name)){
+  annotation=read.table("eRNA.characterize.xls", stringsAsFactors =F)
+  result = cbind(result, hostgene_HTNE=do.call(rbind,strsplit(annotation$f19.Hostgene[match(result$HTNE, rownames(annotation))],"___"))[,1])
+}
+# add postion of SNPs
+result=cbind(result, pos_GWAS_SNP=SNPID$end[match(result$GWAS_SNP, SNPID$SNPid_dbSNP)])
+result=cbind(result, pos_eQTL_SNP=SNPID$end[match(result$eQTL_SNP, SNPID$SNPid_dbSNP)])
+
+write.table(result, paste(eqtl_file_name, "RTC", "xls", sep="."), quote =F, sep="\t", na='NA', row.names=F)
+
+# filter
+# sed 's/ /___/g' final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls.RTC.xls | awk '{OFS="\t"; split($2,a,"_"); if(NR>1) print a[1],$8-1,$8,$0}'  | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-12,16 | groupBy -g 1-9 -c 10 -o distinct | awk '{OFS="\t"; split($2,a,"_"); print a[1],$9-1,$9,$0}' | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-13,17 | groupBy -g 1-10 -c 11 -o distinct | sed 's/___/ /g' > final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls
+
+# sed 's/ /___/g' final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls.RTC.xls | sort -k2,2r -k4,4 -k6,6gr | awk '{if(id!=$4) print; id=$4;}' | awk '{OFS="\t"; split($2,a,"_"); if(NR>1) print a[1],$8-1,$8,$0}'  | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-12,16 | groupBy -g 1-9 -c 10 -o distinct | awk '{OFS="\t"; split($2,a,"_"); print a[1],$9-1,$9,$0}' | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-13,17 | groupBy -g 1-10 -c 11 -o distinct | sed 's/___/ /g' > final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls
