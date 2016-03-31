@@ -1,6 +1,6 @@
 ###########################################
 # Rscript to infer target gene for eRNA by expression correlation
-# Usage: Rscript eRNA.target.correlation.R eRNA.meanRPM.xls ~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls output_filename
+# Usage: Rscript eRNA.target.correlation.R eRNA.meanRPM.allSamples.xls ~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls output_filename
 # Author: Xianjun Dong
 # Version: 0.0
 # Date: 2015-Apr-12
@@ -8,12 +8,12 @@
 
 args<-commandArgs(TRUE)
 
-df1=read.table(args[1], header=T)  # e.g. eRNA.expression.tab
-df2=read.table(args[2], header=T)  # e.g. genes.expression.tab
+df1=read.table(args[1], header=T, stringsAsFactors =F, check.names =F)  # e.g. eRNA.expression.tab
+df2=read.table(args[2], header=T, stringsAsFactors =F, check.names =F)  # e.g. genes.expression.tab
 output_filename=args[3]
 method=args[4] # "pearson"
 
-# df1=read.table("eRNA.meanRPM.xls",header=T); df2=read.table("~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls",header=T)
+# df1=read.table("eRNA.meanRPM.allSamples.xls",header=T); df2=read.table("~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls",header=T)
 
 COR_CUTOFF = 0.5
 FDR_CUTOFF = 0.05
@@ -46,7 +46,7 @@ for(i in 1:ncol(df1)){
 }
 results=as.data.frame(results)
 #write to file (for visualzation in Circos)
-write.table(results, paste(output_filename,".rho.tab",sep="."), col.names = c("eRNA","gene","rho"), row.names=F,sep="\t", quote=F)
+write.table(results, output_filename, col.names = c("eRNA","gene","rho"), row.names=F,sep="\t", quote=F)
 
 quit('no')
 

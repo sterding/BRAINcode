@@ -1,69 +1,42 @@
 ##############################################
 ## R script to test the feature of HiTNEs
 ## Author: Xianjun Dong
-## Usage: Rscript $HOME/neurogen/pipeline/RNAseq/src/eRNA.characterize.R
+## Usage: Rscript $HOME/neurogen/pipeline/RNAseq/src/eRNA.characterize.R ~/eRNAseq/HCILB_SNDA/eRNA.characterize.xls
 ## Date: Aug 10, 2015
 ## Version: 0.0
 ##############################################
+args<-commandArgs(TRUE)
+eRNAcharacterizefile=args[1]
 
-features = read.table("~/eRNAseq/eRNA.characterize.xls", header=T, stringsAsFactors =F)
+# eRNAcharacterizefile='~/eRNAseq/HCILB_SNDA/eRNA.characterize.xls'
 
-features$gene_ENSID=sub(".*___(.*)___.*","\\1", features$f19.Hostgene)
+DIR=dirname(eRNAcharacterizefile)
+
+features = read.table(eRNAcharacterizefile, header=T, stringsAsFactors =F)
+
 # ===========================================================================
 # GO enrichment for host genes of different HiTNE categories
 # ===========================================================================
-
-#source("http://www.bioconductor.org/biocLite.R"); biocLite(c("biomaRt", "topGO", "org.Hs.eg.db"))
-library(biomaRt)
-library(org.Hs.eg.db)
-library(topGO)
-library(Rgraphviz)
-
-df <- read.table("/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed", stringsAsFactors =F)
-gene_names = df$V5[df$V6=="protein_coding"]
-
-for(i in c("BP","CC", "MF")){
-    
-    all_genes =  factor(as.integer(gene_names %in% features$gene_ENSID))
-    names(all_genes) <- sub("(.*)\\..*", "\\1", gene_names)
-    GOdata <- new("topGOdata", ontology = i, allGenes = all_genes, geneSel = function(p) p < 0.01, description = "Test", annot = annFUN.org, mapping = "org.Hs.eg.db", ID = "Ensembl")
-    resultFisher <- runTest(GOdata, algorithm = "weight01", statistic = "fisher")
-    if(i=="BP") {
-        gt=data.frame(ontology=i, type="all", GenTable(GOdata, classicFisher = resultFisher, topNodes = 10, numChar=100))
-    } else {
-        gt=rbind(gt, data.frame(ontology=i, type="all", GenTable(GOdata, classicFisher = resultFisher, topNodes = 10, numChar=100)))
-    }
-
-    for(k in unique(features$class))
-    {
-        all_genes =  factor(as.integer(gene_names %in% features$gene_ENSID[features$class==k]))
-        names(all_genes) <- sub("(.*)\\..*", "\\1", gene_names)
-        GOdata <- new("topGOdata", ontology = i, allGenes = all_genes, geneSel = function(p) p < 0.01, description = "Test", annot = annFUN.org, mapping = "org.Hs.eg.db", ID = "Ensembl")
-        resultFisher <- runTest(GOdata, algorithm = "weight01", statistic = "fisher")
-        gt=rbind(gt, data.frame(ontology=i, type=paste0("class",k), GenTable(GOdata, classicFisher = resultFisher, topNodes = 10, numChar=100)))
-    }
-}    
-
-write.table(gt, "GOenrichment.genes.wHiTNE.xls", quote = F, col.names = NA, row.names = T)
-gt=read.table("GOenrichment.genes.wHiTNE.xls", header=T)
-
-gt$classicFisher = as.numeric(gt$classicFisher)
-gt$classicFisher = ifelse(is.na(gt$classicFisher),1e-30,gt$classicFisher);  # GenTable default trim anything <1e-30 as "<1e-30"
-gt=gt[with(gt, order(ontology,type,classicFisher)),]
-
-pdf("GOenrichment.genes.wHiTNE.pdf", width=6, height=4, paper='us')
-par(mar=c(4,16,2,2), mgp=c(2,.5,0));
-for(i in c("BP","CC", "MF")){
-    for(j in c('all','class1','class2','class3')){
-        barplot(-log10(gt$classicFisher[gt$ontology==i & gt$type==j]), horiz=T, border=NA, names.arg=gt$Term[gt$ontology==i & gt$type==j], las=1, cex.names=.7, xlab="-log10(p-value)", main=paste0("(",i,",",j,")"))
-    }
-}
-dev.off()  
-
-
+source("~/pipeline/bin/lib.R")
+setwd("~/eRNAseq/HCILB_SNDA")
+# all host genes
+hostGenes=unique(sub("(.*)___.*___.*","\\1", features$f19.Hostgene))
+topGOenrichment(hostGenes, topN=100, pCutoff=0.001, type='all', output='GOenrichment.all')
+# all host genes for class I HTNEs
+hostGenes=unique(sub("(.*)___.*___.*","\\1", features$f19.Hostgene[features$class==1]))
+topGOenrichment(hostGenes, topN=100, pCutoff=0.001, type='class1', output='GOenrichment.class1')
+# all host genes for class I HTNEs
+hostGenes=unique(sub("(.*)___.*___.*","\\1", features$f19.Hostgene[features$class==2]))
+topGOenrichment(hostGenes, topN=100, pCutoff=0.001, type='class2', output='GOenrichment.class2')
+# all host genes for class I HTNEs
+hostGenes=unique(sub("(.*)___.*___.*","\\1", features$f19.Hostgene[features$class==3]))
+topGOenrichment(hostGenes, topN=100, pCutoff=0.001, type='class3', output='GOenrichment.class3')
+# top 100 host genes with the most number of HTNEs
+features=features[with(features, order(-f20.nHostgene)),]
+hostGenes=head(unique(sub("(.*)___.*___.*","\\1", features$f19.Hostgene)),100)
+topGOenrichment(hostGenes, topN=100, pCutoff=0.001, type='all', output='GOenrichment.top100')
 
 #1. XYplot: Does the gene having more HITNEs tend to have more enhancers?
-
 #2. Unique the HITNES and use pie charts to show the %
 #3. Clustering the enhancers and see where the top clusters are located? Are they cooccuring with the neuronal genes?
 #4. Genes with HITNEs vs. Genes without HITNEs, who has more enhancers? And who is longer?
@@ -74,21 +47,25 @@ dev.off()
 #9. Add the eQTL and GWAS and disease gene info to select the "looks good" HITNEs
 
 
+
+pdf("eRNA.characterize.f01.dis2TSS.pdf", width=4, height=4, paper='usr')
 # length
-df=read.table("eRNA.bed", header=F); 
-df=data.frame(length=df$V3-df$V2, type="HiTNEs")
+df=do.call(rbind, strsplit(row.names(features),"_"))
+df=data.frame(length=as.numeric(df[,3])-as.numeric(df[,2]), type="HTNEs")
 #df2=read.table("../CAGE/permissive_enhancers.bed", header=F, skip=1)
 #df=rbind(df, data.frame(length=df2$V3-df2$V2, type="Enhancer RNAs (CAGE)"))
-#
-#df2=read.table("../CAGE/permissive_enhancers.bed", header=F, skip=1)
-#df=rbind(df, data.frame(length=df2$V3-df2$V2, type="Enhancer RNAs (CAGE)"))
-#df2=read.table("../CAGE/permissive_enhancers.bed", header=F, skip=1)
-#df=rbind(df, data.frame(length=df2$V3-df2$V2, type="Enhancer RNAs (CAGE)"))
-#df2=read.table("../CAGE/permissive_enhancers.bed", header=F, skip=1)
-#df=rbind(df, data.frame(length=df2$V3-df2$V2, type="Enhancer RNAs (CAGE)"))
+#library(ggplot2)
+#ggplot(df, aes(length, colour = type)) + scale_x_log10() +  geom_density() + theme_classic() + theme_bw()
+
+h=hist(log10(df$length), breaks=100, xaxt="n",border ='gray',col ='gray', xlab='HTNE length (bp)', main='')
+abline(v=h$mids[which.max(h$counts)], col='red',lty=2)
+y1=floor(range(log10(df$length)))
+pow <- seq(y1[1], y1[2]+1)
+ticksat <- as.vector(sapply(pow, function(p) log10((2:9)*10^p)))
+axis(1, pow, labels = 10^pow, las=1)
+axis(1, ticksat, labels=NA, tcl=-0.25, lwd=0, lwd.ticks=1)
 
 # dis2TSS : 94% of HiTNE are located in intragenic
-pdf("eRNA.characterize.f01.dis2TSS.pdf", width=4, height=4, paper='usr')
 d=hist(features$f01/1000, breaks=100, plot = F)
 plot(d, col=ifelse(d$mids>0,'orangered','forestgreen'), border=NA, cex.axis=0.8, xlab="Distance to the nearest TSS (Kb)", ylab="Count", main="")
 legend("topright", cex=0.8, paste0(c("intergenic", "intragenic")," (N=",format(table(features$f01>0), big.mark=','),"; ",round(100*table(features$f01>0)/nrow(features)),"%)"), col=c('forestgreen','orangered'), pch=15, bty='n')

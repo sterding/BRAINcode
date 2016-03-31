@@ -1,5 +1,50 @@
+# ===========================================================================
+# GO enrichment analysis for a list of gene
+# http://www.r-bloggers.com/bigcor-large-correlation-matrices-in-r/
+# ===========================================================================
+topGOenrichment <- function(list_of_gene_names, topN=100, pCutoff=0.001, type='all', output='GOenrichment')
+{
+  if(!require("biomaRt")) { source("http://www.bioconductor.org/biocLite.R"); biocLite("biomaRt");}
+  if(!require("org.Hs.eg.db")) { source("http://www.bioconductor.org/biocLite.R"); biocLite("org.Hs.eg.db");}
+  if(!require("topGO")) { source("http://www.bioconductor.org/biocLite.R"); biocLite("topGO");}
+  if(!require("ggplot2")) install.packages('ggplot2')
+  
+  df <- read.table("~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed", stringsAsFactors =F)
+  gene_names = df$V7[df$V8=="protein_coding"]
+  input=unique(list_of_gene_names)
+  all_genes =  factor(as.integer((gene_names %in% input)))  # input:1 rest: 0
+  names(all_genes) <- gene_names
+  table(all_genes)
+  
+  for(i in c("BP","CC", "MF")){
+    GOdata <- new("topGOdata", ontology = i, allGenes = all_genes, description = "Test", annot = annFUN.org, mapping = "org.Hs.eg.db", ID = "symbol")
+    resultFisher <- runTest(GOdata, algorithm = "weight01", statistic = "fisher")
+    if(i=="BP") {
+      gt=data.frame(ontology=i, type=type, GenTable(GOdata, classicFisher = resultFisher, topNodes = topN, numChar=100))
+    } else {
+      gt=rbind(gt, data.frame(ontology=i, type=type, GenTable(GOdata, classicFisher = resultFisher, topNodes = topN, numChar=100)))
+    }
+  }    
+  
+  write.table(gt, paste0(output,".xls"), quote = F, col.names = NA, row.names = T)
+  
+  gt$classicFisher = as.numeric(gt$classicFisher)
+  gt$classicFisher = ifelse(is.na(gt$classicFisher),1e-30,gt$classicFisher);  # GenTable default trim anything <1e-30 as "<1e-30"
+  gt = subset(gt, classicFisher<=pCutoff)
+  
+  pdf(paste0(output,".pdf"), width=9, height=nrow(gt)/5)
+  
+  gt$Term <- factor(gt$Term, unique(as.character(gt$Term)))
+  p = ggplot(gt, aes(x = Term, y = -log10(classicFisher), fill=ontology)) + geom_bar(stat = "identity") + coord_flip() + theme_bw() + theme_classic()
+  print(p)
+  dev.off() 
+  
+}
+
+# ===========================================================================
 # bigcor: Large correlation matrices in R
 # http://www.r-bloggers.com/bigcor-large-correlation-matrices-in-r/
+# ===========================================================================
 bigcor <- function(
   x, 
   fun = c("cor", "cov"), 

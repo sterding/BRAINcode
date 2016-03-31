@@ -4,7 +4,7 @@
 # 2. toExclude.bed: the above blacklist - known enhancers regions (e.g. FANTOM5 permissive enhancers)
 # ===========================================================================
 
-cd ~/projects/PD/results/eRNA
+cd ~/eRNAseq
 
 ANNOTATION=$GENOME/Annotation/Genes
 
@@ -18,5 +18,17 @@ cat /tmp/bg.bed | sortBed | mergeBed -i - > toExclude.bed
 
 grep -v track ~/projects/PD/results/eRNA/externalData/CAGE/permissive_enhancers.bed | cut -f1-3 >> /tmp/bg.bed # CAGE-enhancer
 cat /tmp/bg.bed | sortBed | mergeBed -i - > blacklist.bed
+
+## deadregion: random regions without RNAseq and CAGE
+# ----------------------------------------------------
+
+complementBed -i ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HCILB_SNDA.bedGraph -g <(sort -k1,1 $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size) > noRNAseq.HCILB_SNDA.bed &
+complementBed -i ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HC_PY.bedGraph -g <(sort -k1,1 $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size) > noRNAseq.HC_PY.bed &
+complementBed -i ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.HC_nonNeuron.bedGraph -g <(sort -k1,1 $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size) > noRNAseq.HC_nonNeuron.bed &
+
+bigWigToBedGraph ~/eRNAseq/externalData/CAGE/CAGE.FANTOM5.total.fwd.bigwig stdout | bedtools slop -r 100 -l 0 -g $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size | mergeBed > ~/eRNAseq/externalData/CAGE/CAGE.FANTOM5.total.fwd.bigwig.r100bp.bed
+bigWigToBedGraph ~/eRNAseq/externalData/CAGE/CAGE.FANTOM5.total.rev.bigwig stdout | bedtools slop -l 100 -r 0 -g $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size | mergeBed > ~/eRNAseq/externalData/CAGE/CAGE.FANTOM5.total.rev.bigwig.l100bp.bed
+
+intersectBed -a noRNAseq.HCILB_SNDA.bed -b noRNAseq.HC_PY.bed | intersectBed -a - -b noRNAseq.HC_nonNeuron.bed | intersectBed -a - -b <(cat ~/eRNAseq/externalData/CAGE/CAGE.FANTOM5.total.fwd.bigwig.r100bp.bed ~/eRNAseq/externalData/CAGE/CAGE.FANTOM5.total.rev.bigwig.l100bp.bed | sortBed | mergeBed) -v | intersectBed -a - -b $GENOME/Annotation/Variation/rmsk.hg19.bed -v | intersectBed -a - -b $GENOME/Annotation/Genes/exons.meta.bed -v | awk '($3-$2)>150' > noRNAseq.noCAGE.noRepeat.noExons.bed
 
 cd -

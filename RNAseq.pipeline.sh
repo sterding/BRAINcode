@@ -80,6 +80,9 @@ rownames(df)=df[,1]; df=df[,-1]; df=df/1e6
 plot(total_non_rRNA_mt~total, df, asp=1, xlim=c(0,300), ylim=c(0,300), col=gsub(".*_([1-9])_.*","\\1",rownames(df)), xlab="total reads (in million)", ylab="total-rRNA-chrM (in million)")
 abline(a=0,b=1,lty=2)
 legend("topleft", paste("batch", sort(unique(as.numeric(gsub(".*_([1-9])_.*","\\1",rownames(df)))))), col=sort(unique(as.numeric(gsub(".*_([1-9])_.*","\\1",rownames(df))))), bty='n', pch=1)
+
+## group them into HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded
+
 dev.off()
 
 ########################
@@ -172,6 +175,10 @@ mtext("covered percentage", 4, line=2)
 mtext("Sample count", 1, line=2)
 dev.off()
 
+## reads count for 
+echo 'ID' `sort ~/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_6_rep2/uniq/accepted_hits.bam.bam2annotation | cut -f1 -d':' | rowsToCols stdin stdout` | sed 's/ /\t/g' > uniq.bam2annotation.stat.txt
+for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation; do echo $i `sort $i | cut -f2 -d' ' | rowsToCols stdin stdout`; done | sed 's/.*run_output\/\(.*\)\/uniq.*tion/\1/g;s/ /\t/g' >> uniq.bam2annotation.stat.txt
+# import uniq.bam2annotation.stat.txt into Google spreadsheet: https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/edit#gid=289128536
 
 ########################
 ## 2. merge all samples to get big matrix for expression (e.g. one row per gene/Tx, one col per sample)
@@ -180,14 +187,24 @@ dev.off()
 cd $result_dir/merged
 
 # uniq mapper
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.cufflinks.allSamples.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.cufflinks.allSamples.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.cufflinks.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.cufflinks.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.cufflinks.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.cufflinks.allSamples.uniq.xls
 
 # HC/ILB only
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/genes.fpkm_tracking | grep -v PD_` genes.fpkm.cufflinks.HCILB.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples.R `ls $output_dir/*/uniq/rpkm/isoforms.fpkm_tracking | grep -v PD_` isoforms.fpkm.cufflinks.HCILB.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls $output_dir/*/uniq/hgseqcount.by.gene.tab | grep -v PD_` genes.htseqcount.cufflinks.HCILB.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/genes.fpkm_tracking | grep -v PD_` genes.fpkm.cufflinks.HCILB.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/isoforms.fpkm_tracking | grep -v PD_` isoforms.fpkm.cufflinks.HCILB.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*/uniq/hgseqcount.by.gene.tab | grep -v PD_` genes.htseqcount.cufflinks.HCILB.uniq.xls
+
+# intronic FPKM
+cut -f1 ../../run_output/PD_UWA734_SNDA_6_rep2/uniq/meanRPM.of.metaintron.by.gene.tab | grep ENSG | sort > metaIntron.meanRPM.allSamples.xls
+for i in ../../run_output/*/uniq/meanRPM.of.metaintron.by.gene.tab; 
+do
+  echo $i;
+  grep ENSG $i | sort | cut -f4 | paste metaIntron.meanRPM.allSamples.xls - > /tmp/metaIntron.meanRPM.allSamples.xls
+  cp /tmp/metaIntron.meanRPM.allSamples.xls metaIntron.meanRPM.allSamples.xls
+done
+echo "locus" `ls ../../run_output/*/uniq/meanRPM.of.metaintron.by.gene.tab | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' | rowsToCols stdin stdout` | sed 's/ /\t/g' | cat - /tmp/metaIntron.meanRPM.allSamples.xls > metaIntron.meanRPM.allSamples.xls
 
 ## UPdate: use cuffquant --> cuffnorm to calculate normalized expression FPKM
 bsub -J cuffnorm -oo _cuffnorm.log -eo _cuffnorm.log -q big-multi -n 8 -M 10000 -R rusage[mem=10000] cuffnorm -o ./cuffnorm --no-update-check -L `ls /data/neurogen/rnaseq_PD/run_output/*/uniq/rpkm/abundances.cxb | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' | tr '\n' ','` -p 8 -total-hits-norm -library-norm-method quartile $ANNOTATION_GTF `ls /data/neurogen/rnaseq_PD/run_output/*/uniq/rpkm/abundances.cxb`
@@ -257,7 +274,7 @@ Rscript $pipeline_path/modules/_pairwise_compare.R HC_MGH1000_SNDA_1_rep1 HC_MGH
 Rscript $pipeline_path/modules/_pairwise_compare.R PD_UWA734_SNDA_2_rep1 PD_UWA734_SNDA_6_rep2
 
 ########################
-## 4. factor analysis to identify the hidden covariates (PEER)
+## 4. eQTL
 ########################
 cd $result_dir/eQTL
 module unload R/3.1.0
@@ -266,12 +283,70 @@ Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.cuffli
 module unload R/3.0.2; module load R/3.1.0
 
 ## eQTL with SVA normalization
-cd ~/$result_dir/eQTL/HCILB_SNDA
+cd $result_dir/eQTL/HCILB_SNDA
 bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/modules/_SVA.eQTL.R  # "HCILB_SNDA" only
 ## run permutations in bash
-for i in `seq 1 10000`; do [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
+mkdir permutations
+for i in `seq 1 10000`; do [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i -oo permutations/permutation$i.log -eo permutations/permutation$i.log Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
 # post-eQTL analysis
 bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
+
+## disease SNP enrichment in the eQTL SNPs
+## =====================================
+snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed
+SNPpos=~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID
+awk '$6<=0.05' final.cis.eQTL.xls | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -u  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.with.eSNP.txt
+awk '$6<=0.05' final.cis.eQTL.xls | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -v  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.without.eSNP.txt
+
+# split into mRNA and ncRNA
+awk '$6<=0.05' final.cis.eQTL.xls | fgrep -wf <(fgrep -w protein_coding /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | cut -f4) | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -u  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.with.eSNP.mRNA.txt
+awk '$6<=0.05' final.cis.eQTL.xls | fgrep -wf <(fgrep -v protein_coding /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | cut -f4) | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -u  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.with.eSNP.ncRNA.txt
+awk '$6<=0.05' final.cis.eQTL.xls | fgrep -wf <(fgrep -w protein_coding /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | cut -f4) | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -v  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.without.eSNP.mRNA.txt
+awk '$6<=0.05' final.cis.eQTL.xls | fgrep -wf <(fgrep -v protein_coding /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | cut -f4) | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -v  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.without.eSNP.ncRNA.txt
+
+
+R
+setwd("~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA")
+N=as.numeric(system("wc -l $GENOME/Annotation/Variation/snp137.bed.groupped.SNP | cut -f1 -d' '", intern=T)) ## total SNPs in dbSNP: 48709140
+nDiseases=as.numeric(system("cut -f4 $GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed.autosomal.associations.bed | sort -u | wc -l | cut -f1 -d' '", intern=T)) ## total diseasese in gwas
+n=as.numeric(system("more +2 final.cis.eQTL.xls | awk '$6<=0.05' | cut -f1,7 | sort -u | wc -l", intern=T))  ## total eSNP
+results=data.frame();
+for(i in c('HTNE','gene','mRNA','ncRNA')){
+  df1=read.table(paste0("dSNP.with.eSNP.",i,".txt"), header=F); rownames(df1)=df1[,1]
+  df2=read.table(paste0("dSNP.without.eSNP.",i,".txt"), header=F); rownames(df2)=df2[,1]
+  common=intersect(rownames(df1), rownames(df2))
+  df=cbind(df1[common,], df2[common,2]); df=df[,-1]; colnames(df)=c('dSNP_eSNP','dSNP_N_eSNP')  ## only the disease with both eSNP and dSNP
+  results = rbind(results,
+                  cbind(Disease_or_Trait=rownames(df), 
+                  df, 
+                  type=i,
+                  pvalue=apply(df, 1, function(x) fisher.test(matrix(c(x[1],n-x[1], x[2], N-n-x[2]), nrow = 2), alternative='greater')$p.value), 
+                  OR=apply(df, 1, function(x) fisher.test(matrix(c(x[1],n-x[1], x[2], N-n-x[2]), nrow = 2), alternative='greater')$estimate))
+                )
+}
+results=subset(results, OR>1 & pvalue<0.05/nDiseases & dSNP_eSNP>3)
+results$Disease_or_Trait=gsub("_"," ", results$Disease_or_Trait)
+results = results[with(results, order(type, -dSNP_eSNP)), ]
+
+write.table(results, "dSNP.eQTL.enrichment.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
+
+results$pvalue[results$pvalue==0]=2.2e-16
+results = results[with(results, order(type, pvalue)), ]
+
+results$Disease_or_Trait <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
+library('ggplot2')
+pdf("dSNP.eQTL.enrichment.pvalue.pdf", width=4, height=6)
+results=subset(results, type!='gene')
+p = ggplot(results, aes(x=Disease_or_Trait, y=-log10(pvalue), fill=type,ymax=max(-log10(pvalue))*1.2)) 
+p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
+p = p + geom_hline(yintercept=-log10(0.05/1288), size=.5,linetype = 2)  ## Bonferroni correction, where 1288 is the number of disease/traits in GWAS 
+p = p + theme_bw() + ylab("-log10(p)") #+ scale_y_log10()
+p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8),legend.text=element_text(size=8), legend.justification='right', legend.position=c(1,1)) 
+p = p + geom_text(aes(label=paste0(" (OR)")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 
+p = p + ggtitle(paste0(basename(getwd()), " -- dSNP enrichments")) 
+print(p)
+dev.off()
+quit('no')
 
 #########################
 ### 5. post-normalization QC

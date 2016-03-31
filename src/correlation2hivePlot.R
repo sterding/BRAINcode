@@ -1,8 +1,11 @@
+#!/usr/bin/env Rscript
+# ===========================================================
 # R script to make hivePlot for gene-enhancer correlation
 # author: Xianjun Dong
 # date: 2016-02-15
 # input: matrix of gene expression, enhaner expression, bed file of gene, enhancer position
-# Usage: Rscript correlation2hivePlot.R eRNA.meanRPM.xls /data/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls eRNA.bed /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed chr17_43583680_44506585 
+# Usage: Rscript ~/pipeline/src/correlation2hivePlot.R eRNA.meanRPM.xls /data/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls eRNA.bed /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed chr17_43583680_44506585 
+# ===========================================================
 
 args<-commandArgs(TRUE)
 
@@ -26,12 +29,11 @@ posB=args[4]  # e.g. genes postition bed
 regions=args[5]
 CUTOFF=args[6]
 
-if(is.na(CUTOFF)) CUTOFF=0.1
-
 # debug
 valA="eRNA.meanRPM.xls"; valB="/data/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls"; 
 posA="eRNA.bed"; posB="/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed";
-regions="chr17_43583680_44506585";
+regions="chr4:90,445,404-90,959,294";
+CUTOFF=0.4
 
 message("reading data ...")
 # ===============================================
@@ -53,7 +55,7 @@ posB=read.table(posB, header=F, stringsAsFactors =F)  # e.g. genes postition bed
 colnames(posB) = c('chr','start','end','name','score','strand','symbol','type')
 rownames(posA) = posA$name; rownames(posB) = posB$name
 
-region = strsplit(gsub(",","",regions), "[:-_]")[[1]]
+region = strsplit(gsub(",","",regions), "[_:-]")[[1]]
 c=region[1]; s=as.numeric(region[2]); e=as.numeric(region[3])
 
 message("calculating the gene-enhancer correlation matrix ...")
@@ -76,7 +78,7 @@ df[abs(df)<CUTOFF]=0
 message("plot the correlation matrix ...")
 # ===============================================
 # gene-gene interaction
-hive1 <- adj2HPD(df, axis.cols =c('#66666666','#66666666'), desc = "Gene-enhancer correaltion")  # now hive1$nodes are first rows and then cols
+hive1 <- adj2HPD(df, axis.cols =c('#66666655','#66666655'), desc = "Gene-enhancer correaltion")  # now hive1$nodes are first rows and then cols
 # set axis
 hive1$nodes$axis=as.integer(c(rep(1,nrow(df)),rep(2,ncol(df))))
 # set radius of nodes

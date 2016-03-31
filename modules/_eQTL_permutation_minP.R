@@ -13,7 +13,7 @@ dis=args[4]
 
 # i=1; Rdata="data.RData"; expr="expression.postSVA.xls"; dis=1000
 
-if(dis=="") dis=1e6
+dis=1e6
 
 residuals=read.table(expr, header=T, check.names = F)
 dim(residuals)

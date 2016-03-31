@@ -1,7 +1,7 @@
 ###############################################
 ## Rscript to run factor analysis using SVA
 ## Author: Xianjun Dong
-## Date: 2015-Dec-4
+## Date: 2016-Mar-20
 ## Version: 0.0
 ## Usage: bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/modules/_SVA.eQTL.R
 ###############################################
@@ -19,9 +19,10 @@ setwd(wd)
 
 samplelist=read.table(paste0("~/neurogen/rnaseq_PD/results/merged/samplelist.",SAMPLE_GROUP), header = F, stringsAsFactors = FALSE)[,1]
 covarianceTableURL="https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118&single=true&output=tsv"  # for all 140 samples
+
 snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 93 unique subjects
 snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
-expr_file="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.allSamples.uniq.xls";  
+expr_file="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls";  
 geneloc="~/neurogen/rnaseq_PD/results/merged/genes.loci.txt";
 
 if(file.exists("data.RData")) load("data.RData") else{
@@ -30,14 +31,13 @@ if(file.exists("data.RData")) load("data.RData") else{
   ######################
   expr = read.table(expr_file, header=T, check.names = F)  # GxN where G is number of genes and N is number of samples
   rownames(expr) = expr[,1]; expr = expr[, -1];
-  expr=expr[,grep("FPKM", colnames(expr))]
+  if(grepl("cufflinks", expr_file)) expr=expr[,grep("FPKM", colnames(expr))]
   colnames(expr) = gsub("FPKM.","",colnames(expr))
   
   message(" # remove outlier and replicate...")
   ######################
-  covs=read.table(textConnection(getURL(covarianceTableURL)), header=T, stringsAsFactors = FALSE, check.names = F);
-  covs=subset(covs, outlier==0 & replicate=="rep1")  # remove outliers and rep2
-  covs=covs[grep("stranded|unamplified",covs$sampleName, invert = T),]  # remove tech rep, e.g. unamplified, strand
+  covs=read.delim(textConnection(getURL(covarianceTableURL)), stringsAsFactors =F)
+  covs=subset(covs, BRAINCODE.final.selection==1)
   common=intersect(samplelist, covs$sampleName)
   covs=covs[match(common, covs$sampleName), ]
   expr=subset(expr, select = common)

@@ -38,12 +38,14 @@ outputdir=$inputdir/../run_output
 ###########################################
 echo "["`date`"] STEP 2. quality filter: adaptor removal/clip"
 ###########################################
+## TODO: Reads with PolyA/T tail were not properly trimmed. Using PRINSEQ instead for removal
 
 ##### adaptor removal
 [ -d $inputdir/../filtered ] || mkdir $inputdir/../filtered
 
 [ -e $inputdir/../filtered/adaptor.fa ] || echo -e ">Truseq_complementary_part_3p\nAGATCGGAAGAGC" > $inputdir/../filtered/adaptor.fa
 
+# remove adaptor with fastq-mcf (https://code.google.com/archive/p/ea-utils/wikis/FastqMcf.wiki)
 [ ! -f $outputdir/$samplename/.status.$modulename.adaptorremoval ] && \
 fastq-mcf -o $inputdir/../filtered/$R1 -o $inputdir/../filtered/$R2 -t 0 -x 10 -l 15 -w 4 -u $inputdir/../filtered/adaptor.fa <(zcat $R1) <(zcat $R2) && \
 touch $outputdir/$samplename/.status.$modulename.adaptorremoval 
@@ -291,6 +293,13 @@ touch $outputdir/$samplename/.status.$modulename.uniq.htseqcount
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.metaexon ] && \
 coverageBed -abam accepted_hits.bam.non-rRNA-mt.bam -b $ANNOTATION/exons.meta.bed -s -counts > readscount.by.metaexon.tab 2> readscount.by.metaexon.tab.stderr && \
 touch $outputdir/$samplename/.status.$modulename.uniq.metaexon
+
+echo "## quantification for meta intron"
+# see README in $ANNOTATION for how to generate meta introns
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.metaintron ] && \
+awk '{OFS="\t"; $4=$4"="$1"_"$2"_"$3; print}' $ANNOTATION/introns.meta.bed | bigWigAverageOverBed accepted_hits.normalized.bw stdin stdout 2> /dev/null | sed 's/=[^\t]*//g' | groupBy -g 1 -c 2,4 -o sum,sum | sed 's/___/\t/g' | cut -f2,4- | awk 'BEGIN{OFS="\t";print "id","intronLength","totalRPM","meanRPM"}{print $0,$3/$2}' > meanRPM.of.metaintron.by.gene.tab && \
+#awk '{OFS="\t"; $4=$4"="$1"_"$2"_"$3; print}' $ANNOTATION/introns.meta.bed | coverageBed -a - -b accepted_hits.bam.non-rRNA-mt.bam -s -counts > readscount.by.metaintron.tab 2> readscount.by.metaintron.tab.stderr && \
+touch $outputdir/$samplename/.status.$modulename.uniq.metaintron
 
 #[ ! -f $outputdir/$samplename/.status.$modulename.uniq.callSNP ] && \
 #_callSNP.sh accepted_hits.sam && \
