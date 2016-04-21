@@ -48,6 +48,16 @@ intersectBed -a HCILB_SNDA/eRNA.bed -b HC_PY/eRNA.bed -u | intersectBed -a stdin
 intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -v | awk '{OFS="\t"; print $0,"SNDA|NN"}' >> HCILB_SNDA/eRNA.privacy.bed
 intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -u | awk '{OFS="\t"; print $0,"SNDA|PY|NN"}' >> HCILB_SNDA/eRNA.privacy.bed
 
+intersectBed -a HC_PY/eRNA.bed -b <(cat HCILB_SNDA/eRNA.bed HC_nonNeuron/eRNA.bed) -v | awk '{OFS="\t"; print $0,"PYonly"}' > HC_PY/eRNA.privacy.bed
+intersectBed -a HC_PY/eRNA.bed -b HCILB_SNDA/eRNA.bed -u | intersectBed -a stdin -b HC_nonNeuron/eRNA.bed -v | awk '{OFS="\t"; print $0,"PY|SNDA"}' >> HC_PY/eRNA.privacy.bed
+intersectBed -a HC_PY/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bed -v | awk '{OFS="\t"; print $0,"PY|NN"}' >> HC_PY/eRNA.privacy.bed
+intersectBed -a HC_PY/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bed -u | awk '{OFS="\t"; print $0,"SNDA|PY|NN"}' >> HC_PY/eRNA.privacy.bed
+
+intersectBed -a HC_nonNeuron/eRNA.bed -b <(cat HC_PY/eRNA.bed HCILB_SNDA/eRNA.bed) -v | awk '{OFS="\t"; print $0,"NNonly"}' > HC_nonNeuron/eRNA.privacy.bed
+intersectBed -a HC_nonNeuron/eRNA.bed -b HC_PY/eRNA.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bed -v | awk '{OFS="\t"; print $0,"NN|PY"}' >> HC_nonNeuron/eRNA.privacy.bed
+intersectBed -a HC_nonNeuron/eRNA.bed -b HCILB_SNDA/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -v | awk '{OFS="\t"; print $0,"NN|SNDA"}' >> HC_nonNeuron/eRNA.privacy.bed
+intersectBed -a HC_nonNeuron/eRNA.bed -b HCILB_SNDA/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -u | awk '{OFS="\t"; print $0,"SNDA|PY|NN"}' >> HC_nonNeuron/eRNA.privacy.bed
+
 # for minor cell tyes
 intersectBed -a HCILB_SNDA/eRNA.bed -b <(cat HC_TCPY/eRNA.bed HC_MCPY/eRNA.bed HC_FB/eRNA.bed HC_PBMC/eRNA.bed) -v > HCILB_SNDA/eRNA.private.minor.bed
 intersectBed -a HC_TCPY/eRNA.bed -b <(cat HCILB_SNDA/eRNA.bed HC_MCPY/eRNA.bed HC_FB/eRNA.bed HC_PBMC/eRNA.bed) -v > HC_TCPY/eRNA.private.minor.bed
@@ -58,6 +68,36 @@ intersectBed -a HC_PBMC/eRNA.bed -b <(cat HC_TCPY/eRNA.bed HCILB_SNDA/eRNA.bed H
 # shared btw SNDA and the other
 > HCILB_SNDA/eRNA.shared.minor.txt
 for i in HC_TCPY HC_MCPY HC_PBMC HC_FB; do echo $i; echo "HCILB_SNDA vs. $i:" `intersectBed -a HCILB_SNDA/eRNA.bed -b $i/eRNA.bed -u | wc -l` >> HCILB_SNDA/eRNA.shared.minor.txt; done
+
+## fold change and p-value for private HTNEs
+bsub -q short -n 1 Rscript $pipeline_path/src/eRNA.private.stat.R ~/eRNAseq/HCILB_SNDA/eRNA.meanRPM.allSamples.xls ~/neurogen/rnaseq_PD/results/merged/samplelist.HCILB_SNDA ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_PY ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_nonNeuron
+bsub -q short -n 1 Rscript $pipeline_path/src/eRNA.private.stat.R ~/eRNAseq/HC_PY/eRNA.meanRPM.allSamples.xls ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_PY ~/neurogen/rnaseq_PD/results/merged/samplelist.HCILB_SNDA ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_nonNeuron
+bsub -q short -n 1 Rscript $pipeline_path/src/eRNA.private.stat.R ~/eRNAseq/HC_nonNeuron/eRNA.meanRPM.allSamples.xls ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_nonNeuron ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_PY ~/neurogen/rnaseq_PD/results/merged/samplelist.HCILB_SNDA
+
+cut -f4 eRNA.private.major.bed | fgrep -f - eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=2 && $3<0.01 && $4>=2 && $5<0.01' | cut -f1 | fgrep -f - eRNA.characterize.xls | awk '$28==1 && $6>=10 && $7>0 && $8>0' 
+chr1_66277655_66278270	19766	90.8832	0.133147	0.0339962	36	1	1	1	2	NA	0.622140.185885	NA	0	0	0	PDE4B___ENSG00000184588.13___protein_coding	223	582063	573422	1	1	1
+chr18_13566745_13567739	349746	93.3733	0.170893	0.305512	50	2	2	2	10	NA	1.23605-0.0844749	NA	0	0	0	LDLRAD4___ENSG00000168675.14___protein_coding	144	435258	418499	2	1
+chr8_41570144_41570663	183877	65.0584	0.0954287	0.505082	32	2	1	0	9	NA	40.64260.390697	NA	0	0	0	ANK1___ENSG00000029534.15___protein_coding	63	243542	232743	0	0	1
+cat eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=2 && $3<0.01 && $4>=2 && $5<0.01' | cut -f1 | fgrep -f - eRNA.characterize.xls | awk '$28==1 && $6>=10 && $7>0 && $8>0'  # n=4
+cat eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=1 && $3<0.01 && $4>=1 && $5<0.01' | wc -l  # n=10295
+cut -f4 eRNA.private.major.bed | fgrep -f - eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=1 && $3<0.01 && $4>=1 && $5<0.01' | wc -l  # n=9777 (95%)
+
+
+
+join -1 4 -2 1 <(sort -k4,4 eRNA.privacy.bed) <(sort -k1,1 eRNA.meanRPM.allSamples.ttest.txt) > eRNA.privacy.ttest.txt
+R
+setwd("~/eRNAseq/HCILB_SNDA")
+df=read.table("eRNA.privacy.ttest.txt", header=F, check.names = F)
+head(df); str(df)
+
+pdf("eRNA.privacy.ttest.pdf", width=5, height=5)
+plot(df$V6, -log10(df$V7), bg=adjustcolor(as.integer(df$V5), 0.8), pch=21,cex=.7, col='white',xlab='log2 fold-change', ylab='-log10(p-value)', main='SNDA vs. PY')
+legend("topleft", legend=levels(df$V5), col=adjustcolor(1:length(levels(df$V5)), 0.8), pch=20, cex=1)
+
+plot(df$V8, -log10(df$V9), bg=adjustcolor(as.integer(df$V5), 0.8), pch=21,cex=.7, col='white',xlab='log2 fold-change', ylab='-log10(p-value)', main='SNDA vs. NN')
+legend("topleft", legend=levels(df$V5), col=adjustcolor(1:length(levels(df$V5)), 0.8), pch=20, cex=1)
+
+dev.off()
 
 #############################################################
 # GWAS SNP enrichment
@@ -315,22 +355,23 @@ cat ../*/eRNA.bed ../externalData/toExclude.bed eRNA.bed ../externalData/TFBS/wg
 
 awk '{OFS="\t"; $4=$1"_"$2"_"$3"_"($3-$2); if($5>500 && $5<800) print;}' negative.bed | head -n20 | bedtools getfasta -name -tab -fi $GENOME/Sequence/WholeGenomeFasta/genome.fa -bed - -fo stdout | sed 's/_/\t/g' > negative.xls
 
-# top 10 highly expressed HTNE in each group (mean +/- std)
 R
-df1=read.table('~/eRNAseq/HCILB_SNDA/eRNA.meanRPM.xls', header=T)
-rownames(df1) = df1[,1]; df1=df1[,-1]
-df1=data.frame(median=round(apply(df1, 1, median),2), mean=round(apply(df1, 1, mean),2), sd=round(apply(df1, 1, sd),2))
-df2=read.table("~/eRNAseq/HCILB_SNDA/eRNA.characterize.xls", header=T)
-df3=read.table("~/eRNAseq/HCILB_SNDA/eRNA.privacy.bed", stringsAsFactors = F); colnames(df3) = c('chr','start','end','ID','private')
-dim(df1); dim(df2); dim(df3)
-# merge into a big table
-df=cbind(df3, df1[df3$ID, ], df2[df3$ID, ])
-write.table(df, "~/eRNAseq/HCILB_SNDA/eRNA.characterize2.xls", sep="\t", quote = F, col.names = NA, row.names = T)
-
-
-for(i in c("HCILB_SNDA","HC_MCPY","HC_TCPY","HC_PBMC","HC_FB")){
+#for(i in c("HCILB_SNDA","HC_MCPY","HC_TCPY","HC_PBMC","HC_FB")){
+for(i in c("HCILB_SNDA","HC_PY","HC_nonNeuron")){
   print(i)
-  df=read.table(paste0(i,"/eRNA.meanRPM.xls"), header=T)
+  # add privacy and mean +/- std for each group 
+  df1=read.table(paste0('~/eRNAseq/',i,'/eRNA.meanRPM.xls'), header=T)
+  rownames(df1) = df1[,1]; df1=df1[,-1]
+  df1=data.frame(median=round(apply(df1, 1, median),2), mean=round(apply(df1, 1, mean),2), sd=round(apply(df1, 1, sd),2))
+  df2=read.table(paste0('~/eRNAseq/',i,'/eRNA.characterize.xls'), header=T)
+  df3=read.table(paste0('~/eRNAseq/',i,'/eRNA.privacy.bed'), stringsAsFactors = F); colnames(df3) = c('chr','start','end','ID','private')
+  dim(df1); dim(df2); dim(df3)
+  # merge into a big table
+  df=cbind(df3, df1[df3$ID, ], df2[df3$ID, ])
+  write.table(df, paste0('~/eRNAseq/',i,'/eRNA.characterize2.xls'), sep="\t", quote = F, col.names = NA, row.names = T)
+  
+  # top 10 highly expressed HTNE in each group (mean +/- std)
+  df=read.table(paste0('~/eRNAseq/',i,"/eRNA.meanRPM.xls"), header=T)
   rownames(df) = df[,1]; df=df[,-1]
   df=data.frame(type=i, median=round(apply(df, 1, median),2), mean=round(apply(df, 1, mean),2), sd=round(apply(df, 1, sd),2))
   df=head(df[with(df, order(-median, sd)),],10)

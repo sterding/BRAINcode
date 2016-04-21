@@ -5,6 +5,9 @@
 # date: 9/16/2013
 # version: 2.0
 # Note: call this script in the folder of fastq file
+## TODO:
+#1. use PINSEQ for QC
+#2. use STAR for mapping
 ###########################################
 #!/bin/bash
 
@@ -93,7 +96,7 @@ touch $outputdir/$samplename/.status.$modulename.kmers
 echo "["`date`"] STEP 4. mapping"
 ############################################
 cd $inputdir/../filtered
-## tophat 
+## tophat (TODO: switch to STAR)
 ## Note: 
 ## 1) output sorted accepted_hits.bam, allow up to 100 multiple hits
 ## 2) GATK requires @RG group has fields of ID, SM, PL, LB, PU

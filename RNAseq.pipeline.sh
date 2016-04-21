@@ -90,38 +90,78 @@ dev.off()
 ########################
 [ -d $result_dir/coverage ] || mkdir $result_dir/coverage
 cd $result_dir/coverage
-for i in HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded;
+
+## cumulative coverage for all samples in the group
+# ----------------------------------
+for i in HCILB_SNDA HC_PY HC_nonNeuron;
 do
     #bsub -J combine_coverage -oo _combine_cov.$i.log -eo _combine_cov.$i.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 5
-    bsub -J combine_coverage -oo _combine_cov.$i.rpm.log -eo _combine_cov.$i.rpm.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N _combine_coverage.sh $i 0.05
+    bsub -q big-multi -n 4 -M 8000 _combine_coverage.sh $i 0.05
 done
 
-# GENCODE meta-exons (v19)
-cut -f1-3 $GENOME/Annotation/Genes/exons.bed | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}' # 122000567
-# intergenic
-intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed | awk '{s+=($3-$2)}END{print s}'  # 650101182
-# EXONs
-intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed -v | intersectBed -a - -b <(cut -f1-3 /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/exons.bed | sortBed | mergeBed -i -) | awk '{s+=($3-$2)}END{print s}' # 101113507
-# introns
-intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed -v | intersectBed -a - -b $GENOME/Annotation/Genes/exons.meta.bed -v | awk '{s+=($3-$2)}END{print s}' # 1123233053
+## cumulative coverage for 7 samples in each group
+# ----------------------------------
+for i in `seq 1 100`;
+do 
+  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7; 
+  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7; 
+done
 
-## cat > coverage.txt
-GENCODE.all.exons   122000567   0
-exons   0   101113507
-introns 0   1123233053
-intergenic  0   650101182
+##  coverage for individual sample with different RPM cutoff (>0, >=0.01, >=0.05, >=0.1, >=0.5, >=1)
+# ----------------------------------
+for i in ../../run_output/*/uniq/accepted_hits.normalized.bedGraph; do echo $i; bsub -q short -n 1 -M 500 "awk 'BEGIN{s0=0;s1=0;s2=0;s3=0;s4=0;s5=0;}{L=(\$3-\$2); (\$4>=1)?(s5+=L):((\$4>=0.5)?(s4+=L):((\$4>=0.1)?(s3+=L):((\$4>=0.05)?(s2+=L):((\$4>=0.01)?(s1+=L):(s0+=L)))));}END{print s0,s1,s2,s3,s4,s5;}' $i > $i.coverageWithRPM"; done
+echo -e "sample\tRPMgt0\tRPMgt0.01\tRPMgt0.05\tRPMgt0.1\tRPMgt0.5\tRPMgt1" > coverageWithRPM.txt
+paste <(ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph.coverageWithRPM | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g') <(cat ../../run_output/*/uniq/accepted_hits.normalized.bedGraph.coverageWithRPM) | sed 's/ /\t/g' >> coverageWithRPM.txt
+R
+df=read.table("coverageWithRPM.txt", header=T)
 
-# R
-pdf("coverage.barplot.pdf", paper='us',width=4.5, height=4)
-df=read.table("coverage.txt");
-rownames(df)=df[,1];df=df[,-1]
-colnames(df)=c("Classical view", "BRAINCODE view");
-par(mar=c(4,4,2,4))
-d=barplot(as.matrix(df), ylim=c(0,3137161264), col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
-text(x=d, y=apply(df,2,sum),pos=3, offset=.2, paste0(round(100*apply(df,2,sum)/3137161264,1),"%"), cex=2)
-axis(2, at=c(0:3)*1e9, labels=0:3)
-legend("topleft",col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), rownames(df), bty='n', pch=15)
+# optional: only show the 106 qualified samples
+selected = readLines(pipe("cat ../merged/samplelist.HCILB_SNDA ../merged/samplelist.HC_PY ../merged/samplelist.HC_nonNeuron"))
+df=subset(df, sample %in% selected)
+
+df$celltype=gsub(".*_.*_(.*)_.*_.*","\\1",df$sample)
+df$celltype[grepl("PY",df$celltype)]="PY"; df$celltype[grepl("PBMC|FB",df$celltype)]="NN"
+df$sum=rowSums(df[,grep("RPM",colnames(df))])
+df = df[with(df, order(celltype, -sum)), ]
+df$sample <- factor(df$sample, unique(as.character(df$sample)))
+
+library(reshape2)
+dflong=melt(df[,1:7], variable.name = "cutoff",value.name ="coverage")
+#levels(dflong$cutoff)=rev(levels(dflong$cutoff))
+library(ggplot2)
+ggplot(dflong, aes(x=sample, y=100*coverage/3137161264, fill=cutoff, order = -as.numeric(cutoff))) + 
+geom_bar(width=.5,position = position_stack(width=1), stat="identity") + 
+theme_bw() +
+ylab("Coverage of the whole genome (%)") + 
+theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=5), legend.justification=c(1,1), legend.position=c(1,1))
+ggsave("coverageWithRPM.all.pdf", width=8, height=4)
+
+df=read.table("coverageWithRPM.txt", header=T)
+# optional: only show the 106 qualified samples
+selected = readLines(pipe("cat ../merged/samplelist.HCILB_SNDA ../merged/samplelist.HC_PY ../merged/samplelist.HC_nonNeuron"))
+df=subset(df, sample %in% selected)
+
+df$celltype=gsub(".*_.*_(.*)_.*_.*","\\1",df$sample)
+df$celltype[grepl("PY",df$celltype)]="PY"; df$celltype[grepl("PBMC|FB",df$celltype)]="NN"
+df$sum=rowSums(df[,c("RPMgt1","RPMgt0.5","RPMgt0.1","RPMgt0.05")])
+df = df[with(df, order(celltype, -sum)), ]
+df$sample <- factor(df$sample, unique(as.character(df$sample)))
+
+dflong=melt(df[,c("sample","RPMgt1","RPMgt0.5","RPMgt0.1","RPMgt0.05")], variable.name = "cutoff",value.name ="coverage")
+#levels(dflong$cutoff)=rev(levels(dflong$cutoff))
+ggplot(dflong, aes(x=sample, y=100*coverage/3137161264, fill=cutoff, order = -as.numeric(cutoff))) + 
+geom_bar(width=.5,position = position_stack(width=1), stat="identity") + 
+theme_bw() +
+ylab("Coverage of the whole genome (%)") + 
+theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=5), legend.justification=c(1,1), legend.position=c(1,1))
+ggsave("coverageWithRPM.RPMpt05.pdf", width=8, height=4)
+
+
 dev.off()
+
+## coverage barplot (BRAINCODE vs. GENCODE)
+# ----------------------------------
+Rscript $HOME/neurogen/pipeline/RNAseq/module/_coverage.barplot.R
 
 ## body coverage
 ls ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA_*rep[1-2]/uniq/accepted_hits.bam.non-rRNA-mt.bam > bam_path.txt
@@ -146,20 +186,29 @@ do
 done
 
 R
-pdf("coverage.cummulative.pdf", paper='us',width=5, height=8)
-par(mfrow=c(2,1))
+pdf("coverage.cummulative.pdf", paper='us',width=5, height=4)
+
+# 3 cell types in one plot
+
 df=read.table("covered.0.05RPM.HCILB_SNDA.txt", header=F)
 colnames(df)=c("samplecount", "coveredbp")
-df=cbind(df, cumsum=cumsum(df$coveredbp))
+df=cbind(df, cumsum=cumsum(df$coveredbp), type='HCILB_SNDA')
 par(mar=c(4,4,2,4))
-plot(df$cumsum, type='l', ylim=c(0,1900000000), xlim=c(1,90),ylab="covered base pairs (in billion)", main="covered.0.05RPM.HCILB_SNDA", yaxt="n", xaxt='n', xlab='')
-points(df$coveredbp, type='h', lwd=4, col=colorRampPalette(c('blue','red'))(100), lend=2)
-abline(h=df$coveredbp[1], lty=2)
-axis(1, c(1,seq(10,90,10)), c(1,seq(10,90,10)), tck=0.01, mgp=c(3,0.2,0))
-axis(2, seq(0,2,.2)*1e9, labels=format(seq(0,2,.2),2), las=2, tck=0.01, mgp=c(3,0.2,0))
-axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10), "%"), las=2, tck=0.01, mgp=c(3,0.2,0))
-mtext("covered percentage", 4, line=2)
+plot(df$cumsum, type='l', lwd=2, col='#F22A7B', ylim=c(0,2000000000), xlim=c(1,90), main="covered.0.05RPM", yaxt="n", xaxt='n', xlab='', ylab='')
+df=read.table("covered.0.05RPM.HC_PY.txt", header=F)
+colnames(df)=c("samplecount", "coveredbp")
+df=cbind(df, cumsum=cumsum(df$coveredbp), type='HC_PY')
+points(df$cumsum, type='l', lwd=2,col='#3182bd')
+df=read.table("covered.0.05RPM.HC_nonNeuron.txt", header=F)
+colnames(df)=c("samplecount", "coveredbp")
+df=cbind(df, cumsum=cumsum(df$coveredbp), type='HC_nonNeuron')
+points(df$cumsum, type='l', lwd=2,col='#513931')
+axis(1, c(1,seq(20,90,20)), c(1,seq(20,90,20)), tck=0.02, mgp=c(3,0.2,0))
+axis(2, seq(0,2,.5)*1e9, labels=format(seq(0,2,.5),2), las=2, tck=0.02, mgp=c(3,0.2,0))
+axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10)), las=2, tck=0.02, mgp=c(3,0.2,0))
+mtext("Covered percentage (%)", 4, line=2)
 mtext("Sample count", 1, line=2)
+mtext("Covered base pairs (in billion)", 2, line=2)
 
 df=read.table("covered.5reads.HCILB_SNDA.txt", header=F)
 colnames(df)=c("samplecount", "coveredbp")
@@ -173,6 +222,7 @@ axis(2, seq(0,2,.2)*1e9, labels=format(seq(0,2,.2),2), las=2, tck=0.01, mgp=c(3,
 axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10), "%"), las=2, tck=0.01, mgp=c(3,0.2,0))
 mtext("covered percentage", 4, line=2)
 mtext("Sample count", 1, line=2)
+
 dev.off()
 
 ## reads count for 

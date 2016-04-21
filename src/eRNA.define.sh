@@ -88,7 +88,7 @@ do
 done < ~/neurogen/rnaseq_PD/results/merged/samplelist.$SAMPLE_GROUP
 
 #2. compute p-value for each HTNE candidate in each sample's random background, then test the number of samples with p<0.05 with the binomial test, adjust p-value from binomial test with HB correction
-Rscript /data/neurogen/pipeline/RNAseq/src/_HTNE.consistency.R $SAMPLE_GROUP  # output is eRNA.tmp5.pvalues.adjusted.xls
+Rscript /data/neurogen/pipeline/RNAseq/src/_HTNE.consistency.R $SAMPLE_GROUP  # output are eRNA.tmp5.meanRPM.xls, eRNA.tmp5.pvalues.xls, and eRNA.tmp5.pvalues.adjusted.xls
 
 # multi-test correction to adjust p: 
 # bonferroni for the major groups
@@ -105,7 +105,7 @@ awk 'BEGIN{OFS="\t"; print "id","chr","s1","s2";}{print $4,$1,$2,$3;}' eRNA.bed 
 paste eRNA.tmp5.pvalues.adjusted.xls eRNA.tmp5.meanRPM.xls | awk 'NR ==1 || $5<=0.05' | cut -f6- > eRNA.meanRPM.xls
 
 ## define eRNA expression level on ALL (except the stranded) samples, not just the $SAMPLE_GROUP
-sort -k1,1 eRNA.bed | cut -f4 > eRNA.meanRPM.allSamples.xls
+cut -f4 eRNA.bed | sort -k1,1 > eRNA.meanRPM.allSamples.xls
 TMPFILE=`mktemp /tmp/meanRPM.XXXXXXXXXX` || exit 1
 for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.normalized.bw; 
 do
