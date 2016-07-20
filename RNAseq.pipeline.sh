@@ -127,15 +127,15 @@ done
 ## cumulative coverage for 7 samples in each group
 # ----------------------------------
 for i in `seq 1 100`;
-<<<<<<< Updated upstream
-do 
-  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7;   # output: random.covered.0.05RPM.HCILB_SNDA.*.txt
-  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7; 
-=======
+#<<<<<<< Updated upstream
+#do 
+#  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7;   # output: random.covered.0.05RPM.HCILB_SNDA.*.txt
+#  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7; 
+#=======
 do
   bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7;
   bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7;
->>>>>>> Stashed changes
+#>>>>>>> Stashed changes
 done
 cut -f2 random.covered.0.05RPM.HCILB_SNDA.*.txt | paste - - - - - - - > covered.0.05RPM.HCILB_SNDA.random7.txt
 cut -f2 random.covered.0.05RPM.HC_PY.*.txt | paste - - - - - - - > covered.0.05RPM.HC_PY.random7.txt
