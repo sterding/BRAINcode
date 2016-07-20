@@ -8,12 +8,10 @@
 ## TODO:
 #1. use PINSEQ for QC
 #2. use STAR for mapping
-<<<<<<< HEAD
-# FOR TEST
-=======
+
 #Updated 14/12/16 by Rebeca Borges Monroy
 # email: rborgesmonroy@g.harvard.edu
->>>>>>> f1d4950de9ced966bff4f67654ae0d4a6cf9001b
+
 ###########################################
 #!/bin/bash
 
@@ -130,7 +128,6 @@ uniqueR2=${R2/R2/_unique.R2}
 $pairfq_path/pairfq_lite makepairs -f $inputdir/../filtered_polyA/$R1 -r $inputdir/../filtered_polyA/$R2 -fp $inputdir/../filtered_polyA/$commonR1 -rp $inputdir/../filtered_polyA/$commonR2 -fs $inputdir/../filtered_polyA/$uniqueR1 -rs $inputdir/../filtered_polyA/$uniqueR2 --compress gzip && \ 
 touch $outputdir/$samplename/.status.$modulename.pairfq
 
-exit
 
 #############################################
 echo "["`date`"] STEP 3.1.2 QC after PolyA trimming"
@@ -312,11 +309,8 @@ cd $outputdir/$samplename
 ##echo "## run trinity to do de-novo discovery"
 #Trinity.pl --output denovo --seqType fq --JM 100G --left $R1 --right $R2 --CPU $CPU
 
-<<<<<<< Updated upstream
-echo "## run cufflinks for do de-novo discovery" 
-=======
+
 echo "## run cufflinks for do de-novo discovery"
->>>>>>> Stashed changes
 [ ! -f .status.$modulename.cufflinks.multi.denovo ] && \
 cufflinks --no-update-check --no-faux-reads $strandoption -o ./denovo -p $CPU -g $ANNOTATION_GTF -M $MASK_GTF accepted_hits.bam 2> cufflinks.denovo.log && \
 touch .status.$modulename.cufflinks.multi.denovo
