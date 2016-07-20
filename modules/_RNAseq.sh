@@ -8,6 +8,7 @@
 ## TODO:
 #1. use PINSEQ for QC
 #2. use STAR for mapping
+# FOR TEST
 ###########################################
 #!/bin/bash
 

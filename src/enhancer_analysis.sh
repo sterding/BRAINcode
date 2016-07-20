@@ -621,8 +621,12 @@ dev.off()
 #############################################################
 # clustering of eRNA expression
 #############################################################
-Rscript eRNA.clustering.R eRNA.80samples.RPKM.xls
-Rscript eRNA.clustering.R eRNA.80samples.rawcount.xls
+Rscript eRNA.clustering.R 
+
+#############################################################
+# classification of HTNE based on regulatory annotation
+#############################################################
+Rscript eRNA.classification.R
 
 
 #############################################################
