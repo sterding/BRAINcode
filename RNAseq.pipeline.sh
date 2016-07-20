@@ -11,26 +11,10 @@ modulename=`basename $0`
 set +o posix  #  enables the execution of process substitution e.g. http://www.linuxjournal.com/content/shell-process-redirection
 STEP=0
 
-#if [ $# -ne 1 ]
-#then
-#  echo "Usage:
-#  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles
-#  "
-#  exit
-#fi
-
-
-#if [ $# -ne 1 ]
-#then
-#  echo "Usage:
-#  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/HC_CircRNA_seq_Rebeca/rawfiles
-#  "
-#  exit
-#fi
-
 if [ $# -ne 1 ]
 then
   echo "Usage:
+  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/HC_CircRNA_seq_Rebeca/rawfiles
   "
   exit
