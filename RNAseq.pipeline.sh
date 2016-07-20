@@ -103,9 +103,12 @@ done
 # ----------------------------------
 for i in `seq 1 100`;
 do 
-  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7; 
+  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7;   # output: random.covered.0.05RPM.HCILB_SNDA.*.txt
   bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7; 
 done
+cut -f2 random.covered.0.05RPM.HCILB_SNDA.*.txt | paste - - - - - - - > covered.0.05RPM.HCILB_SNDA.random7.txt
+cut -f2 random.covered.0.05RPM.HC_PY.*.txt | paste - - - - - - - > covered.0.05RPM.HC_PY.random7.txt
+rm random.covered.0.05RPM.HC*
 
 ##  coverage for individual sample with different RPM cutoff (>0, >=0.01, >=0.05, >=0.1, >=0.5, >=1)
 # ----------------------------------
@@ -156,7 +159,6 @@ ylab("Coverage of the whole genome (%)") +
 theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=5), legend.justification=c(1,1), legend.position=c(1,1))
 ggsave("coverageWithRPM.RPMpt05.pdf", width=8, height=4)
 
-
 dev.off()
 
 ## coverage barplot (BRAINCODE vs. GENCODE)
@@ -164,8 +166,9 @@ dev.off()
 Rscript $HOME/neurogen/pipeline/RNAseq/module/_coverage.barplot.R
 
 ## body coverage
-ls ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA_*rep[1-2]/uniq/accepted_hits.bam.non-rRNA-mt.bam > bam_path.txt
-bsub -J RseQC -oo _RseQC_body_coverage.log -eo _RseQC_body_coverage.log -q $QUEUE -n $CPU -M $MEMORY -u $EMAIL -N geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i bam_path.txt  -o RseQC_body_coverage
+module load RSeQC/2.4
+for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.non-rRNA-mt.bam; do bsub -J $i -q short -n 1 -M 3000 -R 'rusage[mem=3000]' geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i $i  -o $i; done
+cat `ls ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.non-rRNA-mt.bam.geneBodyCoverage.txt | grep -f ../merged/samplelist.HCILB_SNDA` | grep accepted_hits > geneBodyCoverage.HCILB_SNDA.txt
 
 ## cumulative coverage
 for i in ~/neurogen/rnaseq_PD/run_output/[HI]*_SNDA_*rep[1-2]/uniq/accepted_hits.bw;
@@ -189,7 +192,6 @@ R
 pdf("coverage.cummulative.pdf", paper='us',width=5, height=4)
 
 # 3 cell types in one plot
-
 df=read.table("covered.0.05RPM.HCILB_SNDA.txt", header=F)
 colnames(df)=c("samplecount", "coveredbp")
 df=cbind(df, cumsum=cumsum(df$coveredbp), type='HCILB_SNDA')
@@ -204,25 +206,56 @@ colnames(df)=c("samplecount", "coveredbp")
 df=cbind(df, cumsum=cumsum(df$coveredbp), type='HC_nonNeuron')
 points(df$cumsum, type='l', lwd=2,col='#513931')
 axis(1, c(1,seq(20,90,20)), c(1,seq(20,90,20)), tck=0.02, mgp=c(3,0.2,0))
-axis(2, seq(0,2,.5)*1e9, labels=format(seq(0,2,.5),2), las=2, tck=0.02, mgp=c(3,0.2,0))
+#axis(2, seq(0,2,.5)*1e9, labels=format(seq(0,2,.5),2), las=2, tck=0.02, mgp=c(3,0.2,0))
+axis(2, 3137161264*seq(0,60,10)/100, labels=round(3137161264*seq(0,60,10)/100/1e9,2), las=2, tck=0.02, mgp=c(3,0.2,0))
 axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10)), las=2, tck=0.02, mgp=c(3,0.2,0))
+abline(h=3137161264*seq(0,60,10)/100, lwd=.5, col='gray')
 mtext("Covered percentage (%)", 4, line=2)
 mtext("Sample count", 1, line=2)
 mtext("Covered base pairs (in billion)", 2, line=2)
 
+# coverage with same number of samples (N=7)
+a=read.table("covered.0.05RPM.HCILB_SNDA.random7.txt", header=F)
+a=100*apply(a,1,sum)/3137161264
+#a=try(system("cut -f2 random.covered.0.05RPM.HCILB_SNDA.*.txt | paste - - - - - - -",intern = T))
+#a=100*apply(matrix(as.numeric(do.call(rbind, strsplit(a,"\t"))),nrow=100),1,sum)/3137161264
+df=data.frame(percentage=a,type='HCILB_SNDA')
+#a=try(system("cut -f2 random.covered.0.05RPM.HC_PY.*.txt | paste - - - - - - -",intern = T))
+#a=100*apply(matrix(as.numeric(do.call(rbind, strsplit(a,"\t"))),nrow=100),1,sum)/3137161264
+a=read.table("covered.0.05RPM.HC_PY.random7.txt", header=F)
+a=100*apply(a,1,sum)/3137161264
+df=rbind(df, data.frame(percentage=a,type='HC_PY'))
+a=read.table("covered.0.05RPM.HC_nonNeuron.txt", header=F)$V2
+a=100*sum(a)/3137161264
+df=rbind(df, data.frame(percentage=a,type='HC_nonNeuron'))
+par(tck=0.02)
+boxplot(percentage~type, df, col=c('#F22A7B','#3182bd','#513931'), ylab="Covered percentage (%)")
+
+# HCILB_SNDA with more details
 df=read.table("covered.5reads.HCILB_SNDA.txt", header=F)
 colnames(df)=c("samplecount", "coveredbp")
 df=cbind(df, cumsum=cumsum(df$coveredbp))
 par(mar=c(4,4,2,4))
-plot(df$cumsum, type='l', ylim=c(0,1900000000), xlim=c(1,90),ylab="covered base pairs (in billion)", main="covered.5reads.HCILB_SNDA", yaxt="n", xaxt='n', xlab='')
+plot(df$cumsum, type='l', ylim=c(0,1900000000), xlim=c(1,90),ylab="", main="covered.5reads.HCILB_SNDA", yaxt="n", xaxt='n', xlab='')
 points(df$coveredbp, type='h', lwd=4, col=colorRampPalette(c('blue','red'))(100), lend=2)
 abline(h=df$coveredbp[1], lty=2)
 axis(1, c(1,seq(10,90,10)), c(1,seq(10,90,10)), tck=0.01, mgp=c(3,0.2,0))
 axis(2, seq(0,2,.2)*1e9, labels=format(seq(0,2,.2),2), las=2, tck=0.01, mgp=c(3,0.2,0))
-axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10), "%"), las=2, tck=0.01, mgp=c(3,0.2,0))
-mtext("covered percentage", 4, line=2)
+axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10)), las=2, tck=0.01, mgp=c(3,0.2,0))
+mtext("Covered percentage (%)", 4, line=2)
 mtext("Sample count", 1, line=2)
+mtext("Covered base pairs (in billion)",2,line=2)
 
+## aggregation plot for gene body coverage (to show degradation)
+df=read.table("geneBodyCoverage.HCILB_SNDA.txt", header=F)
+df=df[,-1]
+df = (df-apply(df, 1, min))/(apply(df, 1, max)-apply(df,1,min))
+df=data.frame(x=1:ncol(df),mean=colMeans(df), sd=apply(df, 2, sd))
+library(ggplot2)
+p=ggplot(data = df, aes(x = x, y = mean)) + theme_bw()
+p=p+geom_line(aes(y = mean),size = 2) 
+#p=p+geom_ribbon(aes(ymax = mean + sd, ymin = mean - sd), alpha = 0.5, fill = "grey70") # add ribbon for mean+/-sd
+p
 dev.off()
 
 ## reads count for 
@@ -306,40 +339,87 @@ cd $result_dir/merged
 Rscript $pipeline_path/modules/_replicates.R genes.fpkm.cufflinks.HCILB.uniq.xls QCrep.genes.fpkm.HCILB.uniq.pdf
 
 # linear amplification vs. non-amplification
-Rscript $pipeline_path/modules/_pairwise_compare.R HC_M0235-4_PBMC_6_rep1.amplified HC_M0235-4_PBMC_6_rep1.unamplified
+#Rscript $pipeline_path/modules/_pairwise_compare.R HC_M0235-4_PBMC_6_rep1.amplified HC_M0235-4_PBMC_6_rep1.unamplified
 Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SN_6_rep1.amplified HC_UWA616_SN_6_rep1.unamplified
 
+# laser-captured neurons vs. homogeneous brain tissue (see the code at the end of _pairwise_compare.R)
+#Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SN_6_rep1.amplified HC_UWA616_SNDA_2_rep1 
 
-# laser-captured neurons vs. homogeneous brain tissue
-Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SNDA_2_rep1 HC_UWA616_SN_6_rep1.amplified
+# same sample, same batch
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_BN05-10_SNDA_5_rep1 HC_BN05-10_SNDA_5_rep2
+#Rscript $pipeline_path/modules/_pairwise_compare.R HC_BN08-90_SNDA_5_rep1 HC_BN08-90_SNDA_5_rep2
+
+# same sample, different batch
+#Rscript $pipeline_path/modules/_pairwise_compare.R HC_MGH1000_SNDA_1_rep1 HC_MGH1000_SNDA_4_rep2
+# Rscript $pipeline_path/modules/_pairwise_compare.R PD_MGH1288_SNDA_1_rep1 PD_MGH1288_SNDA_4_rep2
+# Rscript $pipeline_path/modules/_pairwise_compare.R PD_MGH1488_SNDA_1_rep1 PD_MGH1488_SNDA_4_rep2
+# Rscript $pipeline_path/modules/_pairwise_compare.R PD_UWA734_SNDA_2_rep1 PD_UWA734_SNDA_6_rep2
+
 # brain vs. non-brain
 # SN vs. PBMC
 Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SN_6_rep1.amplified HC_B0254-4_PBMC_6_rep1
 # SN vs. FB
 Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SN_6_rep1.amplified HC_ND34770_FB_6_rep1
-# same sample, same batch
-Rscript $pipeline_path/modules/_pairwise_compare.R HC_BN05-10_SNDA_5_rep1 HC_BN05-10_SNDA_5_rep2
-# same sample, different batch
-Rscript $pipeline_path/modules/_pairwise_compare.R HC_MGH1000_SNDA_1_rep1 HC_MGH1000_SNDA_4_rep2
-Rscript $pipeline_path/modules/_pairwise_compare.R PD_UWA734_SNDA_2_rep1 PD_UWA734_SNDA_6_rep2
+
 
 ########################
 ## 4. eQTL
 ########################
 cd $result_dir/eQTL
-module unload R/3.1.0
-module load R/3.0.2
-Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.cufflinks.HCILB.uniq.xls 
-module unload R/3.0.2; module load R/3.1.0
+
+# ## eQTL with PEER normalization (DEPRECATED)
+# module unload R/3.1.0
+# module load R/3.0.2
+# Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.cufflinks.HCILB.uniq.xls 
+# module unload R/3.0.2; module load R/3.1.0
 
 ## eQTL with SVA normalization
 cd $result_dir/eQTL/HCILB_SNDA
-bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/modules/_SVA.eQTL.R  # "HCILB_SNDA" only
+bsub -q big -n 2 -R 'rusage[mem=10000]' -eo eQTL.run.log -oo eQTL.run.log Rscript ~/neurogen/pipeline/RNAseq/modules/_SVA.eQTL.R  
+ln -fs final.cis.eQTL.xls final.cis.eQTL.d1e6.p1e-2.xls
+cat final.cis.eQTL.xls | awk '$6<=0.05' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls
+
 ## run permutations in bash
 mkdir permutations
-for i in `seq 1 10000`; do [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i -oo permutations/permutation$i.log -eo permutations/permutation$i.log Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
+for i in `seq 1 10000`; do [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
+
 # post-eQTL analysis
 bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
+
+## RTC analysis for eQTL (output: final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls with 11 columns)
+bsub -q big-multi -n 4 -M 10000 -oo RTC.run.log -eo RTC.run.log Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls gene
+## annotate: add hostgene_GWAS_SNP and hostgene_eQTL_SNP
+sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls | awk '{OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$10-1,$10,$0}'  | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-14,18 | sort | groupBy -g 1-11 -c 12 -o distinct | awk '{OFS="\t"; split($9,a,"_"); print a[1],$11-1,$11,$0}' | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-15,19 | sort | groupBy -g 1-12 -c 13 -o distinct | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls
+## filter: for each gene, take the eSNP with the best RTC score (if there are multiple eSNPs in LD) per GWAS SNP
+sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls | sort -k2,2r -k5,5 -k7,7gr | awk '{if(id!=$2$5) print; id=$2$5;}' | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls
+
+## manhanten plot for eQTL with RTC
+# Note: Run RTC (_RTC.R) ahead to get final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls
+Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls mRNA
+Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls ncRNA
+
+# simplfied table with LD infor (take the eSNP with the smallest p-value per SNP/associatedGene/Trait)
+# Note: we use LD block called by "PLINK --blocks", which use hyplotypeviewer behind and different from pairwise LD caller like SNAP)
+echo "#SNP OmniID Ref:Alt Chr eSNP_host_gene Associated_transcript_hostgene Associated_transcript minP Trait RTC GWAS_SNP GWAS_SNP_pos GWAS_SNP_pvalue LD" | sed 's/ /\t/g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.simplified.xls
+sed 's/ /_/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{OFS="\t"; if($7>=0.85) {split($9,a,"_");print a[1],$11-1,$11,$1,a[1],$13,($8=="NA")?"(intergenic)":$8,$9,$3,$6,$7,$5,$10}}' | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo | cut -f4-13,17 | awk '{OFS="\t"; $1=$1"|"$11; print}' | cut -f1-10 | sort -k1,1 -k3,3 -k4,4 -k7,7 -k6,6g | awk '{if(id!=$1$3$4$7) {print; id=$1$3$4$7;}}' | while read rs chr rest; do chr=${chr/chr/}; rs0=${rs/\|*/}; ld=`fgrep -w $rs0 $GENOME/Annotation/Variation/1000G/LDblock/Chr$chr.LD.blocks.det | head -n1 | awk '{print $1"_"$2"_"$3}'`; echo $rs $chr $rest chr$ld; done | sed 's/ /\t/g' | awk '{OFS="\t"; print "chr"$2,$10-1,$10,$9,$0}' | intersectBed -a - -b <(sed 's/ /_/g' /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pvalue.bed) -wo | awk '$11==$22' | cut -f5-15,20 | awk '{OFS="\t"; split($1,a,"[|_]"); print a[1],a[2],a[3],$2,$3,$4,$5,$6,$7,$8,$9,$10,$12,$11}' >> final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.simplified.xls
+
+## Top eQTL at 1M bp stepping
+grep -v protein_coding $GENOME/Annotation/Genes/genes.bed | cut -f4 | fgrep -w -f - ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' | sortBed | intersectBed -a - -b $GENOME/Annotation/Genes/genes.bed -wo | cut -f1-2,4-6,13-14 | awk '{OFS="\t"; print int($2/1000000),$0}' | sort -k2,2 -k1,1n -k5,5gr | awk '{OFS="\t"; if(id!=$1$2) {id=$1$2;p=$5;print;} else if($5==p) print;}' | sed 's/|/\t/g' | sort -k1,1 -k2,2 -k5,5 -k6,6 -k8,8 | groupBy -g 1,2,5-9 -c 3,3,4 -o count,distinct,distinct -delim "|" | sort -k3,3 | join -1 3 -2 4 - <(sort -k4,4 $GENOME/Annotation/Genes/genes.bed) -a 1 | awk '{OFS="\t"; print "ncRNA",$2,$3,$1,$16"___"$1"___"$17,$4,$5,$6,$7,$8,$9,$10}' | sort -k3,3 -k2,2n -k6,6gr > ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt
+grep protein_coding $GENOME/Annotation/Genes/genes.bed | cut -f4 | fgrep -w -f - ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' | sortBed | intersectBed -a - -b $GENOME/Annotation/Genes/genes.bed -wo | cut -f1-2,4-6,13-14 | awk '{OFS="\t"; print int($2/1000000),$0}' | sort -k2,2 -k1,1n -k5,5gr | awk '{OFS="\t"; if(id!=$1$2) {id=$1$2;p=$5;print;} else if($5==p) print;}' | sed 's/|/\t/g' | sort -k1,1 -k2,2 -k5,5 -k6,6 -k8,8 | groupBy -g 1,2,5-9 -c 3,3,4 -o count,distinct,distinct -delim "|" | sort -k3,3 | join -1 3 -2 4 - <(sort -k4,4 $GENOME/Annotation/Genes/genes.bed) -a 1 | awk '{OFS="\t"; print "mRNA",$2,$3,$1,$16"___"$1"___"$17,$4,$5,$6,$7,$8,$9,$10}' | sort -k3,3 -k2,2n -k6,6gr >> ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt
+
+## manhanten plot for eQTL
+Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls mRNA
+Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls ncRNA
+
+## boxplot of top eQTL
+cut -f4,12 ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt | cut -f1 -d"|" > topeQTL.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/src/eQTLlist2plot.R topeQTL.gene.snp.list
+
+## boxplot of top RTC eQTL
+
+cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/src/eQTLlist2plot.R RTC.gene.snp.list
+
 
 ## disease SNP enrichment in the eQTL SNPs
 ## =====================================
@@ -396,7 +476,9 @@ p = p + geom_text(aes(label=paste0(" (OR)")), position = position_dodge(width=1)
 p = p + ggtitle(paste0(basename(getwd()), " -- dSNP enrichments")) 
 print(p)
 dev.off()
+
 quit('no')
+
 
 #########################
 ### 5. post-normalization QC

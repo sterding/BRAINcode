@@ -1,3 +1,7 @@
+[Wed May  4 14:40:07 EDT 2016]
+1. Ganqiang found that two subjects (BN07-37, BN97-17) are likely twin (PI_HAT=0.99 from PLINK). So we'd better to remove one from the pairs to rerun eQTL
+# rowsToCols All.Matrix.txt stdout | egrep -v "BN07-37|BN97-17" | rowsToCols stdin All.Matrix.txt.new
+
 flowchart of eQTL and dSNP enrichment of HTNE (for Clemens) 
 correlation for eRNA and GENCODE genes  -- send data to GL for visualization
 clustering HTNEs to show cell-specific block

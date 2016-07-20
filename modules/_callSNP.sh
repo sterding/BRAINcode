@@ -68,6 +68,7 @@ intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $LINE    -sorted -wao | cut 
 intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $exons   -sorted -wao | sed 's/___/\t/g' | cut -f1-5,9 | uniq | groupBy -g 1,2,3,4,5 -c 6 -o collapse > ${input_sam/sam/snp}_exon
 intersectBed -a ${input_sam/sam/snp}.depth_gt_15 -b $introns -sorted -wao | cut -f1-5,9 | uniq | groupBy -g 1,2,3,4,5 -c 6 -o collapse > ${input_sam/sam/snp}_intron
 
+# in order of: dbSNP, exon, intron, LINE, rRNA
 paste ${input_sam/sam/snp}_* | awk '{OFS="\t"; printf "%s\t%s\t%s\t%s\t%s", $1,$2,$3,$4,$5; for(i=6;i<=NF;i=i+6) printf "\t%s", $i; printf "\n";}' > ${input_sam/sam/snp}.annotation
 
 

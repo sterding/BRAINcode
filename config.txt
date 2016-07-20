@@ -59,6 +59,14 @@ CRHOME_SIZE=$ANNOTATION/ChromInfo.txt
 
 MASK_GTF=$ANNOTATION/chrM.rRNA.tRNA.gtf
 
+# db version mapping
+GENCODE=v19
+ENSEMBL=v74  # or v75, see http://www.gencodegenes.org/releases/
+NCBI=GRCh37
+UCSC=hg19
+dbSNP=snp137
+BIOMART=dec2013 # http://useast.ensembl.org/info/website/archives/assembly.html
+
 # ==============================
 # index for mapper
 # ==============================

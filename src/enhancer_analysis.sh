@@ -22,13 +22,13 @@ cd ~/neurogen/rnaseq_PD/for_display/; bash $pipeline_path/src/_make_trackDb.HTNE
 # define shared and private eRNA
 ################################################################################################
 # ven diagram for overlap of 3 major groups (a: SNDA; b:PY; c:NN)
-echo a `intersectBed -a HCILB_SNDA/eRNA.bed -b <(cat HC_PY/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l` > venn.diagram.fdr.txt
-echo b `intersectBed -a HC_PY/eRNA.bed -b <(cat HCILB_SNDA/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l` >> venn.diagram.fdr.txt
-echo c `intersectBed -a HC_nonNeuron/eRNA.bed -b <(cat HC_PY/eRNA.bed HCILB_SNDA/eRNA.bed) -v | wc -l` >> venn.diagram.fdr.txt
-echo ab `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_PY/eRNA.bed -u | intersectBed -a stdin -b HC_nonNeuron/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
-echo ac `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
-echo bc `intersectBed -a HC_PY/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
-echo abc `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -u | wc -l` >> venn.diagram.fdr.txt
+# echo a `intersectBed -a HCILB_SNDA/eRNA.bed -b <(cat HC_PY/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l` > venn.diagram.fdr.txt
+# echo b `intersectBed -a HC_PY/eRNA.bed -b <(cat HCILB_SNDA/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l` >> venn.diagram.fdr.txt
+# echo c `intersectBed -a HC_nonNeuron/eRNA.bed -b <(cat HC_PY/eRNA.bed HCILB_SNDA/eRNA.bed) -v | wc -l` >> venn.diagram.fdr.txt
+# echo ab `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_PY/eRNA.bed -u | intersectBed -a stdin -b HC_nonNeuron/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
+# echo ac `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
+# echo bc `intersectBed -a HC_PY/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
+# echo abc `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -u | wc -l` >> venn.diagram.fdr.txt
 
 echo a `intersectBed -a HCILB_SNDA/eRNA.bonferroni.bed -b <(cat HC_PY/eRNA.bonferroni.bed HC_nonNeuron/eRNA.bonferroni.bed) -v | wc -l` > venn.diagram.bonferroni.txt
 echo b `intersectBed -a HC_PY/eRNA.bonferroni.bed -b <(cat HCILB_SNDA/eRNA.bonferroni.bed HC_nonNeuron/eRNA.bonferroni.bed) -v | wc -l` >> venn.diagram.bonferroni.txt
@@ -69,10 +69,20 @@ intersectBed -a HC_PBMC/eRNA.bed -b <(cat HC_TCPY/eRNA.bed HCILB_SNDA/eRNA.bed H
 > HCILB_SNDA/eRNA.shared.minor.txt
 for i in HC_TCPY HC_MCPY HC_PBMC HC_FB; do echo $i; echo "HCILB_SNDA vs. $i:" `intersectBed -a HCILB_SNDA/eRNA.bed -b $i/eRNA.bed -u | wc -l` >> HCILB_SNDA/eRNA.shared.minor.txt; done
 
+## merge private HTNEs into one file
+grep only ~/eRNAseq/*/eRNA.privacy.bed | cut -f2 -d":" > ~/eRNAseq/eRNA.private.major.merged.bed
+cat ~/eRNAseq/*/eRNA.meanRPM.allSamples.xls | head -n1 >  ~/eRNAseq/eRNA.private.major.merged.meanRPM.allSamples.xls
+cat ~/eRNAseq/*/eRNA.meanRPM.allSamples.xls | fgrep -w -f <(cut -f4 ~/eRNAseq/eRNA.private.major.merged.bed) >> ~/eRNAseq/eRNA.private.major.merged.meanRPM.allSamples.xls
+Rscript $pipeline_path/src/eRNA.private.heatmap.R ~/eRNAseq/eRNA.private.major.merged.bed ~/eRNAseq/eRNA.private.major.merged.meanRPM.allSamples.xls
+
+
 ## fold change and p-value for private HTNEs
 bsub -q short -n 1 Rscript $pipeline_path/src/eRNA.private.stat.R ~/eRNAseq/HCILB_SNDA/eRNA.meanRPM.allSamples.xls ~/neurogen/rnaseq_PD/results/merged/samplelist.HCILB_SNDA ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_PY ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_nonNeuron
 bsub -q short -n 1 Rscript $pipeline_path/src/eRNA.private.stat.R ~/eRNAseq/HC_PY/eRNA.meanRPM.allSamples.xls ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_PY ~/neurogen/rnaseq_PD/results/merged/samplelist.HCILB_SNDA ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_nonNeuron
 bsub -q short -n 1 Rscript $pipeline_path/src/eRNA.private.stat.R ~/eRNAseq/HC_nonNeuron/eRNA.meanRPM.allSamples.xls ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_nonNeuron ~/neurogen/rnaseq_PD/results/merged/samplelist.HC_PY ~/neurogen/rnaseq_PD/results/merged/samplelist.HCILB_SNDA
+
+# combine characterize and ttest into one file:
+cut -f4 eRNA.private.major.bed | fgrep -f - eRNA.meanRPM.allSamples.ttest.txt | sort -k1,1 | join -1 1 -2 1 -a 1 - <(grep SNDAonly eRNA.characterize2.xls | sort -k1,1) | sed 's/ /\t/g' > eRNA.private.major.foldchange.characterize.xls
 
 cut -f4 eRNA.private.major.bed | fgrep -f - eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=2 && $3<0.01 && $4>=2 && $5<0.01' | cut -f1 | fgrep -f - eRNA.characterize.xls | awk '$28==1 && $6>=10 && $7>0 && $8>0' 
 chr1_66277655_66278270	19766	90.8832	0.133147	0.0339962	36	1	1	1	2	NA	0.622140.185885	NA	0	0	0	PDE4B___ENSG00000184588.13___protein_coding	223	582063	573422	1	1	1
@@ -81,8 +91,6 @@ chr8_41570144_41570663	183877	65.0584	0.0954287	0.505082	32	2	1	0	9	NA	40.64260.
 cat eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=2 && $3<0.01 && $4>=2 && $5<0.01' | cut -f1 | fgrep -f - eRNA.characterize.xls | awk '$28==1 && $6>=10 && $7>0 && $8>0'  # n=4
 cat eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=1 && $3<0.01 && $4>=1 && $5<0.01' | wc -l  # n=10295
 cut -f4 eRNA.private.major.bed | fgrep -f - eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=1 && $3<0.01 && $4>=1 && $5<0.01' | wc -l  # n=9777 (95%)
-
-
 
 join -1 4 -2 1 <(sort -k4,4 eRNA.privacy.bed) <(sort -k1,1 eRNA.meanRPM.allSamples.ttest.txt) > eRNA.privacy.ttest.txt
 R
@@ -124,42 +132,86 @@ Rscript $pipeline_path/src/eRNA.SNP.enrichment.privateOnly.R SNAP minor
 
 ## overlap of GWAS --> eQTL --> TFBS 
 snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed
-grep Parkinson $snps_in_LD.autosomal.associations.bed | intersectBed -b HCILB_SNDA/eRNA.bed -a - -wo | cut -f1-4,8 | intersectBed -a - -b <(awk '{OFS="\t"; if(NR>1) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2,$5,$6}}' HCILB_SNDA/final.cis.eQTL.new.d1e6.p1e-2.xls) -wao |  sed 's/ /__/g' | sort -k1,1 -k2,2 -k11,11g | awk '{if(s!=$2){print; s=$2}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wao
+grep Parkinson $snps_in_LD.autosomal.associations.bed | intersectBed -b HCILB_SNDA/eRNA.bed -a - -wo | cut -f1-4,8 | intersectBed -a - -b <(awk '{OFS="\t"; if(NR>1) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2,$5,$6}}' HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls) -wao |  sed 's/ /__/g' | sort -k1,1 -k2,2 -k11,11g | awk '{if(s!=$2){print; s=$2}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wao
 
 
 ################################################################################################
 # eQTL of eRNA
 ################################################################################################
 cd HCILB_SNDA;
-bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R # for HCILB_SNDA only
+bsub -q big -n 2 -R 'rusage[mem=10000]' -eo eQTL.run.log -oo eQTL.run.log Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R # for HCILB_SNDA only
+ln -fs final.cis.eQTL.xls final.cis.eQTL.d1e6.p1.xls
+cat final.cis.eQTL.xls | awk 'NR==1 || $5<=0.01' > final.cis.eQTL.d1e6.p1e-2.xls
+cat final.cis.eQTL.xls | awk '$5<=0.01 && $6<=0.05' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls  ## Note: The FDR based on p<=1 might be different from FDR based on p<=0.01
+
+## RTC
+bsub -q big-multi -n 4 -M 10000 -oo RTC.run.log -eo RTC.run.log Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls HTNE
+## annotate: add hostgene_GWAS_SNP and hostgene_eQTL_SNP
+sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls | awk '{OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$10-1,$10,$0}'  | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-14,18 | sort | groupBy -g 1-11 -c 12 -o distinct | awk '{OFS="\t"; split($9,a,"_"); print a[1],$11-1,$11,$0}' | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-15,19 | sort | groupBy -g 1-12 -c 13 -o distinct | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls
+## filter: for each gene, take the eSNP with the best RTC score (if there are multiple eSNPs in LD) per GWAS SNP
+sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls | sort -k2,2r -k5,5 -k7,7gr | awk '{if(id!=$2$5) print; id=$2$5;}' | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls
+
+## manhatten plot w/ RTC
+Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls all
+
+## boxplot of top eQTL w/ RTC
+cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/src/eQTLlist2plot.R RTC.gene.snp.list
+
+# simplfied table with LD infor (take the eSNP with the smallest p-value per SNP/associatedGene/Trait)
+# Note: we use LD block called by "PLINK --blocks", which use hyplotypeviewer behind and different from pairwise LD caller like SNAP)
+echo "#SNP OmniID Ref:Alt Chr eSNP_host_gene Associated_transcript_hostgene Associated_transcript minP Trait RTC GWAS_SNP GWAS_SNP_pos GWAS_SNP_pvalue LD" | sed 's/ /\t/g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.simplified.xls
+sed 's/ /_/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{OFS="\t"; if($7>=0.85) {split($9,a,"_");print a[1],$11-1,$11,$1,a[1],$13,($8=="NA")?"(intergenic)":$8,$9,$3,$6,$7,$5,$10}}' | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo | cut -f4-13,17 | awk '{OFS="\t"; $1=$1"|"$11; print}' | cut -f1-10 | sort -k1,1 -k3,3 -k4,4 -k7,7 -k6,6g | awk '{if(id!=$1$3$4$7) {print; id=$1$3$4$7;}}' | while read rs chr rest; do chr=${chr/chr/}; rs0=${rs/\|*/}; ld=`fgrep -w $rs0 $GENOME/Annotation/Variation/1000G/LDblock/Chr$chr.LD.blocks.det | head -n1 | awk '{print $1"_"$2"_"$3}'`; echo $rs $chr $rest chr$ld; done | sed 's/ /\t/g' | awk '{OFS="\t"; print "chr"$2,$10-1,$10,$9,$0}' | intersectBed -a - -b <(sed 's/ /_/g' /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pvalue.bed) -wo | awk '$11==$22' | cut -f5-15,20 | awk '{OFS="\t"; split($1,a,"[|_]"); print a[1],a[2],a[3],$2,$3,$4,$5,$6,$7,$8,$9,$10,$12,$11}' >> final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.simplified.xls
+
 ## run permutations in bash
-for i in `seq 1 10000`; do echo $i; [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls 1000; done
-# post-eQTL analysis
+mkdir permutations; 
+for i in `seq 1 10000`; do [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
+
+## Top eQTL at 1M bp stepping
+awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | sortBed | intersectBed -a - -b $GENOME/Annotation/Genes/genes.bed -wo | cut -f1-2,4-6,13-14 | awk '{OFS="\t"; print int($2/1000000),$0}' | sort -k2,2 -k1,1n -k5,5gr | awk '{OFS="\t"; if(id!=$1$2) {id=$1$2;p=$5;print;} else if($5==p) print;}' | sed 's/|/\t/g' | sort -k1,1 -k2,2 -k5,5 -k6,6 -k8,8 | groupBy -g 1,2,5-9 -c 3,3,4 -o count,distinct,distinct -delim "|" | sort -k3,3 | join -1 3 -2 1 - <(cut -f1,28 ~/eRNAseq/HCILB_SNDA/eRNA.characterize2.xls | sort -k1,1) -a 1 | awk '{OFS="\t"; print "HTNE",$2,$3,$1,$11,$4,$5,$6,$7,$8,$9,$10}' | sort -k3,3 -k2,2n -k6,6gr > ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt
+grep -v protein_coding $GENOME/Annotation/Genes/genes.bed | cut -f4 | fgrep -w -f - ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' | sortBed | intersectBed -a - -b $GENOME/Annotation/Genes/genes.bed -wo | cut -f1-2,4-6,13-14 | awk '{OFS="\t"; print int($2/1000000),$0}' | sort -k2,2 -k1,1n -k5,5gr | awk '{OFS="\t"; if(id!=$1$2) {id=$1$2;p=$5;print;} else if($5==p) print;}' | sed 's/|/\t/g' | sort -k1,1 -k2,2 -k5,5 -k6,6 -k8,8 | groupBy -g 1,2,5-9 -c 3,3,4 -o count,distinct,distinct -delim "|" | sort -k3,3 | join -1 3 -2 4 - <(sort -k4,4 $GENOME/Annotation/Genes/genes.bed) -a 1 | awk '{OFS="\t"; print "ncRNA",$2,$3,$1,$16"___"$1"___"$17,$4,$5,$6,$7,$8,$9,$10}' | sort -k3,3 -k2,2n -k6,6gr > ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt
+grep protein_coding $GENOME/Annotation/Genes/genes.bed | cut -f4 | fgrep -w -f - ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' | sortBed | intersectBed -a - -b $GENOME/Annotation/Genes/genes.bed -wo | cut -f1-2,4-6,13-14 | awk '{OFS="\t"; print int($2/1000000),$0}' | sort -k2,2 -k1,1n -k5,5gr | awk '{OFS="\t"; if(id!=$1$2) {id=$1$2;p=$5;print;} else if($5==p) print;}' | sed 's/|/\t/g' | sort -k1,1 -k2,2 -k5,5 -k6,6 -k8,8 | groupBy -g 1,2,5-9 -c 3,3,4 -o count,distinct,distinct -delim "|" | sort -k3,3 | join -1 3 -2 4 - <(sort -k4,4 $GENOME/Annotation/Genes/genes.bed) -a 1 | awk '{OFS="\t"; print "mRNA",$2,$3,$1,$16"___"$1"___"$17,$4,$5,$6,$7,$8,$9,$10}' | sort -k3,3 -k2,2n -k6,6gr >> ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt
+#cat ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt > ~/Dropbox/PDBrainMap/figures/eQTL/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.xls
+## PRE: add host gene symbols for top eQTL
+#awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | sort -k1,1 -k5,5gr | intersectBed -a - -b $GENOME/Annotation/Genes/genes.bed -wo | cut -f1-5,13-14 > final.cis.eQTL.d1e6.p1e-6.SNPhostgene.txt
+awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls |  sed 's/|/\t/g' | sort -k5,5 | join -1 5 -2 1 - <(cut -f1,28 ~/eRNAseq/HCILB_SNDA/eRNA.characterize2.xls | sort -k1,1) -a 1 | awk '{OFS="\t"; split($8,a,"___");if(a[1]=="NA") a[3]="NA";  print $2,$3,$4,$5"|"$1,$6,a[1],a[3]}' > ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.topSNPassociatedgene.xls
+
+## manhanten plot for eQTL
+Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls all
+
+## boxplot of top eQTL
+cut -f4,12 ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt | cut -f1 -d"|" > topeQTL.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/src/eQTLlist2plot.R topeQTL.gene.snp.list
+
+
+## post-eQTL analysis
 bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
 Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.plot.R rs1684902:61633127:A:G_A:G chr10_61632545_61633312
 
-cat ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.new.d1e6.p1e-2.xls | awk '$6<=0.05' > ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls
 
 ## eQTL analysis
 # HTNE w/ eQTL
-awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f5 | sort | uniq -c
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.d1e6.p1e-2.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f5 | sort | uniq -c
 # HTNE w/o eQTL
-fgrep -v -f <(awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | cut -f2 | sort -u) eRNA.characterize.xls | cut -f28 | sort | uniq -c
+fgrep -v -f <(awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.d1e6.p1e-2.xls | cut -f2 | sort -u) eRNA.characterize.xls | cut -f28 | sort | uniq -c
 # Fisher' test in R
 fisher.test(matrix(c(39,23586,106,47291),nrow=2,byrow=T),'greater')  # p-value = 0.1123
 
 ## GO analysis for the genes harboring eQTL HTNEs
-awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f4 | sort -u | sed 's/___/\t/g' | cut -f2 | sed 's/\..*//g'
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.d1e6.p1e-2.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f4 | sort -u | sed 's/___/\t/g' | cut -f2 | sed 's/\..*//g'
 
 ## eQTL filters:
-## A: colocalize --> FDR --> TFBS/GWAS
+## A: colocalize --> TFBS --> GWAS
 ## ----------------------------------
-awk '{split($2,a,"_"); if(NR==1 || ($7>(a[2]-500) && $7<(a[3]+500))) print}' final.cis.eQTL.new.d1e6.p1.xls  > final.cis.eQTL.new.d500.p1.xls
-## final.cis.eQTL.new.d500.p1.xls --> final.cis.eQTL.new.d500.adjusted.xl in R
-awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' final.cis.eQTL.new.d500.adjusted.xls | intersectBed -a - -b $snps_in_LD.autosomal.associations.bed -wo ## one
-awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' final.cis.eQTL.new.d500.adjusted.xls | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo ## NONE
+awk '{split($2,a,"_"); if(NR==1 || ($7>(a[2]-500) && $7<(a[3]+500))) print}' final.cis.eQTL.d1e6.p1e-2.xls  > final.cis.eQTL.d1e6.p1e-2.colocalized500nt.xls
+awk '{OFS="\t"; split($2,a,"_"); if(NR>1) print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' final.cis.eQTL.d1e6.p1e-2.colocalized500nt.xls | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo > final.cis.eQTL.d1e6.p1e-2.colocalized500nt.TFBS.xls
+awk '{OFS="\t"; split($2,a,"_"); if(NR>1) print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' final.cis.eQTL.d1e6.p1e-2.colocalized500nt.xls | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -u | intersectBed -a - -b $snps_in_LD.autosomal.associations.bed -wo ## 2
 
-## B: GWAS --> FDR --> TFBS
+## A2: colocalize --> FDR --> TFBS (N=0)
+## ----------------------------------
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2,$3,$4,$5;}' final.cis.eQTL.d1e6.p1e-2.colocalized500nt.xls | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -u # NONE
+
+## B1: GWAS --> FDR --> TFBS
 ## ----------------------------------
 #1. GWAS disease associated
 snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed
@@ -174,51 +226,51 @@ df=read.table("final.cis.eQTL.GWAS.xls", header=F, stringsAsFactors =F, sep="\t"
 colnames(df) = c('chr','start','end','SNP','gene','beta','t.stat','p.value','trait')
 df$FDR=p.adjust(df$p.value,method='fdr'); df$bonferroni=p.adjust(df$p.value,method='bonferroni')
 write.table(df, "final.cis.eQTL.GWAS.adjusted.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
-df=subset(df, FDR<=0.05) # filtered by FDR 
 #df=read.table("final.cis.eQTL.GWAS.FDR5pt.xls", header=F, stringsAsFactors =F, sep="\t", quote="\"")
 #colnames(df) = c('chr','start','end','SNP','gene','beta','t.stat','p.value','trait','FDR','bonferroni')
+q('no')
 
-pdf("eRNA.eQTL.enrichment.pdf", width=6, height = 8)
-# to plot the number of eQTL SNPs per disease
-n_eQTL = sort(table(df$trait), decreasing =T)
-n_eQTL = n_eQTL[n_eQTL>=3]
-length(n_eQTL)
+more +2 final.cis.eQTL.GWAS.adjusted.xls | awk -vFS="\t" '$10<=0.05' > final.cis.eQTL.GWAS.FDR5pt.xls
+#more +2 final.cis.eQTL.GWAS.adjusted.xls | awk -vFS="\t" '$11<=0.05' # only have 36 eQTL remained after Bonferroni correction, choose to use FDR
+
+## Note: but none of them have any SNP colocalize with eRNA, even in +/- 500bp window
+awk '{OFS="\t"; split($5,a,"_"); if($3<=a[3] && $3>=a[2]) print}' final.cis.eQTL.GWAS.FDR5pt.xls  # N=0
+awk '{OFS="\t"; split($5,a,"_"); if($3<=(a[3]+500) && $3>=(a[2]-500)) print}' final.cis.eQTL.GWAS.FDR5pt.xls # N=1
+
+# 3. disrupt the TFBS motif (N=305)
+TFBS=../externalData/TFBS/factorbookMotifPos.v3.bed
+intersectBed -a final.cis.eQTL.GWAS.FDR5pt.xls -b $TFBS -wo > final.cis.eQTL.GWAS.FDR5pt.TFBS.xls
+## 3.2 anyone in RTC of diseases
+
+
+## Note: but none of them have any SNP colocalize with eRNA, even in +/- 500bp window
+awk '{OFS="\t"; split($5,a,"_"); if($3<=a[3] && $3>=a[2]) print}' final.cis.eQTL.GWAS.FDR5pt.TFBS.xls  # N=0
+awk '{OFS="\t"; split($5,a,"_"); if($3<=(a[3]+500) && $3>=(a[2]-500)) print}' final.cis.eQTL.GWAS.FDR5pt.TFBS.xls # N=0
+
+cat final.cis.eQTL.GWAS.FDR5pt.TFBS.xls | cut -f9 | sort | uniq -c | sort -k1,1n
+grep Parkinson final.cis.eQTL.GWAS.FDR5pt.TFBS.xls
+
+## B2: GWAS --> p<0.01 --> colocalized --> TFBS
+## ----------------------------------
+awk '$8<0.01' final.cis.eQTL.GWAS.adjusted.xls > final.cis.eQTL.GWAS.p1e-2.xls
+Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls all
+R
+setwd("~/eRNAseq/HCILB_SNDA")
+inputfile="final.cis.eQTL.GWAS.p1e-2.xls" # N=162,325
+df=read.table(inputfile, header=F, stringsAsFactors =F, sep="\t", quote="\"")
+colnames(df) = c('chr','start','end','SNP','gene','beta','t.stat','p.value','trait','FDR','bonferroni')
+
+pdf(sub("xls","pdf",inputfile), width=12, height = 6)
+# to plot the number of colocalized eQTL SNPs per disease (e.g. eSNP in HTNEs)
+df$genestart=as.numeric(sub(".*_(.*)_.*","\\1",df$gene)); df$geneend=as.numeric(sub(".*_.*_(.*)","\\1",df$gene))
+df0=subset(df, start>=genestart & start<=geneend)
 # remove parts in "(*)"
-names(n_eQTL) = gsub(" \\(.*","", names(n_eQTL))
-par(mar=c(30,5,2,2));
-barplot(n_eQTL, width=.2, space=1, las=2, cex=.6,cex.axis=.8, cex.names = .5, col='#F22A7B', border='#F22A7B', ylab="Number of disease eQTL SNPs")
-# Manhantan plot for the eQTL, color by diseases
-head(df)
-rcMpPvals=subset(df, select=c(chr, end, p.value, trait))
-chrMax=0;
-for (i in 1:22){ 
-  ndx <- which(rcMpPvals[, 1]==paste0('chr',i))
-  if(length(ndx)==0) next
-  rcMpPvals[ndx, 2] <- rcMpPvals[ndx, 2] + chrMax;
-  chrMax = max(rcMpPvals[ndx, 2]);
-  #print(c(i, length(ndx), chrMax))
-}
-bpMidVec <-c(); labels=c();
-for (i in 1:22){
-  ndx <- which(rcMpPvals[, 1]==paste0('chr',i))
-  if(length(ndx)==0) next
-  posSub <- rcMpPvals[ndx, 2]
-  bpMidVec <- c(bpMidVec, ((max(posSub) - min(posSub))/2) + min(posSub))
-  labels = c(labels, paste0('chr',i))
-}
-
-library('ggplot2')
-ggplot(rcMpPvals) +
-  geom_point(aes(x=end, y=-log10(p.value), colour=as.factor(chr)),size=3, alpha=1/2) +
-  #scale_color_manual(values=rep(c('black', 'dark green'), 6)) 
-  theme_bw(base_size=15) + 
-  theme(legend.position='none') +
-  scale_x_continuous(labels=labels, breaks=bpMidVec) +
-  #geom_hline(y=4.08, linetype=1, col='red', lwd=1.5) +
-  ggtitle('eQTL with disease-associated SNPs') + xlab('') + ylab('-log10(P)')
-print(p)
-# enrichment test
-
+df0$trait = gsub(" \\(.*","", df0$trait)
+n_eQTL = sort(table(df0$trait), decreasing =T)
+n_eQTL = n_eQTL[n_eQTL>=2]
+length(n_eQTL)
+par(mar=c(10,5,2,2));
+barplot(n_eQTL, width=.2, space=1, las=2, cex=.6,cex.axis=.8, cex.names =1, col='#F22A7B', border='#F22A7B', ylab="Number of disease eSNPs colocalized with HTNEs")
 dev.off()
 quit('no')
 
@@ -229,7 +281,7 @@ more +2 final.cis.eQTL.GWAS.adjusted.xls | awk -vFS="\t" '$10<=0.05' > final.cis
 awk '{OFS="\t"; split($5,a,"_"); if($3<=a[3] && $3>=a[2]) print}' final.cis.eQTL.GWAS.FDR5pt.xls  # N=0
 awk '{OFS="\t"; split($5,a,"_"); if($3<=(a[3]+500) && $3>=(a[2]-500)) print}' final.cis.eQTL.GWAS.FDR5pt.xls # N=1
 
-# 3. disrupt the TFBS motif
+# 3. disrupt the TFBS motif (N=348)
 TFBS=../externalData/TFBS/factorbookMotifPos.v3.bed
 intersectBed -a final.cis.eQTL.GWAS.FDR5pt.xls -b $TFBS -wo > final.cis.eQTL.GWAS.FDR5pt.TFBS.xls
 
@@ -242,12 +294,12 @@ grep Parkinson final.cis.eQTL.GWAS.FDR5pt.TFBS.xls
 
 ## C: FDR > colocalize --> TFBS: N=0
 ## ----------------------------------
-awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05 && $7>=a[2] && $7<=a[3]) print a[1],$7-1,$7,$1,$2;}' final.cis.eQTL.new.d1e6.p1e-2.xls  | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo  # NONE
+awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05 && $7>=a[2] && $7<=a[3]) print a[1],$7-1,$7,$1,$2;}' final.cis.eQTL.d1e6.p1e-2.xls  | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo  # NONE
 
 ## D: p<0.01 --> colocalize --> TFBS: N=5
 ## ----------------------------------
-awk '{OFS="\t"; split($2,a,"_"); if($7>=a[2] && $7<=a[3]) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -u  # N=6
-awk '{OFS="\t"; split($2,a,"_"); if($7>=a[2] && $7<=a[3]) print;}' final.cis.eQTL.new.d1e6.p1e-2.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; if($8<2 || $9>=5) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo > final.cis.eQTL.d0.p1e-2.classI_or_nTFgt5.TFBS.xls
+awk '{OFS="\t"; split($2,a,"_"); if($7>=a[2] && $7<=a[3]) print;}' final.cis.eQTL.d1e6.p1e-2.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -u  # N=6
+awk '{OFS="\t"; split($2,a,"_"); if($7>=a[2] && $7<=a[3]) print;}' final.cis.eQTL.d1e6.p1e-2.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; if($8<2 || $9>=5) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo > final.cis.eQTL.d0.p1e-2.classI_or_nTFgt5.TFBS.xls
 
 more +2 final.cis.eQTL.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05 && $7>=a[2] && $7<=a[3]) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo
 more +2 final.cis.eQTL.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,1.5,1.6,1.7,2.28,2.6" - <(sort eRNA.characterize.xls) | sed 's/ /\t/g' | awk '{OFS="\t"; if($8<3 || $9>10) {split($2,a,"_"); print a[1],$7-1,$7,$1,$2;}}' | intersectBed -a - -b ../externalData/TFBS/factorbookMotifPos.v3.bed -wo
@@ -256,14 +308,14 @@ more +2 final.cis.eQTL.xls | sort -k2,2 | join -a 1 -1 2 -2 1 -o "1.1,0,1.3,1.4,
 ## ========================================================
 snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed
 # prune GWAS SNPs
-more +2 final.cis.eQTL.new.d1e6.p1e-2.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -u  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.with.eSNP.txt
-more +2 final.cis.eQTL.new.d1e6.p1e-2.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -v  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.without.eSNP.txt
+more +2 final.cis.eQTL.d1e6.p1e-2.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -u  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.with.eSNP.txt
+more +2 final.cis.eQTL.d1e6.p1e-2.xls | awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print a[1],$7-1,$7,$1,$2;}' | intersectBed -a $snps_in_LD.autosomal.associations.bed -b - -v  | sort -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}'> dSNP.without.eSNP.txt
 
 R
 setwd("~/eRNAseq/HCILB_SNDA")
 N=as.numeric(system("wc -l $GENOME/Annotation/Variation/snp137.bed.groupped.SNP | cut -f1 -d' '", intern=T)) ## total SNPs in dbSNP
 #N=as.numeric(system("cut -f1-3 $GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed.autosomal.associations.bed | sort -u | wc -l | cut -f1 -d' '", intern=T)) ## total dSNPs in gwas+proxy
-n=as.numeric(system("more +2 final.cis.eQTL.new.d1e6.p1e-2.xls | awk '$6<=0.05' | cut -f1,7 | sort -u | wc -l", intern=T))  ## total eSNP
+n=as.numeric(system("more +2 final.cis.eQTL.d1e6.p1e-2.xls | awk '$6<=0.05' | cut -f1,7 | sort -u | wc -l", intern=T))  ## total eSNP
 df1=read.table("dSNP.with.eSNP.txt", header=F); rownames(df1)=df1[,1]
 df2=read.table("dSNP.without.eSNP.txt", header=F); rownames(df2)=df2[,1]
 df=cbind(df1, df2[rownames(df1),2]); df=df[,-1]; colnames(df)=c('dSNP_eSNP','dSNP_N_eSNP')  ## only the disease with both eSNP and dSNP

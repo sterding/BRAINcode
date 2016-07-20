@@ -17,7 +17,7 @@ setwd(paste0("~/eRNAseq/",SAMPLE_GROUP))
 if(file.exists("data.RData")) load("data.RData") else{
   
   covarianceTableURL="https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118&single=true&output=tsv"  # for all 140 samples
-  snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 93 unique subjects
+  snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  
   snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
   
   # for eRNAs
@@ -31,7 +31,8 @@ if(file.exists("data.RData")) load("data.RData") else{
   
   message(" # remove outlier and replicate...")
   ######################
-  covs=read.table(textConnection(getURL(covarianceTableURL)), header=T, stringsAsFactors = FALSE);
+  covs=read.delim(textConnection(getURL(covarianceTableURL)), stringsAsFactors =F)
+  #covs=subset(covs, BRAINCODE.final.selection==1)
   covs=subset(covs, outlier==0 & replicate=="rep1")  # remove outliers and rep2
   covs=covs[grep("stranded|unamplified",covs$sampleName, invert = T),]  # remove tech rep, e.g. unamplified, strand
   common=intersect(names(expr), covs$sampleName)
@@ -53,7 +54,7 @@ if(file.exists("data.RData")) load("data.RData") else{
   # GTEx: Filter on >=10 individuals having >0.1 RPKM.
   # BRAINCODE: filter on more than half sampes having >0.05 RPKM  ## TO REMOVE?
   expr=expr[rowMeans(expr>0.05)>=0.5,]  # 71022 --> 58299 remained
-  hist(log10(rowMeans(expr)), breaks=100)
+  #hist(log10(rowMeans(expr)), breaks=100)
   message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
   
   message(" # transforming RPKM to rank normalized gene expression ...")
@@ -87,6 +88,8 @@ if(file.exists("data.RData")) load("data.RData") else{
 
   # extract the samples with both RNAseq and genotyped, and reorder both snps and expression
   common = intersect(colnames(snps), colnames(expr))
+  
+  message(paste0("# Fianl number of samples for eQTL: N=", length(common)));
   
   snps$ColumnSubsample(match(common, colnames(snps)))
   expr=expr[,common];
@@ -258,7 +261,7 @@ dev.off()
 
 # include SNP position
 genesnp=read.table("final.cis.eQTL.xls", header=T, stringsAsFactors = FALSE)
-genesnp=cbind(genesnp, SNP.pos=snpspos[match(genesnp$SNP, snpspos$snp),'pos'])
+genesnp=cbind(genesnp, SNP.pos=snpspos[match(genesnp$SNP, snpspos$snp),'pos'], SNP.chr=snpspos[match(genesnp$SNP, snpspos$snp),'chr'])
 write.table(genesnp, file="final.cis.eQTL.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
 
 message(paste("eQTL analysis is done and found", me$cis$neqtls,"cis SNP-gene pairs with significance p<1."))

@@ -12,8 +12,8 @@ setwd("~/eRNAseq")
 ## sample clustering 
 # ================================
 
-library(gsheet) # install.packages('gsheet')
-colorcode = gsheet2tbl('docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs#gid=1995457670')
+library(gsheet) # install.packages('gsheet') # covaraice table URL
+colorcode = gsheet2tbl('docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118')
 
 ## TODO
 ## 1. clustering of HITNEs using HITNE RPM, DNase, H3K4me1, H3k27ac from Roadmap, and CAGE from FANTOM, in all 5 cell types --> similar as the Fig 3a,b,c of Nature FANTOM5

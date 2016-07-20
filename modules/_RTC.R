@@ -1,6 +1,8 @@
 ###########################################
 ## R script to calculate the RTC (Regulatory Trait Concordance) for eQTL SNPs
-# Usage: Rscript $pipeline_path/modules/_RTC.R SNP.txt expression.txt cis_eQTL_output.txt
+# Usage: 
+#    Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls HTNE
+#    Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls gene
 # bsub -q big-multi -n 4 -M 10000 Rscript $pipeline_path/modules/_RTC.R SNP.txt expression.txt cis_eQTL_output.txt
 # Author: Xianjun Dong
 # Version: 0.0
@@ -10,19 +12,28 @@ args<-commandArgs(TRUE)
 
 snps_file_name = args[1]  # in format of http://www.bios.unc.edu/research/genomic_software/Matrix_eQTL/Sample_Data/SNP.txt
 expr_file_name = args[2]  # in format of http://www.bios.unc.edu/research/genomic_software/Matrix_eQTL/Sample_Data/GE.txt
-eqtl_file_name = args[3]  # a tab-delimited file with haeder of "SNP     gene    beta    t-stat  p-value FDR"
-ld_file_name   = args[4]  # a file to tell SNPs in LD interval, in format of "chr17	43714849	43714850 hg38_chr17_45637484_rs2942168 	1	.	Parkinson's_disease	rs113155081;rs62055661;rs558738552;|43752078;43752039;43751598;|0.997467;0.997467;0.99", where the 4th column has GWAS SNP id at the end.
+eqtl_file_name = args[3]  # a tab-delimited file with columns of "SNP     gene    beta    t-stat  p-value FDR", but no header line
+gene_or_HTNE   = args[4]  # <gene|HTNE>
+
+ld_file_name="/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed"
+# a file to tell SNPs in LD interval, in format of "chr17	43714849	43714850 hg38_chr17_45637484_rs2942168 	1	.	Parkinson's_disease	rs113155081;rs62055661;rs558738552;|43752078;43752039;43751598;|0.997467;0.997467;0.99", where the 4th column has GWAS SNP id at the end.
+
+# # HTNEs
+# snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
+# expr_file_name="~/eRNAseq/HCILB_SNDA/expression.postSVA.xls"
+# eqtl_file_name="~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls"
+# 
+# # Genes
+# snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
+# expr_file_name="~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/expression.postSVA.xls"
+# eqtl_file_name="~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls"
+# ld_file_name="/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed"
 
 # Note: make sure all SNP id are dbSNP based. So, convert SNP id based on Illumina chip to dbSNP v144, for both eQTL and SNP genotype
-# cat ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.new.d1e6.p1e-2.xls | awk '$6<=0.05' > ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls
+# cat ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | awk '$6<=0.05' > ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls
 
 # assuming the All.Matrix.SNP.ID and All.Matrix.txt are sorted already and have the same order
 #awk '{OFS="\t"; if(NR>1) print $2,$3-1,$3,$1,$4}' ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID | LC_ALL=C sort --parallel=8 --buffer-size=5G -k1,1 -k2,2n | intersectBed -a - -b $GENOME/Annotation/Variation/dbSNP144.hg19.bed.groupped.SNP.unstranded -wo -sorted | cut -f1-5,9 > ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.dbSNP144
-
-snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
-expr_file_name="~/eRNAseq/HCILB_SNDA/expression.postSVA.xls"
-eqtl_file_name="~/eRNAseq/HCILB_SNDA/final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls"
-ld_file_name="/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed"
 snpid_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.dbSNP144"
 
 # ---------------
@@ -68,7 +79,7 @@ colnames(SNPID) = c('chr',	'start', 'end', 'SNPid_illumina', 'imputed', 'SNPid_d
 SNPID$SNPid_dbSNP = sub("([^,]*),.*","\\1",SNPID$SNPid_dbSNP) # only the first if multiple dbSNP id for one IlluminaSNP
 
 snps = read.table(snps_file_name, header=T, stringsAsFactors =F); rownames(snps) = snps[,1]; snps=snps[,-1];
-expr = read.table(expr_file_name, header=T, stringsAsFactors =F); 
+expr = read.table(expr_file_name, header=T, stringsAsFactors =F);
 com=intersect(colnames(expr),colnames(snps))
 snps=snps[,com]; expr=expr[,com]
 
@@ -91,6 +102,7 @@ for(i in 1:nrow(eqtl)){
     id_eQTL = unlist(strsplit(id_eQTL,","))[1] # if multiple SNPs callapsed, only pick the first one
     id_gene = eqtl[i,'gene'];
     FDR = eqtl[i,'FDR'];
+    pvalue = eqtl[i,'p.value'];
     
     message(paste0(" # record ",i,": ", id_eQTL," -- ", id_gene,"  ..."))
     
@@ -107,7 +119,7 @@ for(i in 1:nrow(eqtl)){
     	
     	if(id_eQTL == gwasinld){  # eQTL SNP itself is a GWAS 
     		rtc_score = 1;
-		 		result = rbind(result, c(id_eQTL, id_gene, FDR, id_eQTL, trait, rtc_score))
+		 		result = rbind(result, c(id_eQTL, id_gene, pvalue, FDR, id_eQTL, trait, rtc_score))
     		message(paste("   --- ", gwasinld, trait, id_gene, rtc_score, nrow(result)))
     	} else {  # eQTL is not a GWAS 
     		# get all distinct SNPs in LD, incl. the GWAS SNPs
@@ -123,23 +135,30 @@ for(i in 1:nrow(eqtl)){
     		SNPs=snps[snps_in_LD_illumina,]; rownames(SNPs) = snps_in_LD
     	
     		rtc_score = get_RTC_score(SNPS=SNPs, EXPR=expr[id_gene,], id_GWAS=gwasinld, id_eQTL=id_eQTL);
-    		result = rbind(result, c(id_eQTL, id_gene, FDR, gwasinld, trait, rtc_score))
+    		result = rbind(result, c(id_eQTL, id_gene, pvalue, FDR, gwasinld, trait, rtc_score))
     		message(paste("   === ", gwasinld, trait, id_gene, rtc_score, nrow(result)))
     	}
     }
 }
 
-colnames(result) = c("eQTL_SNP", ifelse(grepl("eRNA|HTNE", eqtl_file_name), "HTNE","Gene"), "FDR_eQTL", "GWAS_SNP","Complex_Trait", "RTC");
+colnames(result) = c("eQTL_SNP", "assocaitedRNA", "pvalue_eQTL", "FDR_eQTL", "GWAS_SNP","Complex_Trait", "RTC");
 result=as.data.frame(result)
 
 message("## Detected RTC results ...")
 
 # Since the eQTL result might contain redudancey (e.g. if one SNP is reported as eQTL, the other SNPs in a strong LD are usually also eQTL), so we need to prune the output table, e.g. for each GWAS-gene pair by only taking the one with best RTC score 
-result=read.table(paste(eqtl_file_name, "RTC", "xls", sep="."), sep="\t", header=T)
+#result=read.table(paste(eqtl_file_name, "RTC", "xls", sep="."), sep="\t", header=T)
 
-if(grepl("eRNA|HTNE", eqtl_file_name)){
-  annotation=read.table("eRNA.characterize.xls", stringsAsFactors =F)
-  result = cbind(result, hostgene_HTNE=do.call(rbind,strsplit(annotation$f19.Hostgene[match(result$HTNE, rownames(annotation))],"___"))[,1])
+if(grepl("eRNA|HTNE", gene_or_HTNE)){
+  annotation=read.table("~/eRNAseq/HCILB_SNDA/eRNA.characterize.xls", stringsAsFactors =F)
+  result = cbind(result, assocaitedRNA_hostgene=do.call(rbind,strsplit(annotation$f19.Hostgene[match(result$assocaitedRNA, rownames(annotation))],"___"))[,1])
+  result$assocaitedRNA_coord=result$assocaitedRNA
+}
+if(grepl("gene", gene_or_HTNE)){
+  annotation=read.table("~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed", stringsAsFactors =F, header=F); 
+  result = cbind(result, assocaitedRNA_hostgene=annotation[match(result$assocaitedRNA, annotation$V4),7])
+  # replace gene coordinate with gene EnsID
+  result$assocaitedRNA_coord=apply(annotation[match(result$assocaitedRNA, annotation$V4),1:3],1,paste0,collapse="_")
 }
 # add postion of SNPs
 result=cbind(result, pos_GWAS_SNP=SNPID$end[match(result$GWAS_SNP, SNPID$SNPid_dbSNP)])
@@ -147,7 +166,8 @@ result=cbind(result, pos_eQTL_SNP=SNPID$end[match(result$eQTL_SNP, SNPID$SNPid_d
 
 write.table(result, paste(eqtl_file_name, "RTC", "xls", sep="."), quote =F, sep="\t", na='NA', row.names=F)
 
-# filter
-# sed 's/ /___/g' final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls.RTC.xls | awk '{OFS="\t"; split($2,a,"_"); if(NR>1) print a[1],$8-1,$8,$0}'  | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-12,16 | groupBy -g 1-9 -c 10 -o distinct | awk '{OFS="\t"; split($2,a,"_"); print a[1],$9-1,$9,$0}' | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-13,17 | groupBy -g 1-10 -c 11 -o distinct | sed 's/___/ /g' > final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls
+## annotate: add hostgene_GWAS_SNP and hostgene_eQTL_SNP
+# sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls | awk '{OFS="\t"; split($2,a,"_"); if(NR>1) print a[1],$9-1,$9,$0}'  | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-13,17 | groupBy -g 1-10 -c 11 -o distinct | awk '{OFS="\t"; split($2,a,"_"); print a[1],$10-1,$10,$0}' | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-14,18 | groupBy -g 1-11 -c 12 -o distinct | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls
 
-# sed 's/ /___/g' final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls.RTC.xls | sort -k2,2r -k4,4 -k6,6gr | awk '{if(id!=$4) print; id=$4;}' | awk '{OFS="\t"; split($2,a,"_"); if(NR>1) print a[1],$8-1,$8,$0}'  | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-12,16 | groupBy -g 1-9 -c 10 -o distinct | awk '{OFS="\t"; split($2,a,"_"); print a[1],$9-1,$9,$0}' | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-13,17 | groupBy -g 1-10 -c 11 -o distinct | sed 's/___/ /g' > final.cis.eQTL.new.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls
+## filter: for each GWAS SNP, only take the one with best RTC score (if there are multiple eSNPs in LD)
+# sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls | sort -k2,2r -k5,5 -k7,7gr | awk '{if(id!=$5) print; id=$5;}' | awk '{OFS="\t"; split($2,a,"_"); if(NR>1) print a[1],$9-1,$9,$0}'  | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-13,17 | groupBy -g 1-10 -c 11 -o distinct | awk '{OFS="\t"; split($2,a,"_"); print a[1],$10-1,$10,$0}' | intersectBed -a - -b <(cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-14,18 | groupBy -g 1-11 -c 12 -o distinct | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls

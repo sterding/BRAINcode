@@ -9,8 +9,8 @@
 require(MatrixEQTL)
 
 args<-commandArgs(TRUE)
-S=args[1]  
-G=args[2]
+S=args[1]  # SNP
+G=args[2]  # Gene
 
 #G="chr10_61632545_61633312"; S="rs1664261:61633042:C:T_C:T"
 
@@ -23,7 +23,7 @@ ALT = strsplit(sub(".*_(.*)","\\1", S),":")[[1]][2]  ## get the ALT allele
 
 message("# making eQTL plot ...")
 ######################
-genesnp = read.table("final.cis.eQTL.new.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)
+genesnp = read.table("final.cis.eQTL.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)
 if(file.exists("genes.RData")) load("genes.RData") else{
   residuals = read.table("expression.postSVA.xls", check.names=F)
   genes = SlicedData$new();

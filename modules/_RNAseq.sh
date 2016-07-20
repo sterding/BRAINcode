@@ -41,7 +41,7 @@ outputdir=$inputdir/../run_output
 ###########################################
 echo "["`date`"] STEP 2. quality filter: adaptor removal/clip"
 ###########################################
-## TODO: Reads with PolyA/T tail were not properly trimmed. Using PRINSEQ instead for removal
+## TODO: Reads with PolyA/T tail were not trimmed. Using PRINSEQ instead for removal
 
 ##### adaptor removal
 [ -d $inputdir/../filtered ] || mkdir $inputdir/../filtered
@@ -50,7 +50,7 @@ echo "["`date`"] STEP 2. quality filter: adaptor removal/clip"
 
 # remove adaptor with fastq-mcf (https://code.google.com/archive/p/ea-utils/wikis/FastqMcf.wiki)
 [ ! -f $outputdir/$samplename/.status.$modulename.adaptorremoval ] && \
-fastq-mcf -o $inputdir/../filtered/$R1 -o $inputdir/../filtered/$R2 -t 0 -x 10 -l 15 -w 4 -u $inputdir/../filtered/adaptor.fa <(zcat $R1) <(zcat $R2) && \
+fastq-mcf -o $inputdir/../filtered/$R1 -o $inputdir/../filtered/$R2 -t 0 -x 10 -l 15 -w 4 -q 10 -u $inputdir/../filtered/adaptor.fa <(zcat $R1) <(zcat $R2) && \
 touch $outputdir/$samplename/.status.$modulename.adaptorremoval 
 
 cd $inputdir/../filtered
@@ -195,7 +195,7 @@ cd $outputdir/$samplename
 ##echo "## run trinity to do de-novo discovery"
 #Trinity.pl --output denovo --seqType fq --JM 100G --left $R1 --right $R2 --CPU $CPU
 
-echo "## run cufflinks for do de-novo discovery using uniq mapper only" 
+echo "## run cufflinks for do de-novo discovery" 
 [ ! -f .status.$modulename.cufflinks.multi.denovo ] && \
 cufflinks --no-update-check --no-faux-reads $strandoption -o ./denovo -p $CPU -g $ANNOTATION_GTF -M $MASK_GTF accepted_hits.bam 2> cufflinks.denovo.log && \
 touch .status.$modulename.cufflinks.multi.denovo

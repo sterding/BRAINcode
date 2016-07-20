@@ -9,7 +9,6 @@ args<-commandArgs(TRUE)
 i=args[1]
 Rdata=args[2] # "~/neurogen/rnaseq_PD/results/eQTL/HCILBSNDA89samples/data.RData"
 expr=args[3] # '~/neurogen/rnaseq_PD/results/merged/genes.fpkm.HCILB.uniq.xls.postPEER.xls'
-dis=args[4]
 
 # i=1; Rdata="data.RData"; expr="expression.postSVA.xls"; dis=1000
 

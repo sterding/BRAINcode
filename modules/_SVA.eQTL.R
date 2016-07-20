@@ -12,6 +12,7 @@ require(caret)
 # source("http://bioconductor.org/biocLite.R"); biocLite("sva")
 library(sva)
 
+# change working dic to ~/neurogen/rnaseq_PD/results/eQTL/$SAMPLE_GROUP
 SAMPLE_GROUP="HCILB_SNDA"
 wd=paste0("~/neurogen/rnaseq_PD/results/eQTL/",SAMPLE_GROUP);
 if(!file.exists(wd)) dir.create(wd);
@@ -20,7 +21,7 @@ setwd(wd)
 samplelist=read.table(paste0("~/neurogen/rnaseq_PD/results/merged/samplelist.",SAMPLE_GROUP), header = F, stringsAsFactors = FALSE)[,1]
 covarianceTableURL="https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118&single=true&output=tsv"  # for all 140 samples
 
-snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 93 unique subjects
+snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 91 unique subjects (after removing the two mess up samples: BN07-37, BN97-17)
 snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
 expr_file="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cuffnorm.allSamples.uniq.xls";  
 geneloc="~/neurogen/rnaseq_PD/results/merged/genes.loci.txt";
@@ -80,17 +81,21 @@ if(file.exists("data.RData")) load("data.RData") else{
   snps$fileOmitCharacters = "NA"; # denote missing values;
   snps$fileSkipRows = 1;          # one row of column labels
   snps$fileSkipColumns = 1;       # one column of row labels
-  snps$fileSliceSize = 5000;      # read file in slices of 5,000 rows
+  snps$fileSliceSize = 10000;      # read file in slices of 5,000 rows
   snps$LoadFile(snps_file);
   
   # extract the samples with both RNAseq and genotyped, and reorder both snps and expression
   common = intersect(colnames(snps), colnames(expr))
+  
+  message(paste0("# Fianl number of samples for eQTL: N=", length(common)));
   
   snps$ColumnSubsample(match(common, colnames(snps)))
   expr=expr[,common];
   covs=covs[match(common, covs$subjectID), ]
   #rownames(covs)=covs$subjectID; # this one can 
   #covs=subset(covs, select=c(batch, readsLength, RIN, sex, age, PMI))
+  
+  write.table(covs, "eQTL.covs.tab", quote=F, sep="\t", col.names = NA)
   
   message("# filter out SNPs with MAF<=0.05 ...");
   # Note: here Minor allele is the minor one for the samples, not necessary the same one as the population)
@@ -207,5 +212,10 @@ write.table(me$cis$min.pv.gene, file='final.cis.min.pv.gene.txt')
 pdf(file="diagnostics_matrixeqlt.all.pdf", paper="usr")
 plot(me, pch = 16, cex = 0.7);
 dev.off()
+
+# include SNP position
+genesnp=read.table("final.cis.eQTL.xls", header=T, stringsAsFactors = FALSE)
+genesnp=cbind(genesnp, SNP.pos=snpspos[match(genesnp$SNP, snpspos$snp),'pos'], SNP.chr=snpspos[match(genesnp$SNP, snpspos$snp),'chr'])
+write.table(genesnp, file="final.cis.eQTL.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
 
 message(paste("eQTL analysis is done and found", me$cis$neqtls,"cis SNP-gene pairs with significance p<1e-2."))

@@ -1,7 +1,7 @@
 # Script to discover variations from input BAM file
-# author: shuilin jin
-# Date: 2014-3-16
-# Version: 5.0
+# author: Dong Xianjun
+# Date: 2016-03-16
+# Version: 1.0
 # Usage: bsub _bam2vcf.sh accepted_hits.sam
 # Input: accepted_hits.sam file from tophat (with Reads group info)
 # Output: accepted_hits_GATK_SNPs.vcf

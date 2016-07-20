@@ -18,7 +18,7 @@ for(i in 1:(n-1)){
     message(paste("[Merging file", args[i], "...] %", round(100*i/(n-1), 1), "Done"));
     df=read.table(args[i], header=T, stringsAsFactors=T)
     ## only include the genes with FPKM_status==OK 
-    df=subset(df, FPKM_status=="OK")
+    #df=subset(df, FPKM_status=="OK")
     common=intersect(fpkm$tracking_id, df$tracking_id)
     fpkm=cbind(fpkm[match(common,fpkm$tracking_id),], FPKM=df[match(common,df$tracking_id), 'FPKM'])
 }

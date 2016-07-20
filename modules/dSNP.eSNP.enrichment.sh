@@ -1,12 +1,14 @@
 # Script to run enrichment analysis of disease SNPs and eQTL SNPs in a permutation based manner
-# Ref: Towfique Raj et al. Science (2014), and Dan L. Nicolae et al. PLoS Genetics (2010), Imge Hulur et al. BMC Genomics (2015)
+# Referecences: Towfique Raj et al. Science (2014), and Dan L. Nicolae et al. PLoS Genetics (2010), Imge Hulur et al. BMC Genomics (2015)
+# Author: Xianjun Dong (xdong@rics.bwh.harvard.edu)
+# Version: 1.0
+# Usage: $0 dSNP.eSNP.enrichment.sh final.cis.eQTL.d1e6.p1e-2.xls
 
-#Usage: 
+eQTL_final=$1 # eQTL_final=~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls
 
-eQTL_final=$1
-eQTL_final=~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.xls
 
 dir="${eQTL_final%/*}"
+mkdir $dir/dSNP.eSNP.enrichment; 
 
 if [ ! -f $GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pruned.bed ]; then
   ## Ref ~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/README.txt
@@ -38,33 +40,34 @@ fi
 ## step 3: compute MAF, number of LD partners (r2>0.8), and distance from transcription start site (TSS) for all genotyped SNPs
 ## ---------------------------
 SNPpos=/data/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID
-cd /data/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA
+cd $dir/dSNP.eSNP.enrichment
+
 if [ ! -f ALL.combined ]; then
   # all SNPs on the array
-  awk '{OFS="\t"; print $2,$3-1,$3,$1}' $SNPpos > $SNPpos.bed
-  for i in 1 `seq 1 22`; do echo $i; bsub -q normal -n 1 bash $pipeline_path/src/_SNP.maf.ld.d2tss.sh $SNPpos.bed $i ALL_chr; done
-  cat ALL_chr*.combined | awk '{OFS="\t"; $2=int($2/0.05); $3=($3>10)?10:$3;$4=($4>200000)?200000:$4; $4=int($4/10000); print $1, "MAF"$2"LD"$3"TSS"$4;}' > ALL.combined
+  [ -f $SNPpos.bed ] || awk '{OFS="\t"; print $2,$3-1,$3,$1}' $SNPpos > $SNPpos.bed
+  #for i in 1 `seq 1 22`; do echo $i; bsub -q normal -n 1 bash $pipeline_path/src/_SNP.maf.ld.d2tss.sh $SNPpos.bed $i ALL_chr; done
+  bsub -J "maf[1-22]" -q normal -n 1 bash $pipeline_path/src/_SNP.maf.ld.d2tss.sh $SNPpos.bed ALL_chr
+  [ ] && cat ALL_chr*.combined | awk '{OFS="\t"; $2=int($2/0.05); $3=($3>10)?10:$3;$4=($4>200000)?200000:$4; $4=int($4/10000); print $1, "MAF"$2"LD"$3"TSS"$4;}' > ALL.combined
   awk '{print $1 >> $2}' ALL.combined
 fi
 
 ## ---------------------------
 ## step 4: calculate number of eSNPs that are also GWAS dSNPs (N_deSNP)
 ## ---------------------------
-cd $dir
 
 # use FDR<0.05 as cutoff to define eSNP
-#awk '$6<=0.05' $eQTL_final | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' > ${eQTL_final/xls/bed}
-# pvalue < 0.001
-awk '$5<=0.001' $eQTL_final | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' > ${eQTL_final/xls/bed}
-# pvalue < 0.005
-awk '$5<=0.005' $eQTL_final | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' > ${eQTL_final/xls/bed}
-intersectBed -a ${eQTL_final/xls/bed} -b $GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pruned.bed -wo | cut -f12 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > N_deSNP.txt
+awk '$6<=0.05' $eQTL_final | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' > ${eQTL_final/xls/FDR5e-2.bed}
+# # pvalue < 0.001
+# awk '$5<=0.001' $eQTL_final | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' > ${eQTL_final/xls/FDR1e-3.bed}
+# # pvalue < 0.005
+# awk '$5<=0.005' $eQTL_final | cut -f1 | sort -u | fgrep -f - $SNPpos | awk '{OFS="\t"; print $2,$3-1,$3,$1,$4}' > ${eQTL_final/xls/FDR5e-3.bed}
+intersectBed -a ${eQTL_final/xls/FDR5e-2.bed} -b $GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pruned.bed -wo | cut -f12 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > N_deSNP.txt
 
 ## ---------------------------
 ## step 5: generate 1000 random sets of SNPs with matched MAF, number of LD partners (r2>0.8), and distance from transcription start site (TSS) with eSNP. For each set, calculate number of each eSNP set that are also dSNPs (n_deSNP)
 ## ---------------------------
 # only eSNPs
-for i in `seq 1 22`; do echo $i; bsub -q normal -n 1 bash $pipeline_path/src/_SNP.maf.ld.d2tss.sh ${eQTL_final/xls/bed} $i esnp_chr; done
+bsub -J "maf[1-22]" -q normal -n 1 bash $pipeline_path/src/_SNP.maf.ld.d2tss.sh ${eQTL_final/xls/FDR5e-2.bed} esnp_chr
 
 cat esnp_chr*.combined | awk '{OFS="\t"; $2=int($2/0.05); $3=($3>10)?10:$3; $4=($4>200000)?200000:$4; $4=int($4/10000);  print "MAF"$2"LD"$3"TSS"$4;}' | sort | uniq -c | awk '{OFS="\t"; print $2,$1}' > esnp.combined
 
@@ -73,9 +76,8 @@ rm esnp_chr*
 
 bsub -J "random[1-1000]" -q vshort -n 1 bash $pipeline_path/src/_deSNP.random.sh
 
-## WAIT TO RUN
-
 ## ---------------------------
 ## step 6: emperical p-value of N_deSNP = P(N_deSNP < n_deSNP)
 ## ---------------------------
-Rscript $pipeline_path/modules/dSNP.eSNP.enrichment.R N_deSNP.txt `ls n_deSNP*.txt`
+Rscript $pipeline_path/modules/dSNP.eSNP.enrichment.R N_deSNP.txt `ls n_deSNP*.txt`  # output: dSNP.eSNP.enrichment.xls
+rm n_deSNP*.txt
