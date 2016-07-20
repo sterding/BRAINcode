@@ -1,6 +1,6 @@
 ####################################
 # Pipeline for RNAseq data Analysis
-# Authors: Bioinformatics Team @ Scherzer's lab 
+# Authors: Bioinformatics Team @ Scherzer's lab
 # Email: xdong@rics.bwh.harvard.edu
 # Date: 10/6/2014
 # Version: 2.0
@@ -11,16 +11,33 @@ modulename=`basename $0`
 set +o posix  #  enables the execution of process substitution e.g. http://www.linuxjournal.com/content/shell-process-redirection
 STEP=0
 
+#if [ $# -ne 1 ]
+#then
+#  echo "Usage:
+#  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles
+#  "
+#  exit
+#fi
+
+
+#if [ $# -ne 1 ]
+#then
+#  echo "Usage:
+#  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/HC_CircRNA_seq_Rebeca/rawfiles
+#  "
+#  exit
+#fi
+
 if [ $# -ne 1 ]
 then
   echo "Usage:
-  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles
+  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/HC_CircRNA_seq_Rebeca/rawfiles
   "
   exit
 fi
 
 ########################
-## 0. setting 
+## 0. setting
 ########################
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
@@ -32,14 +49,18 @@ input_dir=$1  # input_dir=/data/neurogen/rnaseq_PD/rawfiles
 filtered_dir=$input_dir/../filtered
 [ -d $filtered_dir ] || mkdir $filtered_dir
 
+filtered_dir_poly=$input_dir/../filtered_polyA
+[ -d $filtered_dir_poly ] || mkdir $filtered_dir_poly
+
 output_dir=$input_dir/../run_output
 [ -d $output_dir ] || mkdir $output_dir
 
 fordisplay_dir=$input_dir/../for_display
 [ -d $fordisplay_dir ] || mkdir $fordisplay_dir
 
-result_dir=$input_dir/../results 
+result_dir=$input_dir/../results
 [ -d $result_dir ] || mkdir $result_dir
+
 
 ## TODO: test the prerequisitions, incl.
 # kpal, fastqc, tophat, bowtie, CIRI, GATK, cufflinks, htseq-count, bedtools, samtools, R, fastq-mcf, python
@@ -47,19 +68,23 @@ result_dir=$input_dir/../results
 # R package: DESeq2, MatrixEQTL, SPIA, SVA, PEER, ggplot2 etc.
 
 ########################
-## 1. Processing per sample 
+## 1. Processing per sample
 ########################
 cd $input_dir
 
-for i in *.R1.fastq.gz;
+#for i in *.R1.fastq.gz;
 #for i in HC_MD5247_SN_7_rep2.stranded.fr-unstrand.R1.fastq.gz;
+#for i in PD_UWA734_SNDA_6_rep2.R1.fastq.gz;
+for i in PD_NZ-PD8_SNDA_4_rep1.R1.fastq.gz
 do
     R1=$i
     R2=${i/R1/R2};
     samplename=${R1/.R1*/}
-    
+
     # run the QC/mapping/assembly/quantification for RNAseq
     bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -u $EMAIL -N _RNAseq.sh $R1 $R2;
+# output and error file the same
+
 
 done
 
@@ -86,7 +111,7 @@ legend("topleft", paste("batch", sort(unique(as.numeric(gsub(".*_([1-9])_.*","\\
 dev.off()
 
 ########################
-# 2.2 calculatinng coverage of RNAseq 
+# 2.2 calculatinng coverage of RNAseq
 ########################
 [ -d $result_dir/coverage ] || mkdir $result_dir/coverage
 cd $result_dir/coverage
@@ -102,9 +127,15 @@ done
 ## cumulative coverage for 7 samples in each group
 # ----------------------------------
 for i in `seq 1 100`;
-do 
-  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7;   # output: random.covered.0.05RPM.HCILB_SNDA.*.txt
-  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7; 
+#<<<<<<< Updated upstream
+#do 
+#  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7;   # output: random.covered.0.05RPM.HCILB_SNDA.*.txt
+#  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7; 
+#=======
+do
+  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7;
+  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7;
+#>>>>>>> Stashed changes
 done
 cut -f2 random.covered.0.05RPM.HCILB_SNDA.*.txt | paste - - - - - - - > covered.0.05RPM.HCILB_SNDA.random7.txt
 cut -f2 random.covered.0.05RPM.HC_PY.*.txt | paste - - - - - - - > covered.0.05RPM.HC_PY.random7.txt
@@ -132,10 +163,10 @@ library(reshape2)
 dflong=melt(df[,1:7], variable.name = "cutoff",value.name ="coverage")
 #levels(dflong$cutoff)=rev(levels(dflong$cutoff))
 library(ggplot2)
-ggplot(dflong, aes(x=sample, y=100*coverage/3137161264, fill=cutoff, order = -as.numeric(cutoff))) + 
-geom_bar(width=.5,position = position_stack(width=1), stat="identity") + 
+ggplot(dflong, aes(x=sample, y=100*coverage/3137161264, fill=cutoff, order = -as.numeric(cutoff))) +
+geom_bar(width=.5,position = position_stack(width=1), stat="identity") +
 theme_bw() +
-ylab("Coverage of the whole genome (%)") + 
+ylab("Coverage of the whole genome (%)") +
 theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=5), legend.justification=c(1,1), legend.position=c(1,1))
 ggsave("coverageWithRPM.all.pdf", width=8, height=4)
 
@@ -152,10 +183,10 @@ df$sample <- factor(df$sample, unique(as.character(df$sample)))
 
 dflong=melt(df[,c("sample","RPMgt1","RPMgt0.5","RPMgt0.1","RPMgt0.05")], variable.name = "cutoff",value.name ="coverage")
 #levels(dflong$cutoff)=rev(levels(dflong$cutoff))
-ggplot(dflong, aes(x=sample, y=100*coverage/3137161264, fill=cutoff, order = -as.numeric(cutoff))) + 
-geom_bar(width=.5,position = position_stack(width=1), stat="identity") + 
+ggplot(dflong, aes(x=sample, y=100*coverage/3137161264, fill=cutoff, order = -as.numeric(cutoff))) +
+geom_bar(width=.5,position = position_stack(width=1), stat="identity") +
 theme_bw() +
-ylab("Coverage of the whole genome (%)") + 
+ylab("Coverage of the whole genome (%)") +
 theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=5), legend.justification=c(1,1), legend.position=c(1,1))
 ggsave("coverageWithRPM.RPMpt05.pdf", width=8, height=4)
 
@@ -258,7 +289,7 @@ p=p+geom_line(aes(y = mean),size = 2)
 p
 dev.off()
 
-## reads count for 
+## reads count for
 echo 'ID' `sort ~/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_6_rep2/uniq/accepted_hits.bam.bam2annotation | cut -f1 -d':' | rowsToCols stdin stdout` | sed 's/ /\t/g' > uniq.bam2annotation.stat.txt
 for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation; do echo $i `sort $i | cut -f2 -d' ' | rowsToCols stdin stdout`; done | sed 's/.*run_output\/\(.*\)\/uniq.*tion/\1/g;s/ /\t/g' >> uniq.bam2annotation.stat.txt
 # import uniq.bam2annotation.stat.txt into Google spreadsheet: https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/edit#gid=289128536
@@ -281,7 +312,7 @@ Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*/uniq
 
 # intronic FPKM
 cut -f1 ../../run_output/PD_UWA734_SNDA_6_rep2/uniq/meanRPM.of.metaintron.by.gene.tab | grep ENSG | sort > metaIntron.meanRPM.allSamples.xls
-for i in ../../run_output/*/uniq/meanRPM.of.metaintron.by.gene.tab; 
+for i in ../../run_output/*/uniq/meanRPM.of.metaintron.by.gene.tab;
 do
   echo $i;
   grep ENSG $i | sort | cut -f4 | paste metaIntron.meanRPM.allSamples.xls - > /tmp/metaIntron.meanRPM.allSamples.xls
@@ -298,7 +329,7 @@ ln -fs cuffnorm/isoforms.fpkm_table isoforms.fpkm.cuffnorm.allSamples.uniq.xls
 ln -fs cuffnorm/isoforms.count_table isoforms.count.cuffnorm.allSamples.uniq.xls
 
 #--------------------------
-# 2.2 combined bigwig into 
+# 2.2 combined bigwig into
 #--------------------------
 for i in HCILB_SNDA HC_PY HC_nonNeuron HC_Neuron HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HC_SN HC_PBMC HC_FB;
 do
@@ -366,12 +397,19 @@ Rscript $pipeline_path/modules/_pairwise_compare.R HC_UWA616_SN_6_rep1.amplified
 ## 4. eQTL
 ########################
 cd $result_dir/eQTL
+<<<<<<< Updated upstream
 
 # ## eQTL with PEER normalization (DEPRECATED)
 # module unload R/3.1.0
 # module load R/3.0.2
 # Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.cufflinks.HCILB.uniq.xls 
 # module unload R/3.0.2; module load R/3.1.0
+=======
+module unload R/3.1.0
+module load R/3.0.2
+Rscript $pipeline_path/modules/_PEER_eQTL.R $result_dir/merged/genes.fpkm.cufflinks.HCILB.uniq.xls
+module unload R/3.0.2; module load R/3.1.0
+>>>>>>> Stashed changes
 
 ## eQTL with SVA normalization
 cd $result_dir/eQTL/HCILB_SNDA
@@ -447,10 +485,10 @@ for(i in c('HTNE','gene','mRNA','ncRNA')){
   common=intersect(rownames(df1), rownames(df2))
   df=cbind(df1[common,], df2[common,2]); df=df[,-1]; colnames(df)=c('dSNP_eSNP','dSNP_N_eSNP')  ## only the disease with both eSNP and dSNP
   results = rbind(results,
-                  cbind(Disease_or_Trait=rownames(df), 
-                  df, 
+                  cbind(Disease_or_Trait=rownames(df),
+                  df,
                   type=i,
-                  pvalue=apply(df, 1, function(x) fisher.test(matrix(c(x[1],n-x[1], x[2], N-n-x[2]), nrow = 2), alternative='greater')$p.value), 
+                  pvalue=apply(df, 1, function(x) fisher.test(matrix(c(x[1],n-x[1], x[2], N-n-x[2]), nrow = 2), alternative='greater')$p.value),
                   OR=apply(df, 1, function(x) fisher.test(matrix(c(x[1],n-x[1], x[2], N-n-x[2]), nrow = 2), alternative='greater')$estimate))
                 )
 }
@@ -467,13 +505,13 @@ results$Disease_or_Trait <- factor(results$Disease_or_Trait, unique(as.character
 library('ggplot2')
 pdf("dSNP.eQTL.enrichment.pvalue.pdf", width=4, height=6)
 results=subset(results, type!='gene')
-p = ggplot(results, aes(x=Disease_or_Trait, y=-log10(pvalue), fill=type,ymax=max(-log10(pvalue))*1.2)) 
-p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
-p = p + geom_hline(yintercept=-log10(0.05/1288), size=.5,linetype = 2)  ## Bonferroni correction, where 1288 is the number of disease/traits in GWAS 
+p = ggplot(results, aes(x=Disease_or_Trait, y=-log10(pvalue), fill=type,ymax=max(-log10(pvalue))*1.2))
+p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity")
+p = p + geom_hline(yintercept=-log10(0.05/1288), size=.5,linetype = 2)  ## Bonferroni correction, where 1288 is the number of disease/traits in GWAS
 p = p + theme_bw() + ylab("-log10(p)") #+ scale_y_log10()
-p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8),legend.text=element_text(size=8), legend.justification='right', legend.position=c(1,1)) 
-p = p + geom_text(aes(label=paste0(" (OR)")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 
-p = p + ggtitle(paste0(basename(getwd()), " -- dSNP enrichments")) 
+p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8),legend.text=element_text(size=8), legend.justification='right', legend.position=c(1,1))
+p = p + geom_text(aes(label=paste0(" (OR)")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5)
+p = p + ggtitle(paste0(basename(getwd()), " -- dSNP enrichments"))
 print(p)
 dev.off()
 
@@ -487,7 +525,7 @@ Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cufflinks.HCILB.uniq.xls QC.
 
 ########################
 ## 3. draw aggregation plot for the RNAseq density in the genetic region
-# Note: see note in bigWigAverageOverBed_81bins.sh for requisition 
+# Note: see note in bigWigAverageOverBed_81bins.sh for requisition
 ########################
 [ -d $result_dir/aggregationPlot ] || mkdir $result_dir/aggregationPlot
 cd $result_dir/aggregationPlot
@@ -515,7 +553,7 @@ cd $result_dir/DE_DESeq2
 bsub -o _DE_DESeq2.log -q long $cpu $memory $email Rscript _DE_DESeq2.R $output_dir PD Ct $ANNOTATION
 
 ########################
-## 7. eQTL 
+## 7. eQTL
 ########################
 [ -d $result_dir/eQTL ] || mkdir $result_dir/eQTL
 cd $result_dir/eQTL
@@ -528,7 +566,7 @@ bedtools unionbedg -i $output_dir/*/uniq/accepted_hits.snp.depth_gt_15.bdg -fill
 awk 'gsub("-:-","-:-") <= 0.95*(NF-3)' union.snp > union.MAF5p.snp  # 20698 in total with MAF>=0.05
 #awk 'gsub("-:-","-:-") <= 0.5*(NF-3)' union.snp > union.common38.snp  # 2413 in total occurring in 50% samples
 # get reads depth per allele
-samtools mpileup -Bf $GENOME/Sequence/Bowtie2Index/genome.fa -l union.MAF5p.snp $output_dir/*/uniq/accepted_hits.bam > union.pileup  
+samtools mpileup -Bf $GENOME/Sequence/Bowtie2Index/genome.fa -l union.MAF5p.snp $output_dir/*/uniq/accepted_hits.bam > union.pileup
 # parse the pileup file to get allele depth and then encode into additive code
 cat union.pileup | awk --posix -f $pipeline_path/modules/_pileup2depth.awk | awk -f $pipeline_path/modules/_depth2additive.awk > tmp1
 
@@ -546,7 +584,7 @@ grep -v chrM snp.additive.txt | rowsToCols stdin stdout | grep -E "sample|SNDA_[
 
 # expression
 #cat $result_dir/DE_DESeq2/PDvsHC/htseqcount.vst.allsamples.xls | rowsToCols stdin stdout | grep -E "sample|SNDA_[2-4]" | rowsToCols stdin expression.txt
-# 
+#
 cat $result_dir/merged/genes.fpkm.allSamples.tab | rowsToCols stdin stdout | grep -E "tracking_id|gene_short_name|SNDA_[2-4]" | rowsToCols stdin stdout | sed 's/\t/__/' | awk '{if(NR==1) {print; next;} s=0;for(i=2;i<=NF;i++)s=+$i; if(s/(NF-1) > 0.01) print}' > expression.txt
 
 # covariance
