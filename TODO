@@ -1,3 +1,11 @@
+1. if any cardiac SNPs in VPM1 locus, or is eQTL for VMP1 gene?
+# cat /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed.autosomal.associations.bed | grep -i -P "QT interval|QRS|Heart rate variability|Cardiac|Echocardiographic" | intersectBed -a - -b <(awk '$1=="chr17" && $2<=57942310 && $3>=57766935' eRNA.bed) -wo
+no SNPs in VMP1 HTNE
+TODO: check if any eQTL SNPs of VMP1 are cardiac related
+
+
+
+
 [Wed May  4 14:40:07 EDT 2016]
 1. Ganqiang found that two subjects (BN07-37, BN97-17) are likely twin (PI_HAT=0.99 from PLINK). So we'd better to remove one from the pairs to rerun eQTL
 # rowsToCols All.Matrix.txt stdout | egrep -v "BN07-37|BN97-17" | rowsToCols stdin All.Matrix.txt.new

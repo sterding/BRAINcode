@@ -1,6 +1,5 @@
 # ===========================================================================
 # GO enrichment analysis for a list of gene
-# http://www.r-bloggers.com/bigcor-large-correlation-matrices-in-r/
 # ===========================================================================
 topGOenrichment <- function(list_of_gene_names, topN=100, pCutoff=0.001, type='all', output='GOenrichment')
 {

@@ -18,7 +18,7 @@ features = read.table(eRNAcharacterizefile, header=T, stringsAsFactors =F)
 # GO enrichment for host genes of different HiTNE categories
 # ===========================================================================
 source("~/pipeline/bin/lib.R")
-setwd("~/eRNAseq/HCILB_SNDA")
+setwd(DIR)
 # all host genes
 hostGenes=unique(sub("(.*)___.*___.*","\\1", features$f19.Hostgene))
 topGOenrichment(hostGenes, topN=100, pCutoff=0.001, type='all', output='GOenrichment.all')
@@ -58,7 +58,7 @@ df=data.frame(length=as.numeric(df[,3])-as.numeric(df[,2]), type="HTNEs")
 #ggplot(df, aes(length, colour = type)) + scale_x_log10() +  geom_density() + theme_classic() + theme_bw()
 
 h=hist(log10(df$length), breaks=100, xaxt="n",border ='gray',col ='gray', xlab='HTNE length (bp)', main='')
-abline(v=h$mids[which.max(h$counts)], col='red',lty=2)
+abline(v=h$mids[which.max(h$counts)], col='red',lty=2) # 10^2.63 = 426
 y1=floor(range(log10(df$length)))
 pow <- seq(y1[1], y1[2]+1)
 ticksat <- as.vector(sapply(pow, function(p) log10((2:9)*10^p)))
