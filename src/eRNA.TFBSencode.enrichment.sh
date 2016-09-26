@@ -52,7 +52,7 @@ Rscript $pipeline_path/src/eRNA.TFBSencode.enrichment.R $output
 exit;
 
 
-featuresA=~/eRNAseq/externalData/TFBS/JASPARmotifscan.hg19.bed
+featuresA=~/eRNAseq/externalData/TFBS/JASPARmotifscan.hg19.bed # N=136,626,803
 output=~/eRNAseq/HCILB_SNDA/eRNA.JASPARmotifscan.txt
 
 > $output;
@@ -61,9 +61,8 @@ output=~/eRNAseq/HCILB_SNDA/eRNA.JASPARmotifscan.txt
 while read i TF;
 do
 	nA=`mktemp`
-	A=`mktemp`
-	awk -vNAME=$i '$4==NAME' $featuresA > $A
-	intersectBed -a $featuresA -b $A -v > $nA;
+	A=~/neurogen/TF_scan/all_TF_output_test/$TF/${TF}_in_hg19.bed
+	cat `ls  ~/neurogen/TF_scan/all_TF_output_test/*/*_in_hg19.bed | grep -v "/"$TF"/"` > $nA;
 	#for j in eRNA eRNA-classI promoter exon random
 	for j in  eRNA-classI
 	do
@@ -87,6 +86,7 @@ Rscript $pipeline_path/src/eRNA.TFBSencode.enrichment.R $output
 
 
 ## compare MEME motif scanning in query region vs. in non-query random regions
+## OUTPUT: most TFs are enriched in HTNEs comparing to random regions
 
 output=~/eRNAseq/HCILB_SNDA/eRNA.JASPARmotif.txt
 > $output;

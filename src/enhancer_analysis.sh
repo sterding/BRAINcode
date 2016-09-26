@@ -107,6 +107,24 @@ legend("topleft", legend=levels(df$V5), col=adjustcolor(1:length(levels(df$V5)),
 
 dev.off()
 
+## Do private genes tend to contain private TNEs?
+awk '{FS=","; OFS="\t"; if(NR>1) print $10,$11,$12,$1,$18,$21}' ~/Dropbox/PDBrainMap/data/privacyDataBraincode.csv | sed 's/"//g' | grep SNDAonly | cut -f1-3 | intersectBed -a - -b <(grep SNDAonly eRNA.privacy.bed) -u | wc -l # 26
+awk '{FS=","; OFS="\t"; if(NR>1) print $10,$11,$12,$1,$18,$21}' ~/Dropbox/PDBrainMap/data/privacyDataBraincode.csv | sed 's/"//g' | grep SNDAonly | cut -f1-3 | intersectBed -a - -b <(grep SNDAonly eRNA.privacy.bed) -v | wc -l #889
+awk '{FS=","; OFS="\t"; if(NR>1) print $10,$11,$12,$1,$18,$21}' ~/Dropbox/PDBrainMap/data/privacyDataBraincode.csv | sed 's/"//g' | grep SNDAonly -v | cut -f1-3 | intersectBed -a - -b <(grep SNDAonly eRNA.privacy.bed) -v | wc -l #26834
+awk '{FS=","; OFS="\t"; if(NR>1) print $10,$11,$12,$1,$18,$21}' ~/Dropbox/PDBrainMap/data/privacyDataBraincode.csv | sed 's/"//g' | grep SNDAonly -v | cut -f1-3 | intersectBed -a - -b <(grep SNDAonly eRNA.privacy.bed) | wc -l # 20833
+# R
+fisher.test(matrix(c(26,20833,889,26834),nrow=2,byrow=T),alternative='greater')  # p-value =1
+
+## Do private TNEs tend to locate in private genes?
+awk '{FS=","; OFS="\t"; if(NR>1) print $10,$11,$12,$1,$18,$21}' ~/Dropbox/PDBrainMap/data/privacyDataBraincode.csv | sed 's/"//g' | grep SNDAonly | cut -f1-3 | intersectBed -b - -a <(grep SNDAonly eRNA.privacy.bed) -u | wc -l # 133
+awk '{FS=","; OFS="\t"; if(NR>1) print $10,$11,$12,$1,$18,$21}' ~/Dropbox/PDBrainMap/data/privacyDataBraincode.csv | sed 's/"//g' | grep SNDAonly | cut -f1-3 | intersectBed -b - -a <(grep SNDAonly eRNA.privacy.bed) -v | wc -l #40713
+awk '{FS=","; OFS="\t"; if(NR>1) print $10,$11,$12,$1,$18,$21}' ~/Dropbox/PDBrainMap/data/privacyDataBraincode.csv | sed 's/"//g' | grep SNDAonly -v | cut -f1-3 | intersectBed -b - -a <(grep SNDAonly eRNA.privacy.bed) -v | wc -l #20993
+awk '{FS=","; OFS="\t"; if(NR>1) print $10,$11,$12,$1,$18,$21}' ~/Dropbox/PDBrainMap/data/privacyDataBraincode.csv | sed 's/"//g' | grep SNDAonly -v | cut -f1-3 | intersectBed -b - -a <(grep SNDAonly eRNA.privacy.bed) | wc -l # 20833
+# R
+fisher.test(matrix(c(133,20833,40713,20993),nrow=2,byrow=T),alternative='greater')   # p-value =1
+
+
+
 #############################################################
 # GWAS SNP enrichment
 #############################################################
@@ -156,7 +174,7 @@ Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R final.cis.eQTL.d1e6.p1
 
 ## boxplot of top eQTL w/ RTC
 cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
-Rscript ~/neurogen/pipeline/RNAseq/src/eQTLlist2plot.R RTC.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R RTC.gene.snp.list
 
 # simplfied table with LD infor (take the eSNP with the smallest p-value per SNP/associatedGene/Trait)
 # Note: we use LD block called by "PLINK --blocks", which use hyplotypeviewer behind and different from pairwise LD caller like SNAP)
@@ -181,7 +199,7 @@ Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.
 
 ## boxplot of top eQTL
 cut -f4,12 ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt | cut -f1 -d"|" > topeQTL.gene.snp.list
-Rscript ~/neurogen/pipeline/RNAseq/src/eQTLlist2plot.R topeQTL.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R topeQTL.gene.snp.list
 
 
 ## post-eQTL analysis
@@ -191,14 +209,21 @@ Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.plot.R rs1684902:61633127
 
 ## eQTL analysis
 # HTNE w/ eQTL
-awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.d1e6.p1e-2.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f5 | sort | uniq -c
+cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | sort -k2,2nr  ## > Table.S8
+fgrep -f <(cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls | cut -f2 | sort -u) eRNA.characterize.xls | cut -f28 | sort | uniq -c
+#  20 1
+#  17 2
+# 114 3
 # HTNE w/o eQTL
-fgrep -v -f <(awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.d1e6.p1e-2.xls | cut -f2 | sort -u) eRNA.characterize.xls | cut -f28 | sort | uniq -c
+fgrep -v -f <(cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls | cut -f2 | sort -u) eRNA.characterize.xls | cut -f28 | sort | uniq -c
+# 11815 1
+# 11773 2
+# 47283 3
 # Fisher' test in R
-fisher.test(matrix(c(39,23586,106,47291),nrow=2,byrow=T),'greater')  # p-value = 0.1123
+fisher.test(matrix(c(37,23588,114,47283),nrow=2,byrow=T),alternative='greater')  # p-value = 0.9924
 
 ## GO analysis for the genes harboring eQTL HTNEs
-awk '{OFS="\t"; split($2,a,"_"); if($6<=0.05) print;}' final.cis.eQTL.d1e6.p1e-2.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f4 | sort -u | sed 's/___/\t/g' | cut -f2 | sed 's/\..*//g'
+cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f4 | sort -u | sed 's/___/\t/g' | cut -f2 | sed 's/\..*//g'
 
 ## eQTL filters:
 ## A: colocalize --> TFBS --> GWAS

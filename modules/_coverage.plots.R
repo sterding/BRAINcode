@@ -1,10 +1,15 @@
 # Rscript for all coverage plots
+# Update: Exclude the gap regions when calcluating genome size (2016.09.15)
 
 setwd("~/neurogen/rnaseq_PD/results/coverage")
 
 ## ===============================================
 ## % of genome transcribed with different cutoff
 ## ===============================================
+
+GENOMESIZE=3137161264  # hg19 genome size, see https://genome.ucsc.edu/cgi-bin/hgTracks?chromInfoPage=&hgsid=512422197_TMKohgsX9wzqqDYa6ny5BLVqsYaD
+GAP=239845127 # awk '{print $3-$2}' $GENOME/Annotation/Genes/hg19.gap.bed | datamash sum 1
+genomesize=GENOMESIZE-GAP
 
 df=read.table("coverageWithRPM.txt", header=T)
 
@@ -22,8 +27,8 @@ library(reshape2)
 dflong=melt(df[,1:7], variable.name = "cutoff",value.name ="coverage")
 #levels(dflong$cutoff)=rev(levels(dflong$cutoff))
 library(ggplot2)
-ggplot(dflong, aes(x=sample, y=100*coverage/3137161264, fill=cutoff, order = -as.numeric(cutoff))) +
-    geom_bar(width=.5,position = position_stack(width=1), stat="identity") +
+ggplot(dflong, aes(x=sample, y=100*coverage/genomesize, fill=cutoff, order = -as.numeric(cutoff))) +
+    geom_bar(width=.5,position = position_stack(), stat="identity") +
     theme_bw() +
     ylab("Coverage of the whole genome (%)") +
     theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=5), legend.justification=c(1,1), legend.position=c(1,1))
@@ -42,14 +47,12 @@ df$sample <- factor(df$sample, unique(as.character(df$sample)))
 
 dflong=melt(df[,c("sample","RPMgt1","RPMgt0.5","RPMgt0.1","RPMgt0.05")], variable.name = "cutoff",value.name ="coverage")
 #levels(dflong$cutoff)=rev(levels(dflong$cutoff))
-ggplot(dflong, aes(x=sample, y=100*coverage/3137161264, fill=cutoff, order = -as.numeric(cutoff))) +
-    geom_bar(width=.5,position = position_stack(width=1), stat="identity") +
+ggplot(dflong, aes(x=sample, y=100*coverage/genomesize, fill=cutoff, order = -as.numeric(cutoff))) +
+    geom_bar(width=.5,position = position_stack(), stat="identity") +
     theme_bw() +
     ylab("Coverage of the whole genome (%)") +
     theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=5), legend.justification=c(1,1), legend.position=c(1,1))
 ggsave("coverageWithRPM.RPMpt05.pdf", width=8, height=4)
-
-dev.off()
 
 ## ===============================================
 ## three plots:
@@ -64,7 +67,7 @@ pdf("coverage.cummulative.pdf", paper='us',width=5, height=4)
 df=read.table("covered.0.05RPM.HCILB_SNDA.txt", header=F)
 colnames(df)=c("samplecount", "coveredbp")
 df=cbind(df, cumsum=cumsum(df$coveredbp), type='HCILB_SNDA')
-par(mar=c(4,4,2,4))
+par(mar=c(4,4,2,4), pty="s")
 plot(df$cumsum, type='l', lwd=2, col='#F22A7B', ylim=c(0,2000000000), xlim=c(1,90), main="covered.0.05RPM", yaxt="n", xaxt='n', xlab='', ylab='')
 df=read.table("covered.0.05RPM.HC_PY.txt", header=F)
 colnames(df)=c("samplecount", "coveredbp")
@@ -76,44 +79,43 @@ df=cbind(df, cumsum=cumsum(df$coveredbp), type='HC_nonNeuron')
 points(df$cumsum, type='l', lwd=2,col='#513931')
 axis(1, c(1,seq(20,90,20)), c(1,seq(20,90,20)), tck=0.02, mgp=c(3,0.2,0))
 #axis(2, seq(0,2,.5)*1e9, labels=format(seq(0,2,.5),2), las=2, tck=0.02, mgp=c(3,0.2,0))
-axis(2, 3137161264*seq(0,60,10)/100, labels=round(3137161264*seq(0,60,10)/100/1e9,2), las=2, tck=0.02, mgp=c(3,0.2,0))
-axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10)), las=2, tck=0.02, mgp=c(3,0.2,0))
-abline(h=3137161264*seq(0,60,10)/100, lwd=.5, col='gray')
+axis(2, genomesize*seq(0,60,10)/100, labels=round(genomesize*seq(0,60,10)/100/1e9,2), las=2)
+axis(4, genomesize*seq(0,60,10)/100, labels=paste0(seq(0,60,10)), las=2)
+abline(h=genomesize*seq(0,60,10)/100, lwd=.5, col='gray')
 mtext("Covered percentage (%)", 4, line=2)
 mtext("Sample count", 1, line=2)
-mtext("Covered base pairs (in billion)", 2, line=2)
+mtext("Covered base pairs (in billion)", 2, line=3)
 
 # coverage with same number of samples (N=7)
 a=read.table("covered.0.05RPM.HCILB_SNDA.random7.txt", header=F)
-a=100*apply(a,1,sum)/3137161264
+a=100*apply(a,1,sum)/genomesize
 #a=try(system("cut -f2 random.covered.0.05RPM.HCILB_SNDA.*.txt | paste - - - - - - -",intern = T))
-#a=100*apply(matrix(as.numeric(do.call(rbind, strsplit(a,"\t"))),nrow=100),1,sum)/3137161264
+#a=100*apply(matrix(as.numeric(do.call(rbind, strsplit(a,"\t"))),nrow=100),1,sum)/genomesize
 df=data.frame(percentage=a,type='HCILB_SNDA')
 #a=try(system("cut -f2 random.covered.0.05RPM.HC_PY.*.txt | paste - - - - - - -",intern = T))
-#a=100*apply(matrix(as.numeric(do.call(rbind, strsplit(a,"\t"))),nrow=100),1,sum)/3137161264
+#a=100*apply(matrix(as.numeric(do.call(rbind, strsplit(a,"\t"))),nrow=100),1,sum)/genomesize
 a=read.table("covered.0.05RPM.HC_PY.random7.txt", header=F)
-a=100*apply(a,1,sum)/3137161264
+a=100*apply(a,1,sum)/genomesize
 df=rbind(df, data.frame(percentage=a,type='HC_PY'))
 a=read.table("covered.0.05RPM.HC_nonNeuron.txt", header=F)$V2
-a=100*sum(a)/3137161264
+a=100*sum(a)/genomesize
 df=rbind(df, data.frame(percentage=a,type='HC_nonNeuron'))
-par(tck=0.02)
 boxplot(percentage~type, df, col=c('#F22A7B','#3182bd','#513931'), ylab="Covered percentage (%)")
 
 # HCILB_SNDA with more details
 df=read.table("covered.5reads.HCILB_SNDA.txt", header=F)
 colnames(df)=c("samplecount", "coveredbp")
 df=cbind(df, cumsum=cumsum(df$coveredbp))
-par(mar=c(4,4,2,4))
+par(mar=c(4,4,2,4), pty="s")
 plot(df$cumsum, type='l', ylim=c(0,1900000000), xlim=c(1,90),ylab="", main="covered.5reads.HCILB_SNDA", yaxt="n", xaxt='n', xlab='')
 points(df$coveredbp, type='h', lwd=4, col=colorRampPalette(c('blue','red'))(100), lend=2)
 abline(h=df$coveredbp[1], lty=2)
-axis(1, c(1,seq(10,90,10)), c(1,seq(10,90,10)), tck=0.01, mgp=c(3,0.2,0))
-axis(2, seq(0,2,.2)*1e9, labels=format(seq(0,2,.2),2), las=2, tck=0.01, mgp=c(3,0.2,0))
-axis(4, 3137161264*seq(0,60,10)/100, labels=paste0(seq(0,60,10)), las=2, tck=0.01, mgp=c(3,0.2,0))
+axis(1, c(1,seq(10,90,10)), c(1,seq(10,90,10)))
+axis(2, seq(0,2,.2)*1e9, labels=format(seq(0,2,.2),2), las=2)
+axis(4, genomesize*seq(0,60,10)/100, labels=paste0(seq(0,60,10)), las=2)
 mtext("Covered percentage (%)", 4, line=2)
 mtext("Sample count", 1, line=2)
-mtext("Covered base pairs (in billion)",2,line=2)
+mtext("Covered base pairs (in billion)",2,line=3)
 
 ## aggregation plot for gene body coverage (to show degradation)
 df=read.table("geneBodyCoverage.HCILB_SNDA.txt", header=F)
@@ -148,8 +150,8 @@ df=cbind(as.integer(c(EXON,0,0)),as.integer(c(exons,introns,intergenic)))
 rownames(df) = c('exons', 'introns', 'intergenic')
 colnames(df)=c("GENCODE", "BRAINCODE");
 par(mar=c(4,4,2,4))
-d=barplot(as.matrix(df), ylim=c(0,3137161264), col=c('#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
-text(x=d, y=apply(df,2,sum),pos=3, offset=.2, paste0(round(100*apply(df,2,sum)/3137161264,1),"%"), cex=2)
+d=barplot(as.matrix(df), ylim=c(0,genomesize), col=c('#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
+text(x=d, y=apply(df,2,sum),pos=3, offset=.2, paste0(round(100*apply(df,2,sum)/genomesize,1),"%"), cex=2)
 axis(2, at=c(0:3)*1e9, labels=0:3)
 legend("topleft",col=c('#9ecae1', '#fc9272','#fec44f'), rownames(df), bty='n', pch=15)
 
@@ -159,8 +161,8 @@ df=rbind(as.integer(c(CDS,0)),df)
 rownames(df) = c('CDS','exons', 'introns', 'intergenic')
 colnames(df)=c("GENCODE", "BRAINCODE");
 par(mar=c(4,4,2,4))
-d=barplot(as.matrix(df), ylim=c(0,3137161264), col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
-text(x=d, y=apply(df,2,sum),pos=3, offset=.2, paste0(round(100*apply(df,2,sum)/3137161264,1),"%"), cex=2)
+d=barplot(as.matrix(df), ylim=c(0,genomesize), col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
+text(x=d, y=apply(df,2,sum),pos=3, offset=.2, paste0(round(100*apply(df,2,sum)/genomesize,1),"%"), cex=2)
 axis(2, at=c(0:3)*1e9, labels=0:3)
 legend("topleft",col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), rownames(df), bty='n', pch=15)
 
@@ -169,8 +171,8 @@ df=rbind(as.integer(c(PC_EXON,0)),df)
 rownames(df) = c('protein_coding_genes.exons','exons', 'introns', 'intergenic')
 colnames(df)=c("GENCODE", "BRAINCODE");
 par(mar=c(4,4,2,4))
-d=barplot(as.matrix(df), ylim=c(0,3137161264), col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
-text(x=d, y=apply(df,2,sum),pos=3, offset=.2, paste0(round(100*apply(df,2,sum)/3137161264,1),"%"), cex=2)
+d=barplot(as.matrix(df), ylim=c(0,genomesize), col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), border =NA, axes=F, ylab="Human genome base pairs (in billion)")
+text(x=d, y=apply(df,2,sum),pos=3, offset=.2, paste0(round(100*apply(df,2,sum)/genomesize,1),"%"), cex=2)
 axis(2, at=c(0:3)*1e9, labels=0:3)
 legend("topleft",col=c('#3182bd','#9ecae1', '#fc9272','#fec44f'), rownames(df), bty='n', pch=15)
 

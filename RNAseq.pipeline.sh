@@ -298,12 +298,12 @@ Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.
 
 ## boxplot of top eQTL
 cut -f4,12 ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt | cut -f1 -d"|" > topeQTL.gene.snp.list
-Rscript ~/neurogen/pipeline/RNAseq/src/eQTLlist2plot.R topeQTL.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/src/_eQTL_boxplot.R topeQTL.gene.snp.list
 
 ## boxplot of top RTC eQTL
 
 cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
-Rscript ~/neurogen/pipeline/RNAseq/src/eQTLlist2plot.R RTC.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/src/_eQTL_boxplot.R RTC.gene.snp.list
 
 
 ## disease SNP enrichment in the eQTL SNPs
