@@ -53,7 +53,8 @@ echo "getting VISTA region"
 # ---------------------------------
 [ -d $externalData/VISTA ] || mkdir $externalData/VISTA
 cd $externalData/VISTA
-curl -s "http://enhancer.lbl.gov/cgi-bin/imagedb3.pl?show=1;page=1;form=ext_search;search.status=Does%20not%20matter;search.org=Human;page_size=20000;search.result=yes;action=search;search.gene=;search.sequence=1" | grep Human | sed 's/:/\t/g;s/-/\t/g;s/>Human|//g;s/ | /\t/g;s/positive /+/g;s/negative /-/g;s/ /_/g' | cut -f1-5 > hg19.tested_regions.bed
+curl -s "http://enhancer.lbl.gov/cgi-bin/imagedb3.pl?show=1;page=1;form=ext_search;search.status=Does%20not%20matter;search.org=Human;page_size=20000;search.result=yes;action=search;search.gene=;search.sequence=1" | sed 's/<[^>]\+>//g' | grep Human | sed 's/:/\t/g;s/-/\t/g;s/>Human|//g;s/ | /\t/g;s/positive /+/g;s/negative /-/g;s/ /_/g' | awk '{OFS="\t"; id=""; if($5=="+") for(i=6;i<=NF;i++) id=$i";"id; else id="NULL"; print $1,$2,$3,$4,NF-5,$5,id;}' > hg19.tested_regions.`date +%F`.bed
+ln -fs hg19.tested_regions.`date +%F`.bed hg19.tested_regions.bed
 
 echo "getting Conservation"
 # ---------------------------------

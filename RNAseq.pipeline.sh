@@ -101,13 +101,18 @@ done
 
 ## cumulative coverage for 7 samples in each group
 # ----------------------------------
-for i in `seq 1 100`;
-do
-  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7; # output: random.covered.0.05RPM.HCILB_SNDA.*.txt
-  bsub -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 7;
-done
+bsub -J "combine_coverage.HCILB_SNDA[1-100]" -q short -n 1 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 7; # output: random.covered.0.05RPM.HCILB_SNDA.*.txt
+bsub -J "combine_coverage.HC_PY[1-100]" -q short -n 1 -M 2000 _combine_coverage.sh HC_PY 0.05 7;
 cut -f2 random.covered.0.05RPM.HCILB_SNDA.*.txt | paste - - - - - - - > covered.0.05RPM.HCILB_SNDA.random7.txt
 cut -f2 random.covered.0.05RPM.HC_PY.*.txt | paste - - - - - - - > covered.0.05RPM.HC_PY.random7.txt
+
+bsub -J "combine_coverage.SNDA[1-100]" -q normal -n 2 -M 2000 _combine_coverage.sh HCILB_SNDA 0.05 5; # output: random.covered.0.05RPM.HCILB_SNDA.*.txt
+bsub -J "combine_coverage.PY[1-100]" -q normal -n 2 -M 2000 _combine_coverage.sh HC_PY 0.05 5;
+bsub -J "combine_coverage.NN[1-100]" -q normal -n 2 -M 2000 _combine_coverage.sh HC_nonNeuron 0.05 5;
+cut -f2 random.covered.0.05RPM.HCILB_SNDA.*.txt | paste - - - - - > covered.0.05RPM.HCILB_SNDA.random5.txt
+cut -f2 random.covered.0.05RPM.HC_PY.*.txt | paste - - - - - > covered.0.05RPM.HC_PY.random5.txt
+cut -f2 random.covered.0.05RPM.HC_nonNeuron.*.txt | paste - - - - - > covered.0.05RPM.HC_nonNeuron.random5.txt
+
 rm random.covered.0.05RPM.HC*
 
 ##  coverage for individual sample with different RPM cutoff (>0, >=0.01, >=0.05, >=0.1, >=0.5, >=1)
@@ -140,7 +145,7 @@ do
 done
 
 ## Rscript to make all kinds of coverage plots
-Rscript $HOME/neurogen/pipeline/RNAseq/module/_coverage.plots.R
+Rscript $HOME/neurogen/pipeline/RNAseq/modules/_coverage.plots.R
 
 ## reads count for
 echo 'ID' `sort ~/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_6_rep2/uniq/accepted_hits.bam.bam2annotation | cut -f1 -d':' | rowsToCols stdin stdout` | sed 's/ /\t/g' > uniq.bam2annotation.stat.txt

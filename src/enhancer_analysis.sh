@@ -156,6 +156,8 @@ grep Parkinson $snps_in_LD.autosomal.associations.bed | intersectBed -b HCILB_SN
 ################################################################################################
 # eQTL of eRNA
 ################################################################################################
+# Note: eQTL for HTNEs was ran based on 83 samples (accidently, as one sample was missed to include). We re-ran eQTL for HTNEs with 84 samples, but traits like ADHD is not included in the RTC result. So, for the RTC table, we still use result for 83 samples, where in the boxplot we showed expression for 84 samples. This discordance only applies to HTNE eQTL, not gene eQTL.
+
 cd HCILB_SNDA;
 bsub -q big -n 2 -R 'rusage[mem=10000]' -eo eQTL.run.log -oo eQTL.run.log Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R # for HCILB_SNDA only
 ln -fs final.cis.eQTL.xls final.cis.eQTL.d1e6.p1.xls
@@ -176,10 +178,13 @@ Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R final.cis.eQTL.d1e6.p1
 cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
 Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R RTC.gene.snp.list
 
-# simplfied table with LD infor (take the eSNP with the smallest p-value per SNP/associatedGene/Trait)
+# simplfied table with LD infor (take the Associated_transcript (i.e TNE) with the smallest eQTL p-value per SNP/Associated_transcript_hostgene/Trait)
 # Note: we use LD block called by "PLINK --blocks", which use hyplotypeviewer behind and different from pairwise LD caller like SNAP)
 echo "#SNP OmniID Ref:Alt Chr eSNP_host_gene Associated_transcript_hostgene Associated_transcript minP Trait RTC GWAS_SNP GWAS_SNP_pos GWAS_SNP_pvalue LD" | sed 's/ /\t/g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.simplified.xls
 sed 's/ /_/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{OFS="\t"; if($7>=0.85) {split($9,a,"_");print a[1],$11-1,$11,$1,a[1],$13,($8=="NA")?"(intergenic)":$8,$9,$3,$6,$7,$5,$10}}' | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo | cut -f4-13,17 | awk '{OFS="\t"; $1=$1"|"$11; print}' | cut -f1-10 | sort -k1,1 -k3,3 -k4,4 -k7,7 -k6,6g | awk '{if(id!=$1$3$4$7) {print; id=$1$3$4$7;}}' | while read rs chr rest; do chr=${chr/chr/}; rs0=${rs/\|*/}; ld=`fgrep -w $rs0 $GENOME/Annotation/Variation/1000G/LDblock/Chr$chr.LD.blocks.det | head -n1 | awk '{print $1"_"$2"_"$3}'`; echo $rs $chr $rest chr$ld; done | sed 's/ /\t/g' | awk '{OFS="\t"; print "chr"$2,$10-1,$10,$9,$0}' | intersectBed -a - -b <(sed 's/ /_/g' ~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pvalue.bed) -wo | awk '$11==$22' | cut -f5-15,20 | awk '{OFS="\t"; split($1,a,"[|_]"); print a[1],a[2],a[3],$2,$3,$4,$5,$6,$7,$8,$9,$10,$12,$11}' >> final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.simplified.xls
+# output all pairs with RTC>=0.85
+echo "#SNP OmniID Ref:Alt Chr eSNP_host_gene Associated_transcript_hostgene Associated_transcripts minP Trait RTC GWAS_SNP GWAS_SNP_pos GWAS_SNP_pvalue LD" | sed 's/ /\t/g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.grouped.xls
+sed 's/ /_/g' RTC83/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{OFS="\t"; if($7>=0.85) {split($9,a,"_");print a[1],$11-1,$11,$1,a[1],$13,($8=="NA")?"(intergenic)":$8,$9,$3,$6,$7,$5,$10}}' | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo | cut -f4-13,17 | awk '{OFS="\t"; $1=$1"|"$11; print}' | cut -f1-10 | sort -k1,1 -k3,3 -k4,4 -k7,7 -k6,6g | groupBy -g 1,2,3,4,7,8,9,10 -c 5,6 -o collapse,min | awk '{OFS="\t"; print $1,$2,$3,$4,$9,$10,$5,$6,$7,$8;}' | while read rs chr rest; do chr=${chr/chr/}; rs0=${rs/\|*/}; ld=`fgrep -w $rs0 $GENOME/Annotation/Variation/1000G/LDblock/Chr$chr.LD.blocks.det | head -n1 | awk '{print $1"_"$2"_"$3}'`; echo $rs $chr $rest chr$ld; done | sed 's/ /\t/g' | awk '{OFS="\t"; print "chr"$2,$10-1,$10,$9,$0}' | intersectBed -a - -b <(sed 's/ /_/g' ~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pvalue.bed) -wo | awk '$11==$22' | cut -f5-15,20 | awk '{OFS="\t"; split($1,a,"[|_]"); print a[1],a[2],a[3],$2,$3,$4,$5,$6,$7,$8,$9,$10,$12,$11}' >> final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.grouped.xls
 
 ## run permutations in bash
 mkdir permutations; 
@@ -201,10 +206,9 @@ Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.
 cut -f4,12 ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt | cut -f1 -d"|" > topeQTL.gene.snp.list
 Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R topeQTL.gene.snp.list
 
-
-## post-eQTL analysis
-bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
-Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.plot.R rs1684902:61633127:A:G_A:G chr10_61632545_61633312
+## for rs1684902 SNP (E-box of USF1 binding site)
+echo -e "chr10_61632545_61633312\trs1684902:61633127:A:G_A:G" > ASE.chr10_61632545_61633312.rs1684902.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R ASE.chr10_61632545_61633312.rs1684902.list  # output 
 
 
 ## eQTL analysis
@@ -378,12 +382,12 @@ for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC HC_MCPY HC_TCPY ILB_SNDA PD
 
 cd HCILB_SNDA
 
-# if the overlap is significant or not?
-for i in `seq 1 1000`;
-do
-    echo $i;
-    bsub -J random_overlap -oo _random_overlap.$i.log -eo _random_overlap.$i.log -q normal -n 1 -M 500 $pipeline_path/src/overlap.with.random.sh
-done
+## if the overlap of HTNE with various enhancer features is significant or not?
+## -------------------------------------------------------
+
+# run the overlapping for 1000 times
+rm randomoverlap.*.txt
+bsub -J "random_overlap[1-1000]" -oo _random_overlap.log -eo _random_overlap.log -q normal -n 1 -M 500 $pipeline_path/src/overlap.with.random.sh
 
 tmp=eRNA.bed
 # TFBS hotspot
@@ -405,23 +409,44 @@ snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps
 awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$2,$3,$7; for(i=1;i<n;i++) print $1,b[i]-1,b[i],$7;}' $snps_in_LD | cut -f1-3 | sort -u | intersectBed -a $tmp -b stdin -u | wc -l >> eRNA.overlap.txt
 
 # R
-setwd("~/eRNAseq")
+setwd("~/eRNAseq/HCILB_SNDA")
 features=c("TFBS","P300","CAGE", "Histone","VISTA", "HCNE", "DNase", "GWAS")
-nHiTNE=read.table("eRNA.overlap.txt")[,1]  # c(4148,3914,1266,21823,63,15987,294,317)
+nHiTNE=read.table("eRNA.overlap.txt")[,1] 
 for(i in 1:8){
     df=read.table(paste0("randomoverlap.",features[i],".txt"))$V1
     #cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/75490,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i])$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t", file = "randomoverlap.enrichment.xls", append =T)
-    cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/71469,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i], alternative =)$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t")
+    cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/71022,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i], alternative =)$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t")
 }
 
 # TFBS	4778 (6.7%)	3622 (3619,3626)	0	
-# P300	3674 (5.1%)	2503 (2500,2506)	0	
+# P300	3674 (5.2%)	2503 (2500,2506)	0	
 # CAGE	1212 (1.7%)	942 (940,944)	0	
-# Histone	20505 (28.7%)	8849 (8843,8854)	0	
-# VISTA	59 (0.1%)	54 (53,54)	3.007842e-91	
+# Histone	20505 (28.9%)	8849 (8843,8854)	0	
+# VISTA	63 (0.1%)	58 (57,58)	2.211971e-78	
 # HCNE	277 (0.4%)	248 (247,249)	0	
-# DNase	10894 (15.2%)	7707 (7702,7712)	0	
-# GWAS	4446 (6.2%)	3293 (3289,3296)	0
+# DNase	10894 (15.3%)	7707 (7702,7712)	0	
+# GWAS	4446 (6.3%)	3293 (3289,3296)	0
+
+## overlap with VISTA validated enhancers
+a=as.integer(system("cat ~/eRNAseq/externalData/VISTA/hg19.tested_regions.bed | intersectBed -a eRNA.bed -b stdin -wo | grep -v NULL -c",intern = T))
+b=as.integer(system("cat ~/eRNAseq/externalData/VISTA/hg19.tested_regions.bed | intersectBed -a eRNA.bed -b stdin -wo | grep NULL -c",intern = T))
+c=as.integer(system("cat ~/eRNAseq/externalData/VISTA/hg19.tested_regions.bed | grep -v NULL -c",intern = T))
+d=as.integer(system("cat ~/eRNAseq/externalData/VISTA/hg19.tested_regions.bed | grep NULL -c",intern = T))
+c(a,b,c,d)
+phyper(a-1, a+b, c+d-(a+b),c, lower.tail=F) # 0.003916193
+pdf("VISTA.enrichment.pdf", paper='us')
+barplot(c(d/(c+d),c/(c+d),b/(a+b),a/(a+b)),col=c('gray','red','gray','red'),names.arg=paste(c('VISTA-negative','VISTA-positive','TNE-negative','TNE-positive'),"\n",c(d,c,b,a)))
+dev.off()
+
+# # overlap with class I/II TNE
+# a=as.integer(system("cut -f2-5,36 eRNA.characterize2.xls | awk '$5<3' | intersectBed -a stdin -b ~/eRNAseq/externalData/VISTA/hg19.tested_regions.bed -wo | grep -v NULL -c",intern = T))
+# b=as.integer(system("cut -f2-5,36 eRNA.characterize2.xls | awk '$5<3' | intersectBed -a stdin -b ~/eRNAseq/externalData/VISTA/hg19.tested_regions.bed -wo | grep NULL -c",intern = T))
+# c=as.integer(system("cat ~/eRNAseq/externalData/VISTA/hg19.tested_regions.bed | grep -v NULL -c",intern = T))
+# d=as.integer(system("cat ~/eRNAseq/externalData/VISTA/hg19.tested_regions.bed | grep NULL -c",intern = T))
+# c(a,b,c,d)
+# phyper(a-1, a+b, c+d-(a+b),c, lower.tail=F) # 0.09716477
+# # pvalue for class I only is 0.06
+
 
 ################################################################################################
 # for in vitro/vivo test

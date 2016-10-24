@@ -1,4 +1,4 @@
-# script to calculate overlap for a random file
+# script to calculate overlap for a random file (with matched length distribution as input set)
 #!/bin/bash
 
 ANNOTATION=/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes

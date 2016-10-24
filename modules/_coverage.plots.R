@@ -86,21 +86,41 @@ mtext("Covered percentage (%)", 4, line=2)
 mtext("Sample count", 1, line=2)
 mtext("Covered base pairs (in billion)", 2, line=3)
 
+# coverage with same number of samples (N=5)
+a=read.table("covered.0.05RPM.HCILB_SNDA.random5.txt", header=F)
+a=100*apply(a,1,sum)/genomesize
+df=data.frame(percentage=a,type='SNDA')
+a=read.table("covered.0.05RPM.HC_PY.random5.txt", header=F)
+a=100*apply(a,1,sum)/genomesize
+df=rbind(df, data.frame(percentage=a,type='PY'))
+a=read.table("covered.0.05RPM.HC_nonNeuron.random5.txt", header=F)
+a=100*apply(a,1,sum)/genomesize
+df=rbind(df, data.frame(percentage=a,type='NN'))
+boxplot(percentage~type, df, outline =F, col=c('#F22A7B','#3182bd','#513931'), ylab="Covered percentage (%)", main="random 5 samples",yaxt="n")
+axis(2, at=seq(10,30,5),labels=seq(10,30,5))
+t.test(df$percentage[df$type=='SNDA'], df$percentage[df$type=='NN'])
+t.test(df$percentage[df$type=='PY'], df$percentage[df$type=='NN'])
+t.test(df$percentage[df$type=='SNDA'], df$percentage[df$type=='PY'])
+
 # coverage with same number of samples (N=7)
 a=read.table("covered.0.05RPM.HCILB_SNDA.random7.txt", header=F)
 a=100*apply(a,1,sum)/genomesize
 #a=try(system("cut -f2 random.covered.0.05RPM.HCILB_SNDA.*.txt | paste - - - - - - -",intern = T))
 #a=100*apply(matrix(as.numeric(do.call(rbind, strsplit(a,"\t"))),nrow=100),1,sum)/genomesize
-df=data.frame(percentage=a,type='HCILB_SNDA')
+df=data.frame(percentage=a,type='SNDA')
 #a=try(system("cut -f2 random.covered.0.05RPM.HC_PY.*.txt | paste - - - - - - -",intern = T))
 #a=100*apply(matrix(as.numeric(do.call(rbind, strsplit(a,"\t"))),nrow=100),1,sum)/genomesize
 a=read.table("covered.0.05RPM.HC_PY.random7.txt", header=F)
 a=100*apply(a,1,sum)/genomesize
-df=rbind(df, data.frame(percentage=a,type='HC_PY'))
+df=rbind(df, data.frame(percentage=a,type='PY'))
 a=read.table("covered.0.05RPM.HC_nonNeuron.txt", header=F)$V2
 a=100*sum(a)/genomesize
-df=rbind(df, data.frame(percentage=a,type='HC_nonNeuron'))
-boxplot(percentage~type, df, col=c('#F22A7B','#3182bd','#513931'), ylab="Covered percentage (%)")
+df=rbind(df, data.frame(percentage=a,type='NN'))
+boxplot(percentage~type, df, outline =F, col=c('#F22A7B','#3182bd','#513931'), ylab="Covered percentage (%)", main="random 7 samples", yaxt="n")
+axis(2, at=seq(15,30,5),labels=seq(15,30,5))
+t.test(df$percentage[df$type=='SNDA'], mu=df$percentage[df$type=='NN'])
+t.test(df$percentage[df$type=='PY'], mu=df$percentage[df$type=='NN'])
+t.test(df$percentage[df$type=='SNDA'], df$percentage[df$type=='PY'])
 
 # HCILB_SNDA with more details
 df=read.table("covered.5reads.HCILB_SNDA.txt", header=F)
