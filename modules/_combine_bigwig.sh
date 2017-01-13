@@ -32,31 +32,30 @@ fi
 echo "["`date`"] computing trimmed mean of bedGraph"
 #-------------------
 
-[[ $group_lable =~ stranded ]] || \
-unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph | grep -f samplelist.$group_lable` \
-| awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
-| awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.normalized.$group_lable.bedGraph
-
+if [[ $group_lable =~ stranded ]]; then
 # for stranded libs, do it separately.
-[[ $group_lable =~ stranded ]] && \
-unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.plus.normalized.bedGraph | grep -f samplelist.$group_lable` \
-| awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
-| awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.plus.normalized.$group_lable.bedGraph && \
-unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.minus.normalized.bedGraph | grep -f samplelist.$group_lable` \
-| awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm>0) print $1,$2,$3,-tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
-| awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.minus.normalized.$group_lable.bedGraph
-
+    unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.plus.normalized.bedGraph | grep -f samplelist.$group_lable` \
+    | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm!=0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
+    | awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.plus.normalized.$group_lable.bedGraph
+    unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.minus.normalized.bedGraph | grep -f samplelist.$group_lable` \
+    | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm!=0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; if(s<=0) s=-s; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
+    | awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.minus.normalized.$group_lable.bedGraph
+else
+    unionBedGraphs -i `ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph | grep -f samplelist.$group_lable` \
+    | awk 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm!=0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=3095677412; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
+    | awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.normalized.$group_lable.bedGraph
+fi
 
 # collapse continous regions with the same value by code: awk '{OFS="\t"; if(id!=$4 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}'
 
 echo "["`date`"] bedgraph --> bigwig"
 #-------------------
-[[ $group_lable =~ stranded ]] || \
-bedGraphToBigWig trimmedmean.uniq.normalized.$group_lable.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt trimmedmean.uniq.normalized.$group_lable.bw
-
-[[ $group_lable =~ stranded ]] && \
-bedGraphToBigWig trimmedmean.uniq.plus.normalized.$group_lable.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt trimmedmean.uniq.plus.normalized.$group_lable.bw && \
-bedGraphToBigWig trimmedmean.uniq.minus.normalized.$group_lable.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt trimmedmean.uniq.minus.normalized.$group_lable.bw
+if [[ $group_lable =~ stranded ]]; then
+    bedGraphToBigWig trimmedmean.uniq.plus.normalized.$group_lable.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt trimmedmean.uniq.plus.normalized.$group_lable.bw 
+    bedGraphToBigWig trimmedmean.uniq.minus.normalized.$group_lable.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt trimmedmean.uniq.minus.normalized.$group_lable.bw
+else
+    bedGraphToBigWig trimmedmean.uniq.normalized.$group_lable.bedGraph $GENOME/Annotation/Genes/ChromInfo.txt trimmedmean.uniq.normalized.$group_lable.bw
+fi
 
 echo "["`date`"] Done!"
 

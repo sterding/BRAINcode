@@ -31,8 +31,9 @@ samplename=${R1/[.|_]R1*/}
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
 
-#[[ $samplename == *stranded* ]] && strandoption="--library-type fr-secondstrand"  # by default we use Illumina SMARTer stranded RNA-Seq kit
-split="-nosplit"; [[ $samplename == *stranded* ]] && split="-split"
+strandoption="--library-type fr-unstranded"; split="-nosplit"; 
+[[ $samplename == *stranded* ]] && strandoption="--library-type fr-secondstrand"  # by default we use Illumina SMARTer stranded RNA-Seq kit
+[[ $samplename == *stranded* ]] && split="-split"
 
 inputdir=$PWD
 outputdir=$inputdir/../run_output
@@ -86,8 +87,8 @@ echo "["`date`"] STEP 3.1 k-mer for outlier detection"
 [ ! -f $outputdir/$samplename/.status.$modulename.kmers ] && \
 fqHEAD=`zcat $R1 | head -n1 | sed 's/@//g'| cut -f1 -d":"` && \
 rm $outputdir/$samplename/*k9 && \
-fastqToFa -nameVerify=$fqHEAD $R1 stdout | kpal count -p $samplename -k 9 - $outputdir/$samplename/R1.k9 && \
-fastqToFa -nameVerify=$fqHEAD $R2 stdout | kpal count -p $samplename -k 9 - $outputdir/$samplename/R2.k9 && \
+fastqToFa -nameVerify=$fqHEAD $R1 stdout | kpal count -p ${samplename//./_} -k 9 - $outputdir/$samplename/R1.k9 && \
+fastqToFa -nameVerify=$fqHEAD $R2 stdout | kpal count -p ${samplename//./_} -k 9 - $outputdir/$samplename/R2.k9 && \
 kpal merge $outputdir/$samplename/R1.k9 $outputdir/$samplename/R2.k9 $outputdir/$samplename/k9 && \
 rm $outputdir/$samplename/R1.k9 $outputdir/$samplename/R2.k9 && \
 touch $outputdir/$samplename/.status.$modulename.kmers
@@ -121,26 +122,26 @@ mindist=200
 ## --fusion-min-dist default is 10,000,000 changed to --fusion-min-dist 200
 ## --fusion-ignore-chromosomes added mitochondria
 [ ! -f $outputdir/$samplename/.status.$modulename.circRNA ] && \
-bamToFastq -i $outputdir/$samplename/unmapped.bam -fq $outputdir/$samplename/unmapped.fastq && 
-tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --fusion-min-dist $mindist --fusion-ignore-chromosomes chrM --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome $outputdir/$samplename/unmapped.fastq && 
+bamToFastq -i $outputdir/$samplename/unmapped.bam -fq $outputdir/$samplename/unmapped.fastq &&
+tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --fusion-min-dist $mindist --fusion-ignore-chromosomes chrM --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome $outputdir/$samplename/unmapped.fastq &&
 CIRCexplorer.py -f $outputdir/$samplename/tophat_fusion/accepted_hits.bam -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -r $GENOME/Annotation/Genes/refFlat.txt -o $outputdir/$samplename/circ.txt && \
 touch $outputdir/$samplename/.status.$modulename.circRNA
 
-## calling cirRNA using Mapsplice
-[ ! -f $outputdir/$samplename/.status.$modulename.circRNA_Mapsplice ] && \
-mkdir $outputdir/$samplename/mapsplice_out && \
-python /PHShome/xd010/MapSplice-v2.1.8/mapsplice.py -p $CPU -o $outputdir/$samplename/mapsplice_out --bam --non-canonical --fusion-non-canonical --min-fusion-distance $mindist --gene-gtf $ANNOTATION_GTF -c $GENOME/Sequence/Chromosomes -x $BOWTIE_INDEXES/genome -1 $outputdir/$samplename/unmapped.fastq  && \
-rm $outputdir/$samplename/unmapped.fastq && \
-touch $outputdir/$samplename/.status.$modulename.circRNA_Mapsplice
-
-#-p $CPU is threads
-#-c <Reference_Sequence folder>, each file in 1 chr in fasta
-#-x <Bowtie_Index folder> each file in 1 chr in fasta
-#--min-fusion-distance Minimim distance between two segments to be considered as fusion candidate. Manual recommends 200 for circRNAs
-#--min-map-len <int> leaving at default 50
-# --gene-gtf <string> Gene annotation file in GTF format, used to annotate fusion junctions. Required for the detection of Circular RNA
-# --fusion | --fusion-non-canonical for circRNAs
-
+# ## calling cirRNA using Mapsplice
+# [ ! -f $outputdir/$samplename/.status.$modulename.circRNA_Mapsplice ] && \
+# mkdir $outputdir/$samplename/mapsplice_out && \
+# python /PHShome/xd010/MapSplice-v2.1.8/mapsplice.py -p $CPU -o $outputdir/$samplename/mapsplice_out --bam --non-canonical --fusion-non-canonical --min-fusion-distance $mindist --gene-gtf $ANNOTATION_GTF -c $GENOME/Sequence/Chromosomes -x $BOWTIE_INDEXES/genome -1 $outputdir/$samplename/unmapped.fastq  && \
+# rm $outputdir/$samplename/unmapped.fastq && \
+# touch $outputdir/$samplename/.status.$modulename.circRNA_Mapsplice
+# 
+# #-p $CPU is threads
+# #-c <Reference_Sequence folder>, each file in 1 chr in fasta
+# #-x <Bowtie_Index folder> each file in 1 chr in fasta
+# #--min-fusion-distance Minimim distance between two segments to be considered as fusion candidate. Manual recommends 200 for circRNAs
+# #--min-map-len <int> leaving at default 50
+# # --gene-gtf <string> Gene annotation file in GTF format, used to annotate fusion junctions. Required for the detection of Circular RNA
+# # --fusion | --fusion-non-canonical for circRNAs
+# 
 
 
 ###########################################
@@ -179,7 +180,7 @@ echo "## generating bigwig files for UCSC display"
 echo "## normalization using total reads mapped to non_rRNA_mt" && \
 total_mapped_reads=`grep -w total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
 bam2bigwig.sh accepted_hits.bam $split $total_mapped_reads && \
-rm accepted_hits.bed accepted_hits.bedGraph && \
+#rm accepted_hits.bed? !(*normalized*).bedGraph && \
 touch $outputdir/$samplename/.status.$modulename.sam2bw
 
 # % of genome coverage vs. RNAseq density (e.g. >1rpm)
@@ -247,7 +248,7 @@ echo "## quantification for meta exons"
 # script to generate meta exons (see README in $ANNOTATION for how to generate meta exons)
 # awk '{OFS="\t"; split($4,a,"___"); split(a[4],b,"."); $4=a[1]"___"a[2]"___"b[1]; print}' exons.bed | sort -k4,4 -k1,1 -k2,2n -k3,3n | awk '{OFS="\t"; if(id!=$4 || $2>e) {if(id!="") print chr,s,e,id,1,str; chr=$1;s=$2;e=$3;id=$4;str=$6;} else if($3>e) e=$3;}END{print chr,s,e,id,1,str;}' > exons.meta.bed
 [ ! -f .status.$modulename.metaexon ] && \
-awk '{OFS="\t"; $4=$4"__"$1"_"$2"_"$3; print}' $ANNOTATION/exons.meta.bed | coverageBed -abam accepted_hits.bam -b - -s -counts > readscount.by.metaexon.tab 2> readscount.by.metaexon.tab.stderr && \
+awk '{OFS="\t"; $4=$4"__"$1"_"$2"_"$3; print}' $ANNOTATION/exons.meta.bed | /source/bedtools2/2.18.2/coverageBed -abam accepted_hits.bam -b - -s -counts > readscount.by.metaexon.tab 2> readscount.by.metaexon.tab.stderr && \
 touch .status.$modulename.metaexon
 
 ############################################
@@ -288,7 +289,7 @@ touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
 echo "## normalizing: instead of using total reads, use reads only mapped to non-rRNA-mtRNA for normalization" && \
 total_mapped_reads2=`grep -w total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
 bam2bigwig.sh accepted_hits.bam $split $total_mapped_reads2 && \
-rm accepted_hits.bed accepted_hits.bedGraph && \
+rm accepted_hits.bed? accepted_hits*s.bedGraph && \
 touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
 
 ## DEPRECATED: Now all normalized.bw are changed to use total reads mapped to non-rRNA_mt 

@@ -3,7 +3,7 @@
 pipeline_path=$HOME/neurogen/pipeline/RNAseq
 source $pipeline_path/config.txt
 
-cd ~/projects/PD/results/eRNA/externalData/RNAseq
+cd ~/projects/PD/results/eRNA
 
 ################################################################################################
 # define eRNA
@@ -17,6 +17,15 @@ for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC HC_MCPY HC_TCPY ILB_SNDA PD
 
 ## make available to UCSC
 cd ~/neurogen/rnaseq_PD/for_display/; bash $pipeline_path/src/_make_trackDb.HTNE.sh ; cd -
+
+################################################################################################
+# reads mapped to eRNA
+################################################################################################
+# reads mapped to eRNA
+cd ~/eRNAseq
+for i in HCILB_SNDA HC_nonNeuron HC_PY; do echo $i; for j in `cat ~/neurogen/rnaseq_PD/results/merged/samplelist.$i`; do jj=~/neurogen/rnaseq_PD/run_output/$j/uniq/accepted_hits.bam.non-rRNA-mt.bam; echo $jj; bsub -q medium -n 2 -R 'rusage[mem=6000]' $HOME/neurogen/pipeline/RNAseq/modules/_get_readscount_per_region.sh $jj $i/eRNA.bed $jj.eRNA.rawcount; done; done
+for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/*non-rRNA-mt.bam.eRNA.rawcount; do j=${i/\/uniq*/}; echo ${j/*output\//} `cat $i | datamash sum 5`; done| sort | sed 's/ /\t/' > reads.in.TNEs.stat.txt
+
 
 ################################################################################################
 # define shared and private eRNA
@@ -37,6 +46,7 @@ echo ab `intersectBed -a HCILB_SNDA/eRNA.bonferroni.bed -b HC_PY/eRNA.bonferroni
 echo ac `intersectBed -a HCILB_SNDA/eRNA.bonferroni.bed -b HC_nonNeuron/eRNA.bonferroni.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bonferroni.bed -v | wc -l` >> venn.diagram.bonferroni.txt
 echo bc `intersectBed -a HC_PY/eRNA.bonferroni.bed -b HC_nonNeuron/eRNA.bonferroni.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bonferroni.bed -v | wc -l` >> venn.diagram.bonferroni.txt
 echo abc `intersectBed -a HCILB_SNDA/eRNA.bonferroni.bed -b HC_nonNeuron/eRNA.bonferroni.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bonferroni.bed -u | wc -l` >> venn.diagram.bonferroni.txt
+# run eulerAPE_3 client and make the figure there (http://www.eulerdiagrams.org/eulerAPE/)
 
 # celltype-private ones
 intersectBed -a HCILB_SNDA/eRNA.bed -b <(cat HC_PY/eRNA.bed HC_nonNeuron/eRNA.bed) -v > HCILB_SNDA/eRNA.private.major.bed
@@ -73,6 +83,7 @@ for i in HC_TCPY HC_MCPY HC_PBMC HC_FB; do echo $i; echo "HCILB_SNDA vs. $i:" `i
 grep only ~/eRNAseq/*/eRNA.privacy.bed | cut -f2 -d":" > ~/eRNAseq/eRNA.private.major.merged.bed
 cat ~/eRNAseq/*/eRNA.meanRPM.allSamples.xls | head -n1 >  ~/eRNAseq/eRNA.private.major.merged.meanRPM.allSamples.xls
 cat ~/eRNAseq/*/eRNA.meanRPM.allSamples.xls | fgrep -w -f <(cut -f4 ~/eRNAseq/eRNA.private.major.merged.bed) >> ~/eRNAseq/eRNA.private.major.merged.meanRPM.allSamples.xls
+# create heatmpa and PCA clustering for the private eRNAs merged from three major cell types
 Rscript $pipeline_path/src/eRNA.private.heatmap.R ~/eRNAseq/eRNA.private.major.merged.bed ~/eRNAseq/eRNA.private.major.merged.meanRPM.allSamples.xls
 
 
@@ -128,10 +139,12 @@ fisher.test(matrix(c(133,20833,40713,20993),nrow=2,byrow=T),alternative='greater
 #############################################################
 # GWAS SNP enrichment
 #############################################################
-
-for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh PLINK $i; done 
-for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC HC_MCPY HC_TCPY; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP $i; done 
-Rscript $pipeline_path/src/eRNA.SNP.enrichment.merge.R HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC HC_MCPY HC_TCPY
+# Using SNAP in the final main figure
+#for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh PLINK $i; done 
+for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.SNP.enrichment.sh SNAP $i; done 
+for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; Rscript $pipeline_path/src/eRNA.SNP.enrichment.R SNAP $i; done 
+Rscript $pipeline_path/src/_eRNA.SNP.enrichment.merge.R eRNA.SNP.full.SNAP HCILB_SNDA HC_PY HC_nonNeuron
+Rscript $pipeline_path/src/_eRNA.SNP.enrichment.merge.R eRNA.SNP.enrichments.SNAP HCILB_SNDA HC_PY HC_nonNeuron
 
 # private only
 echo "all" `wc -l $GENOME/Annotation/Variation/snp137.bed.groupped.SNP | cut -f1 -d' '` > SNP.private.major.counts.summary
@@ -209,6 +222,15 @@ Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R topeQTL.gene.snp.list
 ## for rs1684902 SNP (E-box of USF1 binding site)
 echo -e "chr10_61632545_61633312\trs1684902:61633127:A:G_A:G" > ASE.chr10_61632545_61633312.rs1684902.list
 Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R ASE.chr10_61632545_61633312.rs1684902.list  # output 
+
+
+## boxplot of rs17649553:43994648:C:T_C:T vs. ENSG00000186868.11 (MAPT), ENSG00000120071.8 (KANSL1), ENSG00000214425.2 (LRRC37A4P) and chr17_44218414_44219042  in PD samples
+cd ~/neurogen/rnaseq_PD/results/eQTL/PD_SNDA
+echo "ENSG00000186868.11 rs17649553:43994648:C:T_C:T
+ENSG00000120071.8 rs17649553:43994648:C:T_C:T
+ENSG00000214425.2 rs17649553:43994648:C:T_C:T" > MAPT.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R MAPT.gene.snp.list
+
 
 
 ## eQTL analysis
@@ -378,7 +400,6 @@ quit('no')
 for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC HC_MCPY HC_TCPY ILB_SNDA PD_SNDA; do bsub -n 1 -q normal -J $i bash $pipeline_path/src/eRNA.characterize.sh $i; done
 
 for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC HC_MCPY HC_TCPY ILB_SNDA PD_SNDA; do cd $i; Rscript $pipeline_path/src/eRNA.characterize.merge.R `ls eRNA.f*.txt`; cd -; done
-
 
 cd HCILB_SNDA
 
@@ -565,6 +586,19 @@ with(df, {
   b=1-((V5-min(V5))/(max(V5)-min(V5)) + (V6-min(V6))/(max(V6)-min(V6)))/2;
   scatterplot3d(V5/1000,V6/1000,V7/1000, angle=50, cex.symbols=.7, xlim=range(V5/1000,V6/1000,V7/1000), ylim=range(V5/1000,V6/1000,V7/1000),  xlab="SNDA",ylab="PY",zlab="Non-neuron",pch=21, color='black', lwd=0.7, bg=rgb(r,g,b))})
 dev.off()
+
+library(threejs) # install.packages('threejs')
+library(htmlwidgets)
+with(df, {
+    r=1-((V6-min(V6))/(max(V6)-min(V6)) + (V7-min(V7))/(max(V7)-min(V7)))/2;
+    g=1-((V5-min(V5))/(max(V5)-min(V5)) + (V7-min(V7))/(max(V7)-min(V7)))/2;
+    b=1-((V5-min(V5))/(max(V5)-min(V5)) + (V6-min(V6))/(max(V6)-min(V6)))/2;
+    saveWidget(scatterplot3js(V5/1000,V6/1000,V7/1000, axisLabels=c("SNDA", "Non-neuron","PY"),
+                   xlim=c(0,2500), ylim=c(0,2500),zlim=c(0,1000),
+                   color = rgb(r,g,b), grid=T, flip.y=F,renderer="canvas"), 
+               file="HTNE.top20clustersUnion.scatterplot3js.html")
+    }
+    )
 
 
 # intronic fpkm

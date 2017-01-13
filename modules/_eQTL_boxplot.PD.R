@@ -1,16 +1,14 @@
 ###############################################
-## Rscript for generating boxplot of expression vs. genotype for gene-SNP pairs (e.g. from the eQTL output)
+## Rscript for generating boxplot of expression vs. genotype for gene-SNP pairs --- specialized just for PD samples
 ## Author: Xianjun Dong
-## Date: 2016-May-26
+## Date: 2016-Dec-3
 ## Version: 0.0
-## Usage: Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R gene.snp.list path
+## Usage: Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.PD.R gene.snp.list
 ###############################################
 require(MatrixEQTL)
 
 args<-commandArgs(TRUE)
 GSfile=args[1]  # gene SNP table
-path=ifelse(is.na(args[2]),"~/eRNAseq/HCILB_SNDA",args[2]) 
-setwd(path); 
 
 # setwd("~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/"); load("data.RData"); load("genes.RData"); G="ENSG00000186868.11"; S="rs17649553:43994648:C:T_C:T"; genesnp = read.table("final.cis.eQTL.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)
 # setwd("~/eRNAseq/HCILB_SNDA");load("data.RData"); load("genes.RData"); G="chr17_44218414_44219042"; S="rs17649553:43994648:C:T_C:T"; genesnp = read.table("final.cis.eQTL.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)

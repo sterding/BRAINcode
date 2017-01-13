@@ -3,7 +3,10 @@
 ## Author: Xianjun Dong
 ## Date: 2015-Dec-1
 ## Version: 0.0
-## Usage: bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R
+## Usage: 
+## bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R HCILB_SNDA
+## bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R HCILB2PD_SNDA
+## bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R PD_SNDA
 ###############################################
 require(reshape2)
 require(MatrixEQTL)
@@ -11,14 +14,17 @@ require(RCurl)
 require(caret)
 require(sva) # source("http://bioconductor.org/biocLite.R"); biocLite("sva")
 
-SAMPLE_GROUP="HCILB_SNDA"
+args<-commandArgs(TRUE)
+SAMPLE_GROUP=ifelse(is.na(args[1]),"HCILB_SNDA",args[1]) # SAMPLE_GROUP='HCILB2PD_SNDA'
 setwd(paste0("~/eRNAseq/",SAMPLE_GROUP))
 
 if(file.exists("data.RData")) load("data.RData") else{
   
   covarianceTableURL="https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118&single=true&output=tsv"  # for all 140 samples
-  snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  
-  snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
+  if(grepl("PD", SAMPLE_GROUP)) {
+    snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixPD/PD.Matrix.txt";  # 20 unique subjects after QC
+    snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixPD/PD.Matrix.SNP.ID";
+  }
   
   # for eRNAs
   expr_file="eRNA.meanRPM.xls";  
@@ -32,20 +38,15 @@ if(file.exists("data.RData")) load("data.RData") else{
   message(" # remove outlier and replicate...")
   ######################
   covs=read.delim(textConnection(getURL(covarianceTableURL)), stringsAsFactors =F)
-  #covs=subset(covs, BRAINCODE.final.selection==1)
-  covs=subset(covs, outlier==0 & replicate=="rep1")  # remove outliers and rep2
-  covs=covs[grep("stranded|unamplified",covs$sampleName, invert = T),]  # remove tech rep, e.g. unamplified, strand
+  if(!grepl("PD", SAMPLE_GROUP)) covs=subset(covs, BRAINCODE.final.selection==1)
+  #covs=subset(covs, outlier==0 & replicate=="rep1")  # remove outliers and rep2
+  #covs=covs[grep("stranded|unamplified",covs$sampleName, invert = T),]  # remove tech rep, e.g. unamplified, strand
   common=intersect(names(expr), covs$sampleName)
   covs=covs[match(common, covs$sampleName), ]
   expr=subset(expr, select = common)
   
   # change the sample ID to subject ID
   colnames(expr)=gsub(".*_(.*)_.*_.*_rep.*", "\\1", colnames(expr))
-  
-  # convert to factor
-  covs$batch = as.factor(covs$batch)
-  covs$sex = as.factor(covs$sex)
-  covs$readsLength = as.factor(covs$readsLength)
   
   message(paste(" -- now expression matrix has",nrow(expr),"rows and",ncol(expr),"columns"))
   
@@ -96,6 +97,10 @@ if(file.exists("data.RData")) load("data.RData") else{
   covs=covs[match(common, covs$subjectID), ]
   rownames(covs)=covs$subjectID;
   covs=subset(covs, select=c(sampleName, batch, readsLength, RIN, sex, age, PMI))
+  # convert to factor
+  covs$batch = as.factor(as.character(covs$batch))
+  covs$sex = as.factor(as.character(covs$sex))
+  covs$readsLength = as.factor(as.character(covs$readsLength))
   
   write.table(covs, "eQTL.covs.tab", quote=F, sep="\t", col.names = NA)
   
@@ -164,53 +169,54 @@ abline(h=0, col='red',lwd=1)
 
 dev.off()
 
-# ## t-SNE and PCA before and after SVA
-# ## ------------------------
-# if(!require(Rtsne)) {install.packages("Rtsne"); require(Rtsne);}
-# pdf("tSNE.PCA.plot.pdf", width=10, height=10)
-# par(mfrow=c(2,2))
-# 
-# # before
-# res=data.frame(expr, check.names = F)
-# names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
-# batch=gsub(".*_([0-9])_rep.*","\\1",names(res))
-# 
-# # using tsne
-# set.seed(1) # for reproducibility
-# tsne <- Rtsne(res, dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
-# # visualizing
-# colors = rainbow(length(unique(batch)))
-# names(colors) = unique(batch)
-# plot(tsne$Y, t='n', main="t-SNE (before)")
-# text(tsne$Y, labels=batch, col=colors[batch], cex = 0.5)
-# #plot(tsne$Y, col=colors[batch], main="t-SNE (before)", cex=0.5)
-# 
-# # compare with pca
-# pca = princomp(res)$scores[,1:2]
-# plot(pca, t='n', main="PCA (before)")
-# text(pca, labels=batch, col=colors[batch])
-# #plot(pca, col=colors[batch], main="PCA (before)", cex=0.5)
-# 
-# # after
-# res=data.frame(residuals, check.names = F)
-# names(res) = covs[match(covs$subjectID, names(res)),'sampleName']
-# batch=gsub(".*_([0-9])_rep.*","\\1",names(res))
-# 
-# # using tsne
-# set.seed(1) # for reproducibility
-# tsne <- Rtsne(res, dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
-# # visualizing
-# colors = rainbow(length(unique(batch)))
-# names(colors) = unique(batch)
-# plot(tsne$Y, t='n', main="tsne-after", cex=0.5)
-# text(tsne$Y, labels=batch, col=colors[batch])
-# 
-# # compare with pca
-# pca = princomp(res)$scores[,1:2]
-# plot(pca, t='n', main="pca-after", cex=0.5)
-# text(pca, labels=batch, col=colors[batch])
-# 
-# dev.off()
+## t-SNE and PCA before and after SVA
+## ------------------------
+if(!require(Rtsne)) {install.packages("Rtsne"); require(Rtsne);}
+pdf("tSNE.PCA.plot.pdf", width=10, height=10)
+par(mfrow=c(2,2))
+
+# before
+res=data.frame(expr, check.names = F)
+names(res) = covs[match(names(res),rownames(covs)),'sampleName']
+batch=gsub(".*_([0-9])_rep.*","\\1",names(res))
+
+res=t(res) # both t-SNE and PCA work to cluster the columns
+
+# using tsne
+set.seed(1) # for reproducibility
+tsne <- Rtsne(res, dims = 2, perplexity=10, verbose=F, max_iter = 500)
+# visualizing
+colors = rainbow(length(unique(batch)))
+names(colors) = unique(batch)
+plot(tsne$Y, t='n', main="t-SNE (before)")
+text(tsne$Y, labels=batch, col=colors[batch])
+
+# compare with pca
+pca = prcomp(res)$x[,1:2] # use Q-mode instead. R-mode PCA: princomp(res)$scores[,1:2]
+plot(pca, t='n', main="PCA (before)")
+text(pca, labels=batch, col=colors[batch])
+
+# after
+res=data.frame(residuals, check.names = F)
+names(res) = covs[match(names(res),rownames(covs)),'sampleName']
+batch=gsub(".*_([0-9])_rep.*","\\1",names(res))
+res=t(res) # both t-SNE and PCA work to cluster the columns
+
+# using tsne
+set.seed(1) # for reproducibility
+tsne <- Rtsne(res, dims = 2, perplexity=10, verbose=F, max_iter = 500)
+# visualizing
+colors = rainbow(length(unique(batch)))
+names(colors) = unique(batch)
+plot(tsne$Y, t='n', main="t-SNE (after)")
+text(tsne$Y, labels=batch, col=colors[batch])
+
+# compare with pca
+pca = prcomp(res)$x[,1:2] # use Q-mode instead. R-mode PCA: princomp(res)$scores[,1:2]
+plot(pca, t='n', main="PCA (after)")
+text(pca, labels=batch, col=colors[batch])
+
+dev.off()
 
 # expression distribution
 ## ------------------------

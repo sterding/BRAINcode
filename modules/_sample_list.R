@@ -28,8 +28,7 @@ pattern = switch(group_lable,
                  HC_FB = "HC_.*_FB_",
                  PD_SNDA = "PD_.*_SNDA",
                  # controls
-                 HC_SN = "HC_.*_SN_",
-                 HC_SNDAstranded = "HC_.*_SNDA_.*stranded",
+                 HC_SNDAstranded = "HC_.*_SN.*stranded", # include stranded data for both SNDA and SN
                  stop("Unrecognized group label!")
                 );
 
@@ -43,6 +42,6 @@ if (!require("RCurl",quietly =T)) {
 cov=read.delim(textConnection(getURL(covURL)), stringsAsFactors =F)
 
 cov = subset(cov, grepl(pattern, sampleName))
-if(group_lable!='HC_SNDAstranded' & group_lable!='PD_SNDA') cov=subset(cov, BRAINCODE.final.selection==1)
+if(!grepl("strand",group_lable) & group_lable!='PD_SNDA') cov=subset(cov, BRAINCODE.final.selection==1)
 
 write.table(cov$sampleName, file = output, quote=F, col.names = F, row.names = F)

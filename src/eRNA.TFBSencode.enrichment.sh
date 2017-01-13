@@ -15,8 +15,8 @@
 featuresA=$1  # a bed file with name column: chr, start, end, name
 output=$2
 
-featuresA=~/eRNAseq/externalData/TFBS/factorbookMotifPos.v3.mergebyTF.bed
-output=~/eRNAseq/HCILB_SNDA/eRNA.factorbookMotifPos.txt
+# featuresA=~/eRNAseq/externalData/TFBS/factorbookMotifPos.v3.mergebyTF.bed
+# output=~/eRNAseq/HCILB_SNDA/eRNA.factorbookMotifPos.txt
 
 featuresA=~/eRNAseq/externalData/TFBS/wgEncodeRegTfbsClusteredV3.bed12
 output=~/eRNAseq/HCILB_SNDA/eRNA.wgEncodeRegTfbsClusteredV3.txt
@@ -85,36 +85,36 @@ echo "## Fisher test and make plot"
 Rscript $pipeline_path/src/eRNA.TFBSencode.enrichment.R $output
 
 
-## compare MEME motif scanning in query region vs. in non-query random regions
-## OUTPUT: most TFs are enriched in HTNEs comparing to random regions
-
-output=~/eRNAseq/HCILB_SNDA/eRNA.JASPARmotif.txt
-> $output;
-#echo -e "ID\tAB\tAnB\tnAB\tnAnB" 
-
-for i in `ls ~/neurogen/TF_scan/all_TF_output_test/`
-do
-	[ -e ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed ] || continue;
-	
-	nA=~/eRNAseq/HCILB_SNDA/eRNA.random.bed
-	
-	#for j in eRNA eRNA-classI promoter exon random
-	for j in  eRNA
-	do
-	  [ "$j" == "eRNA" ] && intervalA=~/eRNAseq/HCILB_SNDA/eRNA.bed;
-	  [ "$j" == "eRNA-classI" ] && intervalA=~/eRNAseq/HCILB_SNDA/eRNA.classI.bed;
-	  [ "$j" == "promoter" ] && intervalA=$GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed;
-	  [ "$j" == "exon" ] && intervalA=$GENOME/Annotation/Genes/mRNA.innner.exon.bed;
-	  [ "$j" == "random" ] && intervalA=~/eRNAseq/HCILB_SNDA/eRNA.random.bed;
-	  AB=`intersectBed -a $intervalA -b ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed -u | wc -l`
-	  AnB=`intersectBed -a $intervalA -b ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed -v | wc -l`
-	  nAB=`intersectBed -a $nA -b ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed -u | wc -l`
-	  nAnB=`intersectBed -a $nA -b ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed -v | wc -l`
-	  echo -e "$i\t$AB\t$AnB\t$nAB\t$nAnB\t$j";
-	  echo -e "$i\t$AB\t$AnB\t$nAB\t$nAnB\t$j" >> $output;	
-	done
-done
-
-echo "## Fisher test and make plot"
-### ##################
-Rscript $pipeline_path/src/eRNA.TFBSencode.enrichment.R $output
+# ## compare MEME motif scanning in query region vs. in non-query random regions
+# ## OUTPUT: most TFs are enriched in HTNEs comparing to random regions
+# 
+# output=~/eRNAseq/HCILB_SNDA/eRNA.JASPARmotif.txt
+# > $output;
+# #echo -e "ID\tAB\tAnB\tnAB\tnAnB" 
+# 
+# for i in `ls ~/neurogen/TF_scan/all_TF_output_test/`
+# do
+# 	[ -e ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed ] || continue;
+# 	
+# 	nA=~/eRNAseq/HCILB_SNDA/eRNA.random.bed
+# 	
+# 	#for j in eRNA eRNA-classI promoter exon random
+# 	for j in  eRNA
+# 	do
+# 	  [ "$j" == "eRNA" ] && intervalA=~/eRNAseq/HCILB_SNDA/eRNA.bed;
+# 	  [ "$j" == "eRNA-classI" ] && intervalA=~/eRNAseq/HCILB_SNDA/eRNA.classI.bed;
+# 	  [ "$j" == "promoter" ] && intervalA=$GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed;
+# 	  [ "$j" == "exon" ] && intervalA=$GENOME/Annotation/Genes/mRNA.innner.exon.bed;
+# 	  [ "$j" == "random" ] && intervalA=~/eRNAseq/HCILB_SNDA/eRNA.random.bed;
+# 	  AB=`intersectBed -a $intervalA -b ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed -u | wc -l`
+# 	  AnB=`intersectBed -a $intervalA -b ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed -v | wc -l`
+# 	  nAB=`intersectBed -a $nA -b ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed -u | wc -l`
+# 	  nAnB=`intersectBed -a $nA -b ~/neurogen/TF_scan/all_TF_output_test/$i/${i}_in_hg19.bed -v | wc -l`
+# 	  echo -e "$i\t$AB\t$AnB\t$nAB\t$nAnB\t$j";
+# 	  echo -e "$i\t$AB\t$AnB\t$nAB\t$nAnB\t$j" >> $output;	
+# 	done
+# done
+# 
+# echo "## Fisher test and make plot"
+# ### ##################
+# Rscript $pipeline_path/src/eRNA.TFBSencode.enrichment.R $output

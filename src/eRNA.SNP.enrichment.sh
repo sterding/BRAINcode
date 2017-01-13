@@ -67,6 +67,6 @@ echo "exon" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SN
 echo "promoter" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "random" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.random.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 
-echo "## Fisher test and make plot"
+#echo "## Fisher test and make plot"  # move out of the script now
 ### ##################
-Rscript $pipeline_path/src/eRNA.SNP.enrichment.R $type
+#Rscript $pipeline_path/src/eRNA.SNP.enrichment.R $type $samplegroup

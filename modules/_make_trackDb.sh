@@ -1,6 +1,6 @@
 # Uage:
 # transfer files to panda: chmod 644 ~/neurogen/rnaseq_PD/for_display/*bw; rsync --copy-links -azv ~/neurogen/rnaseq_PD/for_display/*bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version4
-# cd ~/neurogen/rnaseq_PD/for_display/; _make_trackDb.sh > trackDb.RNAseq.v4.txt; chmod 644 trackDb.RNAseq.v4.txt; scp trackDb.RNAseq.v4.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
+# cd ~/neurogen/rnaseq_PD/for_display/; _make_trackDb.sh > trackDb.RNAseq.v5.txt; chmod 644 trackDb.RNAseq.v5.txt; scp trackDb.RNAseq.v5.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
 # to get the sample list: ls -1 ~/neurogen/rnaseq_PD/run_output/ | sed 's/_/\t/g' | cut -f2 | sort -u | awk '{printf $1"="$1" "}'
 #
 # color selected from: http://colorbrewer2.org/
@@ -12,8 +12,8 @@ curl -sk "https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eC
 
 echo "track RNAseq_PD
 shortLabel RNA-seq
-longLabel BRAINCODE RNA-seq (version 4)
-dataVersion Version 4 (Dec 2015)
+longLabel BRAINCODE RNA-seq (version 5)
+dataVersion Version 5 (Dec 2016)
 type bed 3
 visibility full
 boxedCfg on
@@ -63,7 +63,7 @@ do
         longLabel RNAseq uniq Normalized Signal  ( $i trimmedmean N=$N)
         color $RGB
         type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/merged/trimmedmean.uniq.normalized.$i.bw
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version4/merged/trimmedmean.uniq.normalized.$i.bw
         yLineMark $yLineMark
         priority $priority
   "        
@@ -93,28 +93,57 @@ echo "
     "
 
 
-MINOR_CELL_TYPES=(HC_SNDA ILB_SNDA HC_SN HC_SNDAstranded PD_SNDA HC_MCPY HC_TCPY HC_PBMC HC_FB)
+MINOR_CELL_TYPES=(HC_SNDA ILB_SNDA HC_SNDAstranded PD_SNDA HC_MCPY HC_TCPY HC_PBMC HC_FB)
 tLen=${#MINOR_CELL_TYPES[@]}
 
 for I in `seq 1 $tLen`;
 do
   i=${MINOR_CELL_TYPES[`expr $I - 1`]}
-  yLineMark=`tail -n1 ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bedGraph | cut -f2 -d'='`
   RGB=`fgrep -w $i /tmp/braincode.colors.txt | cut -f3`
   N=`cat ~/neurogen/rnaseq_PD/results/merged/samplelist.$i | wc -l`
   priority=$I
   
-  echo "
+  if [[ $i =~ stranded ]]; then
+    yLineMark_p=`tail -n1 ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.plus.normalized.$i.bedGraph | cut -f2 -d'='`
+    yLineMark_m=`tail -n1 ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.minus.normalized.$i.bedGraph | cut -f2 -d'='`
+    echo "
+        track ${i}_trimmedmean_uniq_plus
+        parent merged_by_trimmedmean_minor
+        shortLabel $i trimmedmean uniq plus rpm
+        longLabel RNAseq uniq plus Normalized Signal  ( $i trimmedmean N=$N)
+        color $RGB
+        type bigWig
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version4/merged/trimmedmean.uniq.plus.normalized.$i.bw
+        yLineMark $yLineMark_p
+        priority 1$priority
+        
+        track ${i}_trimmedmean_uniq_minus
+        parent merged_by_trimmedmean_minor
+        shortLabel $i trimmedmean uniq minus rpm
+        longLabel RNAseq uniq minus Normalized Signal  ( $i trimmedmean N=$N)
+        color $RGB
+        type bigWig
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version4/merged/trimmedmean.uniq.minus.normalized.$i.bw
+        yLineMark -$yLineMark_m
+        priority 1$priority
+    "
+  else
+    yLineMark=`tail -n1 ~/neurogen/rnaseq_PD/results/merged/trimmedmean.uniq.normalized.$i.bedGraph | cut -f2 -d'='`
+    echo "
         track ${i}_trimmedmean_uniq
         parent merged_by_trimmedmean_minor
         shortLabel $i trimmedmean uniq rpm
         longLabel RNAseq uniq Normalized Signal  ( $i trimmedmean N=$N)
         color $RGB
         type bigWig
-        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version3/merged/trimmedmean.uniq.normalized.$i.bw
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/rnaseq_PD/version4/merged/trimmedmean.uniq.normalized.$i.bw
         yLineMark $yLineMark
         priority 1$priority
-  "
+    "    
+  fi
+  
+    
+  
 done
 
 # output the individual track [compositeTrack]
@@ -164,7 +193,7 @@ echo "
         maxHeightPixels 50:15:5
         parent RNAseq_PD_individual
 "
-for i in `ls -1 ~/neurogen/rnaseq_PD/run_output/`;
+for i in `ls -1 ~/neurogen/rnaseq_PD/run_output | grep _rep`;
 do
     echo "## $i";
     

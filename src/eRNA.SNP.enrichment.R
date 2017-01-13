@@ -10,10 +10,13 @@
 
 args<-commandArgs(TRUE)
 type=args[1]
+samplegroup=args[2]
 
 require(ggplot2)
 
-# setwd("~/eRNAseq/HCILB_SNDA"); type="PLINK"
+setwd(paste0("~/eRNAseq/",samplegroup));
+
+# setwd("~/eRNAseq/HCILB_SNDA"); type="SNAP"
 
 s=read.table(paste0("SNP.",type,".counts.summary"), header=F,row.names=1); 
 results=data.frame();
@@ -21,7 +24,9 @@ for(i in c('HTNE','exon','promoter','random')){
   n1=s[i,1]; n2=s['all',1];
   all=read.table(paste0("SNP.",type,".count.all")); rownames(all)=all[,1]
   x=read.table(paste0("SNP.",type,".count.",i)); rownames(x)=x[,1]
-  df=cbind(x, all[rownames(x),2]); df=df[,-1]; colnames(df)=c('observed','all')
+  df=cbind(x, all[rownames(x),2]); # only the traits occurred
+  #df=merge(all, x, by="V1", all=T); df[is.na(df)]=0; rownames(df)=df[,1]; # all traits (0 for nonoccurance)  --> not working for fisher.test
+  df=df[,-1]; colnames(df)=c('observed','all')
   results=rbind(results, cbind(Disease_or_Trait=rownames(df), 
                                df, 
                                pvalue=apply(df, 1, function(x) fisher.test(matrix(c(x[1],x[2]-x[1], n1-x[1], n2-n1-x[2]+x[1]), nrow = 2), alternative='greater')$p.value), 
@@ -30,13 +35,16 @@ for(i in c('HTNE','exon','promoter','random')){
   results$Disease_or_Trait = as.character(results$Disease_or_Trait)
 }
 
+results$Disease_or_Trait=gsub("_"," ", results$Disease_or_Trait)
+results = results[with(results, order(type, -OR)), ]
+
+# save all result
+write.table(results, paste0("eRNA.SNP.full.",type,".xls"), sep="\t", col.names = T, row.names = F)
+
 results=subset(results, OR>1 & pvalue<0.01 & observed>3)
 table(results$type)
 #   HTNE    exons promoter   random 
 #     82       12       70       2 
-results$Disease_or_Trait=gsub("_"," ", results$Disease_or_Trait)
-
-results = results[with(results, order(type, -OR)), ]
 write.table(results, paste0("eRNA.SNP.enrichments.",type,".xls"), sep="\t", col.names = T, row.names = F)
 
 pdf(paste0("eRNA.SNP.enrichments.",type,".pdf"), width=20, height=12); 
@@ -44,7 +52,7 @@ pdf(paste0("eRNA.SNP.enrichments.",type,".pdf"), width=20, height=12);
 
 # re-order the levels in the order of appearance in the data.frame
 
-results=subset(results, pvalue<=0.01/1037)  # only show disease passing the Bonferroni correction
+results=subset(results, pvalue<0.01/1037)  # only show disease passing the Bonferroni correction
 
 results = results[with(results, order(type, pvalue)), ]
 results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))

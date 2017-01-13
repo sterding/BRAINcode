@@ -1,5 +1,5 @@
 ##############################################
-## R script to create heatmpa for the private eRNAs from three major cell types
+## R script to create heatmpa and PCA for the private eRNAs from three major cell types
 ## Author: Xianjun Dong
 ## Usage: Rscript $HOME/neurogen/pipeline/RNAseq/src/eRNA.private.heatmap.R ~/eRNAseq/eRNA.private.major.merged.bed ~/eRNAseq/eRNA.private.major.merged.meanRPM.allSamples.xls 
 ## Date:
@@ -38,6 +38,7 @@ plot(hclust(as.dist(1-cor(exp)), method="ward.D"), cex=0.5)
 # reorder the columns
 colorder=c("SNDA","TCPY","MCPY","PBMC", "FB")
 exp=exp[,unlist(lapply(colorder, grep, colnames(exp)))]
+
 # median by group
 exp_group=data.frame(SNDA=apply(exp[,grep("SNDA",colnames(exp))], 1, median),
                 PY=apply(exp[,grep("PY",colnames(exp))], 1, median),
@@ -100,7 +101,7 @@ exp_selected = exp[rownames(exp_group_top),]
 
 # scale each row to [0,1]
 exp_selected_scaled = (exp_selected - apply(exp_selected, 1, min)) / (apply(exp_selected, 1, max) - apply(exp_selected, 1, min))
-# trim a bit
+# trim a bit just for visualization purpose
 exp_selected_scaled[exp_selected_scaled>0.85]=1
 #exp_selected_scaled[exp_selected_scaled<0.15]=0
 
@@ -172,3 +173,45 @@ do.call("pheatmap", c(hm.parameters, filename=paste("private.eRNAs.cluster","pdf
 #do.call("pheatmap", c(hm.parameters, filename=paste("private.eRNAs.cluster","png", sep=".")))
 ## To draw the heat map on screen 
 #do.call("pheatmap", hm.parameters)
+
+## ==================================
+### do PCA and visualized as 3d plot
+## ==================================
+
+runPCA <- function(EXP, outputbasename)
+{
+    pca <- prcomp(t(EXP), center = F, scale. = T)  
+    
+    # PCA diagnosis: the optimal number of principal components
+    pdf(file=paste0(outputbasename,".PCAdiagnosis.pdf"))
+    plot(pca, type = "l")
+    cov = round(pca$sdev^2/sum(pca$sdev^2)*100, 2)
+    cov = data.frame(c(1:length(cov)),cov)
+    names(cov)[1] = 'PCs'
+    names(cov)[2] = 'Variance'
+    library(qcc)
+    PCA = pca$sdev^2
+    names(PCA) = paste0('PC', cov$PCs)
+    qcc::pareto.chart(PCA, cex.names=0.5)
+    dev.off()
+    
+    library(threejs)
+    library(plyr)
+    library(htmlwidgets)
+    pcs = data.frame(pca$x)
+    cnames = sub("(.*rep[0-9]).*","\\1",colnames(EXP))
+    celltype=data.frame(do.call(rbind, strsplit(cnames,"_")), stringsAsFactors=F)[,3]
+    celltype=factor(celltype, levels = c("SNDA","TCPY","MCPY","PBMC","FB"))
+    colors = as.character(revalue(celltype,c('SNDA'='#F22A7B','TCPY'='#3182bd','MCPY'='#2659B2','PBMC'='#513931','FB'="#BC9371")))
+    saveWidget(scatterplot3js(pcs[,c('PC1','PC2','PC3')], 
+                              labels=celltype, 
+                              color = colors, 
+                              flip.y=F,
+                              renderer="canvas"),
+               file=paste0(outputbasename,".PCAscatterplot.html"))
+}
+
+# either selected TNEs (exp_selected) or all TNEs (exp)
+runPCA(exp, "private.eRNAs.all")
+runPCA(exp_selected, "private.eRNAs.top100")
+runPCA(exp_selected_scaled, "private.eRNAs.top100.scaled")

@@ -52,7 +52,7 @@ result_dir=$input_dir/../results
 ########################
 cd $input_dir
 
-for i in *.R1.fastq.gz;
+for i in *_[1-6]_*strand*.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -66,27 +66,7 @@ done
 exit
 
 ########################
-## [test] total-rRNA-chrM vs. total, which one is better to be used for normalization?
-########################
-[ -d $result_dir/coverage ] || mkdir $result_dir/coverage
-cd $result_dir/coverage
-
-echo "sampleID" `rowsToCols /PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_2_rep1/uniq/accepted_hits.bam.bam2annotation stdout | sed 's/://g' | head -n1` | sed 's/ /\t/g' > allsamples.bam2annotation.tab
-paste <(ls -1 ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation | sed 's/.*run_output\///g;s/\/uniq.*//g') <(paste ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation | sed 's/[^[:space:]]*: //g' | rowsToCols stdin stdout) >> allsamples.bam2annotation.tab
-#R
-pdf("allsamples.bam2annotation.pdf")
-df=read.table("allsamples.bam2annotation.tab", header=T)
-rownames(df)=df[,1]; df=df[,-1]; df=df/1e6
-plot(total_non_rRNA_mt~total, df, asp=1, xlim=c(0,300), ylim=c(0,300), col=gsub(".*_([1-9])_.*","\\1",rownames(df)), xlab="total reads (in million)", ylab="total-rRNA-chrM (in million)")
-abline(a=0,b=1,lty=2)
-legend("topleft", paste("batch", sort(unique(as.numeric(gsub(".*_([1-9])_.*","\\1",rownames(df)))))), col=sort(unique(as.numeric(gsub(".*_([1-9])_.*","\\1",rownames(df))))), bty='n', pch=1)
-
-## group them into HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded
-
-dev.off()
-
-########################
-# 2.2 calculatinng coverage of RNAseq
+# 2. calculatinng coverage of RNAseq
 ########################
 [ -d $result_dir/coverage ] || mkdir $result_dir/coverage
 cd $result_dir/coverage
@@ -147,10 +127,58 @@ done
 ## Rscript to make all kinds of coverage plots
 Rscript $HOME/neurogen/pipeline/RNAseq/modules/_coverage.plots.R
 
-## reads count for
-echo 'ID' `sort ~/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_6_rep2/uniq/accepted_hits.bam.bam2annotation | cut -f1 -d':' | rowsToCols stdin stdout` | sed 's/ /\t/g' > uniq.bam2annotation.stat.txt
-for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation; do echo $i `sort $i | cut -f2 -d' ' | rowsToCols stdin stdout`; done | sed 's/.*run_output\/\(.*\)\/uniq.*tion/\1/g;s/ /\t/g' >> uniq.bam2annotation.stat.txt
-# import uniq.bam2annotation.stat.txt into Google spreadsheet: https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/edit#gid=289128536
+## unique reads count for different annotation regions
+echo 'ID' `sort ~/neurogen/rnaseq_PD/run_output/PD_UWA734_SNDA_6_rep2/uniq/accepted_hits.bam.bam2annotation | cut -f1 -d':' | rowsToCols stdin stdout` | sed 's/ /\t/g' > allsamples.uniq.bam2annotation.stat.txt
+for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.bam2annotation; do echo $i `sort $i | cut -f2 -d' ' | rowsToCols stdin stdout`; done | sed 's/.*run_output\/\(.*\)\/uniq.*tion/\1/g;s/ /\t/g' >> allsamples.uniq.bam2annotation.stat.txt
+# import allsamples.uniq.bam2annotation.stat.txt into Google spreadsheet: https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/edit#gid=289128536
+
+
+## [test] total-rRNA-chrM vs. total, which one is better to be used for normalization?
+#R
+setwd("~/neurogen/rnaseq_PD/results/coverage")
+df=read.table("allsamples.uniq.bam2annotation.stat.txt", header=T)
+rownames(df)=df[,1]; df=df[,-1]; df=df/1e6
+
+pdf("allsamples.uniq.total.vs.total-rRNA-Mt.pdf")
+par(pty="s");
+cols=as.factor(gsub(".*_([1-9])_.*","\\1",rownames(df)))
+with(df, plot(total_non_rRNA_mt~total, asp=1, xlim=c(0,max(total)), ylim=c(0,max(total)), col=cols, xlab="total reads (in million)", ylab="total reads excluding rRNA and chrM (in million)"))
+abline(a=0,b=1,lty=2)
+legend("topleft", paste0("batch",levels(cols)," (n = ",table(cols),")"), col=as.factor(levels(cols)), bty='n', pch=1)
+
+## group them into HC_TCPY HC_MCPY HC_SNDA ILB_SNDA PD_SNDA HC_SNDA HCILB_SNDA HC_PBMC HC_FB HC_SN HC_SNDAstranded
+par(pty="s");
+cols=gsub("(.*)_.*_(.*)_[1-9]_rep[0-9](.*)","\\1_\\2\\3",rownames(df))
+#cols=gsub("\\.amplified","",cols)
+cols=as.factor(cols)
+with(df, plot(total_non_rRNA_mt~total, asp=1, xlim=c(0,max(total)), ylim=c(0,max(total)), col=cols, xlab="total reads (in million)", ylab="total reads excluding rRNA and chrM (in million)"))
+abline(a=0,b=1,lty=2)
+legend("topleft", paste0(levels(cols)," (n = ",table(cols),")"), col=as.factor(levels(cols)), bty='n', pch=1)
+dev.off()
+
+df=read.table("allsamples.uniq.bam2annotation.stat.txt", header=T)
+rownames(df)=df[,1]; df=df[,-1]; 
+write.table(colSums(df), file="ALL.uniq.bam2annotation.stat.txt", quote=F, col.names = F)
+
+## extract HCILB_SNDA
+HCILB_SNDA=readLines(file("~/neurogen/rnaseq_PD/results/merged/samplelist.HCILB_SNDA"))
+write.table(colSums(df[HCILB_SNDA,]), file="HCILB_SNDA.uniq.bam2annotation.stat.txt", quote=F, col.names = F)
+## extract HC_TC
+HC_PY=readLines(file("~/neurogen/rnaseq_PD/results/merged/samplelist.HC_PY"))
+write.table(colSums(df[HC_PY,]), file="HC_PY.uniq.bam2annotation.stat.txt", quote=F, col.names = F)
+## extract HC_nonNeuron
+HC_nonNeuron=readLines(file("~/neurogen/rnaseq_PD/results/merged/samplelist.HC_nonNeuron"))
+write.table(colSums(df[HC_nonNeuron,]), file="HC_nonNeuron.uniq.bam2annotation.stat.txt", quote=F, col.names = F)
+
+## END R
+
+## venpieR plot for all samples and all selected samples in BRAINCODE
+Rscript $HOME/neurogen/pipeline/RNAseq/modules/_bam2annotation.r ALL.uniq.bam2annotation.stat.txt ALL.uniq.bam2annotation.stat.pdf
+Rscript $HOME/neurogen/pipeline/RNAseq/modules/_bam2annotation.r HCILB_SNDA.uniq.bam2annotation.stat.txt HCILB_SNDA.uniq.bam2annotation.stat.pdf
+Rscript $HOME/neurogen/pipeline/RNAseq/modules/_bam2annotation.r HC_PY.uniq.bam2annotation.stat.txt HC_PY.uniq.bam2annotation.stat.pdf
+Rscript $HOME/neurogen/pipeline/RNAseq/modules/_bam2annotation.r HC_nonNeuron.uniq.bam2annotation.stat.txt HC_nonNeuron.uniq.bam2annotation.stat.pdf
+
+## TODO: update Fig 1c using venpieR plot for HCILB_SNDA. Put plot for ALL samples in Supplementary
 
 ########################
 ## 2. merge all samples to get big matrix for expression (e.g. one row per gene/Tx, one col per sample)
@@ -194,14 +222,21 @@ do
     [ -e trimmedmean.uniq.normalized.$i.bw ] || bsub -J combine_bw -oo _combin_bw.$i.log -eo _combin_bw.$i.log -q normal -n 4 -M 6000 -R rusage[mem=6000] _combine_bigwig.sh $i
 done
 
+for i in HC_SNDAstranded;
+do
+[ -e trimmedmean.uniq.normalized.$i.bw ] || bsub -J combine_bw -oo _combin_bw.$i.log -eo _combin_bw.$i.log -q normal -n 4 -M 6000 -R rusage[mem=6000] _combine_bigwig.sh $i
+done
+
 
 #--------------------------
 ## 2.3 make UCSC track hub
 #--------------------------
 _make_trackDb.sh > $fordisplay_dir/trackDb.RNAseq.txt
 rsync -azvL $fordisplay_dir/trackDb.RNAseq.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
-rsync -azvL $fordisplay_dir/*uniq.accepted_hits.normalized.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/
-rsync -azv *.xls *.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version2/merged
+ls $fordisplay_dir/*accepted_hits.normalized.bw | parallel -v -j8 rsync -avzL {} xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version4/{} 
+ls *.bw | parallel -v -j8 rsync -avzL {} xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version4/merged/{} 
+# rsync -azv *.bw xd010@panda.dipr.partners.org:~/public_html/rnaseq_PD/version4/merged  # if not parallel installed
+
 
 #--------------------------
 ### expression trend of specific gene(s) along the stages (e.g. HC,ILB,PD)
@@ -303,12 +338,25 @@ Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.
 
 ## boxplot of top eQTL
 cut -f4,12 ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt | cut -f1 -d"|" > topeQTL.gene.snp.list
-Rscript ~/neurogen/pipeline/RNAseq/src/_eQTL_boxplot.R topeQTL.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R topeQTL.gene.snp.list
 
 ## boxplot of top RTC eQTL
-
 cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
-Rscript ~/neurogen/pipeline/RNAseq/src/_eQTL_boxplot.R RTC.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R RTC.gene.snp.list
+
+# for PD  (using PD samples to "validate" eQTL from HC samples)
+## =====================================
+cd $result_dir/eQTL/PD_SNDA
+bsub -q big -n 2 -R 'rusage[mem=10000]' -eo eQTL.run.log -oo eQTL.run.log Rscript ~/neurogen/pipeline/RNAseq/modules/_SVA.eQTL.R  
+ln -fs final.cis.eQTL.xls final.cis.eQTL.d1e6.p1e-2.xls
+
+## boxplot of rs17649553:43994648:C:T_C:T vs. ENSG00000186868.11 (MAPT), ENSG00000120071.8 (KANSL1), ENSG00000214425.2 (LRRC37A4P) and chr17_44218414_44219042  in PD samples
+cd ~/neurogen/rnaseq_PD/results/eQTL/PD_SNDA
+echo "ENSG00000186868.11 rs17649553:43994648:C:T_C:T
+ENSG00000120071.8 rs17649553:43994648:C:T_C:T
+ENSG00000214425.2 rs17649553:43994648:C:T_C:T" > MAPT.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R MAPT.gene.snp.list
+
 
 
 ## disease SNP enrichment in the eQTL SNPs

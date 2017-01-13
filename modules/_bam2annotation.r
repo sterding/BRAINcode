@@ -3,6 +3,9 @@
 # Usage:
 # Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf
 
+#if(!(require('plotrix'))) install.packages('plotrix')  # not working for Rscript
+library('plotrix')
+
 args<-commandArgs(TRUE)
 
 stat_file=args[1]  # for example: stat_file="/PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_BN13-18_SNDA_5_rep1/uniq/accepted_hits.bam.bam2annotation"
@@ -22,9 +25,6 @@ intergenic_near_genes = intergenic - intergenic_not_near_genes
 # parameter for pie chart
 iniR=0.2 # initial radius
 colors=list(NO='white',total='black', mtRNA='#e5f5e0',rRNA='#a1d99b',genic='#3182bd',exons='#9ecae1',introns='#fc9272',intergenic='#fec44f',intergenic_near_genes='#fee0d2',intergenic_not_near_genes='#d95f0e')
- 
-#if(!(require('plotrix'))) install.packages('plotrix')  # not working for Rscript
-library('plotrix')
  
 pdf(pdf_file, width=12, height=6)
 par(mfrow=c(1,2))

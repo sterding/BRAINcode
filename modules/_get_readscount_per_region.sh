@@ -9,7 +9,7 @@ inputbam=$1  # bam format
 intervals=$2  # bed format
 outputfile=$3
     
-coverageBed -abam -split -counts -a $inputbam -b $intervals | sort -k4,4 > $outputfile
+/source/bedtools2/2.18.2/coverageBed -abam -split -counts -a $inputbam -b $intervals | sort -k4,4 > $outputfile
 
 
 
