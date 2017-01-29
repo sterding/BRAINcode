@@ -9,7 +9,7 @@
 # fgrep protein_coding___protein_coding gencode.v19.annotation.bed12 | awk -v type=cds -f ~/pipeline/bin/bed12toAnnotation.awk > gencode.v19.annotation.gtf.cds.bed12
 #
 #
-# Copyright (c) 2016 Xianjun Dong (sterding@gmail.com)
+# Copyright (c) 2017 Xianjun Dong (xdong@rics.bwh.harvard.edu)
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -47,12 +47,28 @@
     if($7==$8) next; 
     if($6=="+" && $2<$7) {
       start=$2;end=$7;
-      for(i=1;i<=blockCount;i++) if(($2+blockStarts[i]+blockSizes[i])<=$7) {A=A""blockSizes[i]",";B=B""blockStarts[i]","; end=($2+blockStarts[i]+blockSizes[i]); N++;} else { if(($2+blockStarts[i])<$7) {A=A""($7-$2-blockStarts[i])",";B=B""blockStarts[i]","; N++; end=$7;} break; } 
+      for(i=1;i<=blockCount;i++) if(($2+blockStarts[i]+blockSizes[i])<=$7) {
+        A=A""blockSizes[i]",";B=B""blockStarts[i]","; end=($2+blockStarts[i]+blockSizes[i]); N++;} 
+        else { 
+          if(($2+blockStarts[i])<$7) {A=A""($7-$2-blockStarts[i])",";B=B""blockStarts[i]","; N++; end=$7;} 
+          break; 
+        } 
       print $1,start,end,$4,$5,$6,start,end,$9,N,A,B;
     } 
     if($6=="-" && $8<$3) {
       start=$8;end=$3;
-      for(i=blockCount;i>0;i--) if(($2+blockStarts[i])>=$8) {A=blockSizes[i]","A;B=($2+blockStarts[i]-$8)","B;start=($2+blockStarts[i]); N++;} else {if(($2+blockStarts[i]+blockSizes[i])>$8) {A=($2+blockStarts[i]+blockSizes[i]-$8)","A;B=0","B; N++; start=$8;} break; } 
+      for(i=1;i<=blockCount;i++) if(($2+blockStarts[i])>=$8) 
+      {
+        if(start==0) {A=blockSizes[i];B=0; start=$2+blockStarts[i];}
+        else {A=A","blockSizes[i];B=B","($2+blockStarts[i]-start);}
+        N++;
+      } else 
+      {
+        if(($2+blockStarts[i]+blockSizes[i])>$8) {
+            A=($2+blockStarts[i]+blockSizes[i]-$8);B=0; N++; start=$8;
+          }
+        if(($2+blockStarts[i]+blockSizes[i])==$8) start=0; 
+      }
       print $1,start,end,$4,$5,$6,start,end,$9,N,A,B;
     }  
   }
@@ -68,7 +84,18 @@
     } 
     if($6=="+" && $8<$3) {
       start=$8;end=$3;
-      for(i=blockCount;i>0;i--) if(($2+blockStarts[i])>=$8) {A=blockSizes[i]","A;B=($2+blockStarts[i]-$8)","B;start=($2+blockStarts[i]); N++;} else {if(($2+blockStarts[i]+blockSizes[i])>$8) {A=($2+blockStarts[i]+blockSizes[i]-$8)","A;B=0","B; N++; start=$8;} break; } 
+      for(i=1;i<=blockCount;i++) if(($2+blockStarts[i])>$8) 
+      {
+        if(start==0) {A=blockSizes[i];B=0; start=$2+blockStarts[i];}
+        else {A=A","blockSizes[i];B=B","($2+blockStarts[i]-start);}
+        N++;
+      } else 
+      {
+        if(($2+blockStarts[i]+blockSizes[i])>$8) {
+          A=($2+blockStarts[i]+blockSizes[i]-$8);B=0; N++; start=$8;
+        }
+        if(($2+blockStarts[i]+blockSizes[i])==$8) start=0;  # for case where the thickEnd is at the last nt of an exon
+      }
       print $1,start,end,$4,$5,$6,start,end,$9,N,A,B;
     }  
   }

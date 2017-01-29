@@ -344,6 +344,10 @@ Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R topeQTL.gene.snp.list
 cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
 Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R RTC.gene.snp.list
 
+## boxplot for rs17649553 vs. genes in MAPT locus
+awk '{OFS="\t"; if($1=="chr17" && $2<45300000 && $3>43000000) print $4,"rs17649553:43994648:C:T_C:T"}' ~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed > rs17649553.genes_in_MAPT.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTLlist_boxplot.R rs17649553.genes_in_MAPT.list
+
 # for PD  (using PD samples to "validate" eQTL from HC samples)
 ## =====================================
 cd $result_dir/eQTL/PD_SNDA

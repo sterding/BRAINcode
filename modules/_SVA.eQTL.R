@@ -265,6 +265,36 @@ me = Matrix_eQTL_main(
 
 write.table(me$cis$min.pv.gene, file='final.cis.min.pv.gene.txt')
 
+### ================================
+## just for all pairs in MAPT locus
+### =============BEGIN===================
+snps0=snps$Clone(); snps0$RowReorder(snps0$GetAllRowNames() %in% snpspos$snp[snpspos$chr=="chr17" & snpspos$pos<45300000 & snpspos$pos>43000000]);
+genes0=genes$Clone(); genes0$RowReorder(genes0$GetAllRowNames() %in% genepos$tracking_id[genepos$chr=="chr17"]);
+# dim(genes0); dim(snps0)
+me0 = Matrix_eQTL_main(
+  snps = snps0,
+  gene = genes0,
+  cvrt = SlicedData$new(),
+  output_file_name = "", #final.trans.eQTL.xls",  # we mute the trans-eQTL analysis at the moment
+  pvOutputThreshold = 0, #1e-8,
+  useModel = modelLINEAR, 
+  errorCovariance = numeric(),
+  verbose = FALSE,
+  output_file_name.cis = "final.cis.eQTL.d1e6.p1.MAPT.xls",
+  pvOutputThreshold.cis = 1,  # no effect when min.pv.by.genesnp = TRUE
+  snpspos = snpspos, 
+  genepos = genepos,
+  cisDist = 1e6,
+  pvalue.hist = FALSE,
+  min.pv.by.genesnp = TRUE,
+  noFDRsaveMemory = T);
+write.table(me0$cis$min.pv.gene, file='final.cis.min.pv.gene.MAPT.txt')
+# include SNP position
+genesnp=read.table("final.cis.eQTL.d1e6.p1.MAPT.xls", header=T, stringsAsFactors = FALSE)
+genesnp=cbind(genesnp, SNP.pos=snpspos[match(genesnp$SNP, snpspos$snp),'pos'], SNP.chr=snpspos[match(genesnp$SNP, snpspos$snp),'chr'])
+write.table(genesnp, file="final.cis.eQTL.d1e6.p1.MAPT.xls", sep="\t", col.names = T,quote=FALSE, row.names=FALSE)
+### =============END===================
+
 pdf(file="diagnostics_matrixeqlt.all.pdf", paper="usr")
 plot(me, pch = 16, cex = 0.7);
 dev.off()
