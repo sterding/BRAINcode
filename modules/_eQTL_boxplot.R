@@ -35,22 +35,20 @@ apply(GS, 1, function(gs) {
   REF = strsplit(sub(".*_(.*)","\\1", S),":")[[1]][1]  ## get the REF allele
   ALT = strsplit(sub(".*_(.*)","\\1", S),":")[[1]][2]  ## get the ALT allele
   
-  # one file for all genes (only the most significant SNP per gene)
-  pdf(paste(GSfile,G,S,"pdf",sep="."), width=6, height=4)
-  
-  par(mfrow=c(1,3), mar=c(4,4,2,1), oma = c(0, 0, 2, 0))
-  genesnp0=subset(genesnp, gene==G & SNP==S)
-  p=signif(genesnp0$p.value, 3);
-  
   df=data.frame(expression=as.numeric(genes$FindRow(G)$row), SNP=as.numeric(snps$FindRow(S)$row), row.names = colnames(snps$FindRow(S)$row))
   ## write data to txt file
-  write.table(df, file=paste("pair",G,S,"xls",sep="."), col.names = NA,quote=F, sep="\t")
+  write.table(df, file=paste("eQTLboxplot",G,gsub(":","..",S),"xls",sep="."), col.names = NA,quote=F, sep="\t")
+
+  genesnp0=subset(genesnp, gene==G & SNP==S)
+  p=signif(genesnp0$p.value, 3);
   
   df$SNP1=factor(df$SNP, levels=2:0)  ## in the current All.Matrix.txt, the number is number of REF allele (since we use REF in the --recode-allele) -- Ganqiang
   if(is.na(p) || length(p)==0) {
       test=aov(expression~SNP1, df)
       p=signif(summary(test)[[1]][["Pr(>F)"]][[1]],3)  # in case SNP:eQTL pair is not in the final.cis.eQTL.d1e6.p1e-2.xls file (e.g. those not or less significant pairs)
   }
+  pdf(file=paste("eQTLboxplot",G,gsub(":","..",S),"pdf",sep="."), width=6, height=4)
+  par(mfrow=c(1,3), mar=c(4,4,2,1), oma = c(0, 0, 2, 0))
   bp=boxplot(expression~SNP1, data=df, ylab="Normalized Expression log10(RPKM)", xaxt='n', main="",  col='lightgreen', outpch=NA)
   stripchart(expression~SNP1, data=df, vertical = TRUE, method = "jitter", pch = 1, col = "darkred", cex=1, add = TRUE) 
   title(main=paste0("additive effect (p = ", p,")"), cex.main=1, line=0.5)

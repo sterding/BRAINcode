@@ -139,6 +139,6 @@ if(nrow(rtc)>0){
 p
 
 # see answer in: https://stackoverflow.com/questions/9992275/ggplot2-pdf-import-in-adobe-illustrator-missing-font-adobepistd/21756600#21756600
-ggsave(height=3.5,width=7,dpi=100, filename=sub("xls",paste0(genetype,".pdf"),eqtl_file_name), useDingbats=FALSE)
+ggsave(height=3.5,width=7,dpi=100, filename=sub("xls",paste0(genetype,".wRTC.pdf"),eqtl_file_name), useDingbats=FALSE)
 
 message("# DONE")

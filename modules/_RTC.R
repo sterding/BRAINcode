@@ -5,8 +5,9 @@
 #    Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls gene
 # bsub -q big-multi -n 4 -M 10000 Rscript $pipeline_path/modules/_RTC.R SNP.txt expression.txt cis_eQTL_output.txt
 # Author: Xianjun Dong
-# Version: 0.0
-# Date: 2015-Apr-16
+# Version: 1.0
+# Date: 2017-Mar-03
+# Reference: http://biorxiv.org/content/biorxiv/suppl/2016/09/11/074682.DC1/074682-1.pdf
 ###########################################
 args<-commandArgs(TRUE)
 
@@ -68,7 +69,9 @@ get_RTC_score <- function(SNPS, EXPR, id_GWAS, id_eQTL)
     
     # Rank of GWAS SNP in all tested SNPs
     N=length(pvalues);
-    Rank_GWAS = which(unique(sort(pvalues)) %in% pvalues[1])  # take the first hit in unique order if multiple SNPs have the same pvalue
+    #Rank_GWAS = which(unique(sort(pvalues)) %in% pvalues[1])  # take the first hit in unique order if multiple SNPs have the same pvalue
+    ## XD: update on 2017/03/03
+    Rank_GWAS = which(sort(pvalues, decreasing =T) %in% pvalues[1])[1] - 1  # take the first order if multiple SNPs have the same pvalue
     RTC = (N-Rank_GWAS)/N
     return(RTC);
 }

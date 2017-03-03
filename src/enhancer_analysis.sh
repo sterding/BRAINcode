@@ -169,7 +169,10 @@ grep Parkinson $snps_in_LD.autosomal.associations.bed | intersectBed -b HCILB_SN
 ################################################################################################
 # eQTL of eRNA
 ################################################################################################
-# Note: eQTL for HTNEs was ran based on 83 samples (accidently, as one sample was missed to include). We re-ran eQTL for HTNEs with 84 samples, but traits like ADHD is not included in the RTC result. So, for the RTC table, we still use result for 83 samples, where in the boxplot we showed expression for 84 samples. This discordance only applies to HTNE eQTL, not gene eQTL.
+# Note: eQTL for HTNEs was ran based on 83 samples (accidently, as one sample was missed to include). 
+# We re-ran eQTL for HTNEs with 84 samples, but traits like ADHD is not included in the RTC result. 
+# So, for the RTC table, we still use result for 83 samples, where in the boxplot we showed expression for 84 samples. 
+# This discordance only applies to HTNE eQTL, not gene eQTL.
 
 cd HCILB_SNDA;
 bsub -q big -n 2 -R 'rusage[mem=10000]' -eo eQTL.run.log -oo eQTL.run.log Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R # for HCILB_SNDA only
@@ -177,7 +180,7 @@ ln -fs final.cis.eQTL.xls final.cis.eQTL.d1e6.p1.xls
 cat final.cis.eQTL.xls | awk 'NR==1 || $5<=0.01' > final.cis.eQTL.d1e6.p1e-2.xls
 cat final.cis.eQTL.xls | awk '$5<=0.01 && $6<=0.05' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls  ## Note: The FDR based on p<=1 might be different from FDR based on p<=0.01
 
-## RTC
+## RTC (in ./RTC83)
 bsub -q big-multi -n 4 -M 10000 -oo RTC.run.log -eo RTC.run.log Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls HTNE
 ## annotate: add hostgene_GWAS_SNP and hostgene_eQTL_SNP
 sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls | awk '{OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$10-1,$10,$0}'  | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-14,18 | sort | groupBy -g 1-11 -c 12 -o distinct | awk '{OFS="\t"; split($9,a,"_"); print a[1],$11-1,$11,$0}' | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-15,19 | sort | groupBy -g 1-12 -c 13 -o distinct | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls
