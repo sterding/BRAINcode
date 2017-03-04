@@ -172,7 +172,11 @@ grep Parkinson $snps_in_LD.autosomal.associations.bed | intersectBed -b HCILB_SN
 # Note: eQTL for HTNEs was ran based on 83 samples (accidently, as one sample was missed to include). 
 # We re-ran eQTL for HTNEs with 84 samples, but traits like ADHD is not included in the RTC result. 
 # So, for the RTC table, we still use result for 83 samples, where in the boxplot we showed expression for 84 samples. 
-# This discordance only applies to HTNE eQTL, not gene eQTL.
+# This discrepency only applies to HTNE eQTL, not gene eQTL.
+
+# Note2(20170303): Actually ADHD on RTC for 83 samples is due to a RTC bug (see _RTC.R code); its RTC should be 0.15, not 0.85.
+# After correcting this, ADHD is not present in both 83 and 84 samples. 
+# So, we just use 84 samples in the final result. No more discrepency!
 
 cd HCILB_SNDA;
 bsub -q big -n 2 -R 'rusage[mem=10000]' -eo eQTL.run.log -oo eQTL.run.log Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R # for HCILB_SNDA only

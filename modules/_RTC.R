@@ -61,7 +61,7 @@ get_RTC_score <- function(SNPS, EXPR, id_GWAS, id_eQTL)
         df=na.exclude(df);
         if(nrow(df)<5) next;
         res=resid(lm(y~x, df));
-        # correlation test between continuous and categorical varialbles
+        # Using ANOVA to test correlation between continuous and categorical varialbles
         pvalue = anova(lm(res~df$x0))$`Pr(>F)`[1]
         #pvalues=c(pvalues, cor.test(res, df$x0, method="spearman")$p.value);  # Spearman Rank Correlation
         pvalues=c(pvalues, pvalue)
@@ -69,10 +69,14 @@ get_RTC_score <- function(SNPS, EXPR, id_GWAS, id_eQTL)
     
     # Rank of GWAS SNP in all tested SNPs
     N=length(pvalues);
+    
+    ## XD: code before 2017/03/03, where the sorting is in wrong order
     #Rank_GWAS = which(unique(sort(pvalues)) %in% pvalues[1])  # take the first hit in unique order if multiple SNPs have the same pvalue
-    ## XD: update on 2017/03/03
+    ## XD: bug fixed on 2017/03/03
     Rank_GWAS = which(sort(pvalues, decreasing =T) %in% pvalues[1])[1] - 1  # take the first order if multiple SNPs have the same pvalue
+    
     RTC = (N-Rank_GWAS)/N
+    
     return(RTC);
 }
 
