@@ -304,19 +304,33 @@ bsub -q big -n 2 -R 'rusage[mem=10000]' -eo eQTL.run.log -oo eQTL.run.log Rscrip
 ln -fs final.cis.eQTL.xls final.cis.eQTL.d1e6.p1e-2.xls
 cat final.cis.eQTL.xls | awk '$6<=0.05' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls
 
-## run permutations in bash
-mkdir permutations
-for i in `seq 1 10000`; do [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
+## group significant eQTLs by gene and annotate with OMIM (Table S12)
+Rscript $pipeline_path/modules/_eQTL_by_gene_annotation.R final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls gene
 
-# post-eQTL analysis
-bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
+# ## run permutations in bash
+# mkdir permutations
+# for i in `seq 1 10000`; do [ -e permutations/permutation$i.txt ] || bsub -n 1 -M 500 -q short -J $i Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_permutation_minP.R $i data.RData expression.postSVA.xls; done
 
+## post-eQTL analysis
+#bsub -q big -n 2 -R 'rusage[mem=10000]' Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.after.R
+
+## GO analysis for the eQTL gene
+cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f4 | sort -u | sed 's/___/\t/g' | cut -f1
+# then go to GSEA (http://software.broadinstitute.org/gsea/msigdb/annotate.jsp, C5 collection, top50, FDR 0.05)
+
+# -----------------------------
+### RTC --> (Fig.6b; Table S11)
+# -----------------------------
 ## RTC analysis for eQTL (output: final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls with 11 columns)
-bsub -q big-multi -n 4 -M 10000 -oo RTC.run.log -eo RTC.run.log Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls gene
+bsub -q big-multi -n 4 -M 5000 -oo RTC.run.log -eo RTC.run.log Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls gene
 ## annotate: add hostgene_GWAS_SNP and hostgene_eQTL_SNP
 sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls | awk '{OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$10-1,$10,$0}'  | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-14,18 | sort | groupBy -g 1-11 -c 12 -o distinct | awk '{OFS="\t"; split($9,a,"_"); print a[1],$11-1,$11,$0}' | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-15,19 | sort | groupBy -g 1-12 -c 13 -o distinct | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls
-## filter: for each gene, take the eSNP with the best RTC score (if there are multiple eSNPs in LD) per GWAS SNP
-sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls | sort -k2,2r -k5,5 -k7,7gr | awk '{if(id!=$2$5) print; id=$2$5;}' | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls
+
+## filter rules (for display purpose only): 
+# 1. for each gene, take the eSNPs with the best RTC score (if there are multiple eSNPs in LD) per GWAS SNP. 
+# 2. If more than one best hits and one of them is GWAS, report the GWAS one, otherwise the one with the best eQTL pvalue (if multiple, pick one arbitrarily)
+# 3. Finally, for each eSNP-GWAS pair, take the gene/TNE with the best eQTL pvalue (if multiple, pick one arbitrarily)
+sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls | sort -k2,2r -k5,5 -k7,7gr | awk '{if(id!=$2$5) {print;rtc=$7;} else if($7==rtc) print; id=$2$5;}' |  awk '$7>=0.85' | awk '{if(id!=$2$5$6) {if(a!="") print a; if($1==$5) {print; p=0;a="";} else {p=$3;a=$0;}} else {if($1==$5) {print; p=0;a="";} if($3<p) {p=$3;a=$0;}} id=$2$5$6;}END{if(a!="") print a;}' | sort -k1,1 -k5,5 -k6,6 -k3,3g | awk '{if(id!=$1$5$6) print; id=$1$5$6}' | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls
 
 ## manhanten plot for eQTL with RTC
 # Note: Run RTC (_RTC.R) ahead to get final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls
@@ -328,21 +342,22 @@ Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R final.cis.eQTL.d1e6.p1
 echo "#SNP OmniID Ref:Alt Chr eSNP_host_gene Associated_transcript_hostgene Associated_transcript minP Trait RTC GWAS_SNP GWAS_SNP_pos GWAS_SNP_pvalue LD" | sed 's/ /\t/g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.simplified.xls
 sed 's/ /_/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{OFS="\t"; if($7>=0.85) {split($9,a,"_");print a[1],$11-1,$11,$1,a[1],$13,($8=="NA")?"(intergenic)":$8,$9,$3,$6,$7,$5,$10}}' | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo | cut -f4-13,17 | awk '{OFS="\t"; $1=$1"|"$11; print}' | cut -f1-10 | sort -k1,1 -k3,3 -k4,4 -k7,7 -k6,6g | awk '{if(id!=$1$3$4$7) {print; id=$1$3$4$7;}}' | while read rs chr rest; do chr=${chr/chr/}; rs0=${rs/\|*/}; ld=`fgrep -w $rs0 $GENOME/Annotation/Variation/1000G/LDblock/Chr$chr.LD.blocks.det | head -n1 | awk '{print $1"_"$2"_"$3}'`; echo $rs $chr $rest chr$ld; done | sed 's/ /\t/g' | awk '{OFS="\t"; print "chr"$2,$10-1,$10,$9,$0}' | intersectBed -a - -b <(sed 's/ /_/g' /data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pvalue.bed) -wo | awk '$11==$22' | cut -f5-15,20 | awk '{OFS="\t"; split($1,a,"[|_]"); print a[1],a[2],a[3],$2,$3,$4,$5,$6,$7,$8,$9,$10,$12,$11}' >> final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls.simplified.xls
 
-## Top eQTL at 1M bp stepping
+## boxplot of top RTC eQTL
+cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
+Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R RTC.gene.snp.list
+
+# -----------------------------
+## Top eQTL at 1M bp stepping  --> Extended Fig 6a; Table S12.localpeak
+# -----------------------------
 grep -v protein_coding $GENOME/Annotation/Genes/genes.bed | cut -f4 | fgrep -w -f - ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' | sortBed | intersectBed -a - -b $GENOME/Annotation/Genes/genes.bed -wo | cut -f1-2,4-6,13-14 | awk '{OFS="\t"; print int($2/1000000),$0}' | sort -k2,2 -k1,1n -k5,5gr | awk '{OFS="\t"; if(id!=$1$2) {id=$1$2;p=$5;print;} else if($5==p) print;}' | sed 's/|/\t/g' | sort -k1,1 -k2,2 -k5,5 -k6,6 -k8,8 | groupBy -g 1,2,5-9 -c 3,3,4 -o count,distinct,distinct -delim "|" | sort -k3,3 | join -1 3 -2 4 - <(sort -k4,4 $GENOME/Annotation/Genes/genes.bed) -a 1 | awk '{OFS="\t"; print "ncRNA",$2,$3,$1,$16"___"$1"___"$17,$4,$5,$6,$7,$8,$9,$10}' | sort -k3,3 -k2,2n -k6,6gr > ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt
 grep protein_coding $GENOME/Annotation/Genes/genes.bed | cut -f4 | fgrep -w -f - ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | awk '{OFS="\t"; if($5<=1e-6) print $8,$7-1,$7,$1"|"$2,-log($5)/log(10),-log($6)/log(10);}' | sortBed | intersectBed -a - -b $GENOME/Annotation/Genes/genes.bed -wo | cut -f1-2,4-6,13-14 | awk '{OFS="\t"; print int($2/1000000),$0}' | sort -k2,2 -k1,1n -k5,5gr | awk '{OFS="\t"; if(id!=$1$2) {id=$1$2;p=$5;print;} else if($5==p) print;}' | sed 's/|/\t/g' | sort -k1,1 -k2,2 -k5,5 -k6,6 -k8,8 | groupBy -g 1,2,5-9 -c 3,3,4 -o count,distinct,distinct -delim "|" | sort -k3,3 | join -1 3 -2 4 - <(sort -k4,4 $GENOME/Annotation/Genes/genes.bed) -a 1 | awk '{OFS="\t"; print "mRNA",$2,$3,$1,$16"___"$1"___"$17,$4,$5,$6,$7,$8,$9,$10}' | sort -k3,3 -k2,2n -k6,6gr >> ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt
-
-## manhanten plot for eQTL
-Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls mRNA
-Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls ncRNA
-
 ## boxplot of top eQTL
 cut -f4,12 ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-6.SNPhostgene.simplified.txt | cut -f1 -d"|" > topeQTL.gene.snp.list
 Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R topeQTL.gene.snp.list
 
-## boxplot of top RTC eQTL
-cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls | awk '{FS="\t"; OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$11-1,$11,$1,$2}' | sortBed | intersectBed -a - -b ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.bed -wo| cut -f5,9 > RTC.gene.snp.list
-Rscript ~/neurogen/pipeline/RNAseq/modules/_eQTL_boxplot.R RTC.gene.snp.list $PWD
+## manhanten plot for eQTL
+Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls mRNA
+Rscript $pipeline_path/modules/_eQTL_manhanttenPlot.R final.cis.eQTL.d1e6.p1e-2.xls ncRNA
 
 ## boxplot for rs17649553 vs. genes in MAPT locus
 awk '{OFS="\t"; if($1=="chr17" && $2<45300000 && $3>43000000) print $4,"rs17649553:43994648:C:T_C:T"}' ~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.bed > rs17649553.genes_in_MAPT.list

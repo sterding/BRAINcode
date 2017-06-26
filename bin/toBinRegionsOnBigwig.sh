@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===============================================================
 # Script for binning a list of regions into N bins and get bigwig signal on the bins
 # Author: Xianjun Dong
@@ -18,6 +19,9 @@ bedfile=$2
 N=$3
 type=$4
 
+[[ $N == "" ]] && {
+  echo "Usage: toBinRegionsOnBigwig.sh signal.bw input.bed 100"; 
+  exit 0;}
 [[ $type == "" ]] && type="mean"
 
 ### for N=1
@@ -38,6 +42,3 @@ do
     [[ $name == "" ]] && name="$chr_$start_$end";
     echo $name $s;
 done
-
-
-

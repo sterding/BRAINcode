@@ -9,7 +9,7 @@ require(MatrixEQTL)
 
 args<-commandArgs(TRUE)
 GSfile=args[1]  # gene SNP table
-path=ifelse(is.na(args[2]),"~/eRNAseq/HCILB_SNDA",args[2]) 
+path=ifelse(is.na(args[2]),getwd(),args[2]) 
 setwd(path); 
 
 # setwd("~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/"); load("data.RData"); load("genes.RData"); G="ENSG00000186868.11"; S="rs17649553:43994648:C:T_C:T"; genesnp = read.table("final.cis.eQTL.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)

@@ -113,7 +113,7 @@ p=ggplot() +
   scale_y_continuous(breaks=seq(3,12,3), limits=c(3,12)) + 
   scale_color_manual(values=c("0"='#888888',"1"='#222222'), name = "") +  
   theme_bw(base_size=15) + 
-  theme(legend.position='bottom', legend.key.size = unit(5, "points"), legend.text = element_text(size = 8*0.3514598)) + 
+  theme(aspect.ratio = 0.18, legend.position='bottom', legend.key.size = unit(5, "points"), legend.text = element_text(size = 8*0.3514598)) + 
   guides(col = guide_legend(nrow = 6)) + 
   scale_x_continuous(expand = c(0.01, 0.01), labels=labels, breaks=bpMidVec) +
   geom_hline(yintercept=-log10(max(df$p.value[df$FDR<=0.05])), linetype=2, col='red', lwd=.4) +

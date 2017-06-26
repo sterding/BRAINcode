@@ -15,6 +15,7 @@
 #enhancer_VISTA	        boolean	        if overlap with any tested enhancers (positive enhancers from VISTA enhancer database)
 #DNase	                float	        maximal DNase density of fetal brain from Roadmap Epigenomics
 #bDNase	                boolean	        if overlap with DNase cluster from ENCODE (wgEncodeRegDnaseClustered V2)
+#DNaseROADMAP           boolean         if overlap with DNase narrow peak from Roadmap brain samples 
 #conservation	        float	        mean phastCons score for the HiTNE region
 #bConserved2zf	        boolean	        if conserved to zebrafish (defined by existence of chain alignment between human and zebrafish)
 #bHCNE	                boolean	        if overlapping with any HCNEs (HCNE_hg19_danRer7_70pc_50col from Ancora)

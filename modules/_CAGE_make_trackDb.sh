@@ -1,5 +1,6 @@
 # Uage:
 # bash ~/neurogen/pipeline/RNAseq/modules/_CAGE_make_trackDb.sh > ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.v3.txt
+# chmod 644 ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.v3.txt
 # rsync -azv ~/neurogen/CAGE_PDBrainMap/for_display/trackDb.CAGE.v3.txt xd010@panda.dipr.partners.org:~/public_html/myHub/hg19/
 # to get the sample list: ls -1 ~/neurogen/cage_PD/run_output/ | sed 's/_/\t/g' | cut -f2 | sort -u | awk '{printf $1"="$1" "}'
 #
@@ -57,6 +58,88 @@ echo "track merged_by_trimmedmean_CAGE
         altColor 0,0,255
         parent merged_by_trimmedmean_CAGE
 "
+
+echo "track	HCILB_merged_CAGE
+    shortLabel Total count (BC, SN)
+    longLabel BRAINCODE HCILB_merged CAGE tracks
+    configurable on
+    container multiWig
+    aggregate solidOverlay
+    dragAndDrop subTracks
+    type bigWig 0 100
+    autoScale on
+    alwaysZero on
+    yLineOnOff on
+    yLineMark 0
+    viewLimits 0:100
+    visibility full
+    maxHeightPixels 100:64:11
+    showSubtrackColorOnUi on
+    priority 1.3
+    parent CAGE_BRAINCODE
+    
+        track HCILB_merged_CAGE_fwd
+        shortLabel CAGE tags count for merged samplename (fwd)
+        longLabel CAGE tags count for merged samplename forward
+        type bigWig 
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/HCILB_merged_accepted_hits.plus.bw
+        color 255,0,0
+        parent HCILB_merged_CAGE
+        
+        
+        track HCILB_merged_CAGE_rev
+        shortLabel CAGE tags count for merged HCILB samples (rev)
+        longLabel CAGE tags count for merged HCILB samples reverse
+        type bigWig 
+        bigDataUrl http://pd:brain@panda.partners.org/~xd010/cage/version3/HCILB_merged_accepted_hits.minus.bw
+        color 0,0,255
+        altColor 0,0,255
+        parent HCILB_merged_CAGE
+"
+
+# add FANTOM5 total count
+echo "track	FANTOM_total_count
+    shortLabel Total count (FANTOM)
+    longLabel FANTOM Total counts of CAGE tracks
+    configurable on
+    container multiWig
+    aggregate solidOverlay
+    dragAndDrop subTracks
+    type bigWig 0 100
+    autoScale on
+    alwaysZero on
+    yLineOnOff on
+    yLineMark 0
+    viewLimits 0:100
+    visibility full
+    maxHeightPixels 100:64:11
+    showSubtrackColorOnUi on
+    priority 1.3
+    parent CAGE_BRAINCODE
+    
+          track FANTOM_total_count_Fwd
+          shortLabel Total counts of CAGE reads (fwd)
+          longLabel Total counts of CAGE reads forward
+          type bigWig
+          negateValues off
+          description Total Pooled Counts(Fwd)
+          bigDataUrl http://fantom.gsc.riken.jp/5/datahub/hg19/reads/ctssTotalCounts.fwd.bw
+          color 255,0,0
+          altColor 255,0,0
+          parent FANTOM_total_count
+
+          track FANTOM_total_count_Rev
+          shortLabel Total counts of CAGE reads (rev)
+          longLabel Total counts of CAGE reads reverse
+          type bigWig
+          negateValues on
+          description Total Pooled Counts(Rev)
+          bigDataUrl http://fantom.gsc.riken.jp/5/datahub/hg19/reads/ctssTotalCounts.rev.bw
+          color 0,0,255
+          altColor 0,0,255
+          parent FANTOM_total_count
+"
+
 
 # output the individual track [container]
 

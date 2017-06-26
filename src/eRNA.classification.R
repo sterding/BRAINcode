@@ -54,7 +54,7 @@ col1=c("blue","purple","red"); gr.row[order.dendrogram(row_cluster)]=c(1,rep(2,2
 col2 <- brewer.pal(4, "Pastel1"); gr.col[order.dendrogram(col_cluster)]=c(1,1,2,2,3,4)
 
 pdf("~/Dropbox/PDBrainMap/figures/eRNA/eRNA.clustering.3class.pdf", width=2.5, height=7)
-pdf("eRNA.clustering.3class.pdf", width=2.5, height=7)
+#pdf("eRNA.clustering.3class.pdf", width=2.5, height=7)
 heatmap.2(as.matrix(mat_data),
           margins=c(10,6), keysize=0.1, sepcolor=NA,sepwidth=c(0,0),
           lwid=c(1.5,0.25,4), lhei=c(0.1,0.01,0.5),

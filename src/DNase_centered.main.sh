@@ -1,46 +1,71 @@
+## script to generate data to draw aggregation plot for HCILB_TNE 
+## Note: update on Jun 7th, 2017 (see old archieve in github if needed)
+## TOCHECK: might not necessary to keep since eRNA.aggregation.sh take the job
+
+#============================================================
+# extract DNase peaks from Roadmap brain samples
+#============================================================
+
 cd ~/eRNAseq/externalData/DNase
 
-## call narrow peaks from merged uniform signal of individual samples [SELECTED as final solution]
+## merge the uniform signal of individual samples into the final "DNase bigwig track"
 grep DNase macs2signal.list | cut -f2 | awk '{print "http://egg2.wustl.edu/roadmap/data/byFileType/signal/consolidated/macs2signal/pval/"$1}' | xargs -n 1 -P 8 wget -b
 mkdir download; mv E* download/
 bsub -q big -n 1 -M 10000 bigWigMerge download/E*DNase.pval.signal.bigwig merged.DNase.pval.signal.bg
 bsub -q big -n 1 -M 10000 bedGraphToBigWig merged.DNase.pval.signal.bg $GENOME/Sequence/WholeGenomeFasta/hg19.chrom.size merged.DNase.pval.signal.bigwig
-module load macs2/2.1
-bsub -q big -n 1 -M 10000 macs2 bdgpeakcall -i merged.DNase.pval.signal.bg --min-length 100 -o merged.DNase.pval.signal.p0.01.halfsamples.peaks --cutoff 53  # at least half samples with p=0.01 (2*53/2)
-ln -fs merged.DNase.pval.signal.p0.01.peaks merged.DNase.pval.signal.peaks
-intersectBed -a merged.DNase.pval.signal.peaks -b ../../eRNA.bed -u | wc -l
-#6129
+# scp to http://panda.partners.org/~xd010/tracks/
 
-# ## merge narrow peaks called from individual samples [DISCARDED eventually due to two ]
-# grep DNase macs2signal.list | cut -f2 | sed 's/pval.signal.bigwig/macs2.narrowPeak.gz/g' | awk '{print "http://egg2.wustl.edu/roadmap/data/byFileType/peaks/consolidated/narrowPeak/"$1}' | xargs -n 1 -P 8 wget -b
-# zcat *DNase.macs2.narrowPeak.gz | sortBed > merged.DNase.macs2.narrowPeak
-# awk '{OFS="\t"; $10=$2+$10;print}' merged.DNase.macs2.narrowPeak | mergeBed -i - -d -50 -c 4,5,6,7,8,9,10 -o count,max,distinct,max,max,max,median| awk '{OFS="\t"; $10=$10-$2; print}' > merged.DNase.macs2.narrowPeak.merged
-# intersectBed -a merged.DNase.macs2.narrowPeak.merged -b ../../eRNA.bed -u | awk '$4>=40' | wc -l 
-# # 3075
+## define DNaes peaks 
+## using the 638304 enhancer-being DNase peaks defined in 10 Roadmap "brain" samples (http://egg2.wustl.edu/roadmap/web_portal/DNase_reg.html#delieation) [SELECTED as final solution]
+# download regions_enh_*.bed.gz for 10 brain samples (E067-074, E081 and E082)
+zcat regions_enh_*.bed.gz | sortBed | mergeBed -i - | awk '{OFS="\t"; print $0,"peak"NR }'> regions_enh_merged.brain.bed
+split -l 1000 regions_enh_merged.brain.bed tmp.regions_enh_merged.brain.bed
+for i in tmp.regions_enh_merged.brain.bed*; do echo $i; bsub -q short -n 1 -M 1000 bash ~/pipeline/bin/bed2narrowpeak.sh $i merged.DNase.pval.signal.bigwig; done
+cat tmp.regions_enh_merged.brain.bed*narrowPeak > regions_enh_merged.brain.narrowPeak
+rm tmp.regions_enh_merged.brain.bed*
 
-# alternative: use the 638304 enhancer-being DNase peaks defined in 10 Roadmap "brain" samples (http://egg2.wustl.edu/roadmap/web_portal/DNase_reg.html#delieation)
-intersectBed -a eRNA.bed -b externalData/DNase/regions_enh_merged.brain.bed -u | while read chr start end rest
+#intersectBed -a ~/eRNAseq/HCILB_SNDA/eRNA.bed -b regions_enh_merged.brain.bed -u | wc -l 
+#14997
+
+### other solutions tried to call peaks [DISCARDED eventually due to too less overlap]
+### solution1: call peaks from merged uniform signal 
+# module load macs2/2.1
+# bsub -q big -n 1 -M 10000 macs2 bdgpeakcall -i merged.DNase.pval.signal.bg --min-length 100 -o merged.DNase.pval.signal.p0.01.halfsamples.peaks --cutoff 53  # at least half samples with p=0.01 (2*53/2)
+# ln -fs merged.DNase.pval.signal.p0.01.peaks merged.DNase.pval.signal.peaks
+# intersectBed -a merged.DNase.pval.signal.peaks -b ../../eRNA.bed -u | wc -l
+# #6129
+# 
+### solution2: merge narrow peaks called from individual samples 
+# # grep DNase macs2signal.list | cut -f2 | sed 's/pval.signal.bigwig/macs2.narrowPeak.gz/g' | awk '{print "http://egg2.wustl.edu/roadmap/data/byFileType/peaks/consolidated/narrowPeak/"$1}' | xargs -n 1 -P 8 wget -b
+# # zcat *DNase.macs2.narrowPeak.gz | sortBed > merged.DNase.macs2.narrowPeak
+# # awk '{OFS="\t"; $10=$2+$10;print}' merged.DNase.macs2.narrowPeak | mergeBed -i - -d -50 -c 4,5,6,7,8,9,10 -o count,max,distinct,max,max,max,median| awk '{OFS="\t"; $10=$10-$2; print}' > merged.DNase.macs2.narrowPeak.merged
+# # intersectBed -a merged.DNase.macs2.narrowPeak.merged -b ../../eRNA.bed -u | awk '$4>=40' | wc -l 
+# # # 3075
+
+#============================================================
+# Annotate TNEs with DNase peak summit (if overlapping) or middle point (if not)
+#============================================================
+cd ~/eRNAseq/HCILB_SNDA
+intersectBed -a eRNA.bed -b ../externalData/DNase/regions_enh_merged.brain.bed -u | while read chr start end rest
 do
   l=$(expr $end - $start)
-  bigWigSummary externalData/DNase/merged.DNase.pval.signal.bigwig $chr $start $end $l | awk -vchr=$chr -vstart=$start -vend=$end '{OFS="\t"; for(i=1;i<=NF;i++) if($i!="n/a" && $i>max) {imax=i;max=$i}}END{print chr, start, end, chr"_"start"_"end, 0, ".", max, -1, -1, imax-1}'
+  bigWigSummary ../externalData/DNase/merged.DNase.pval.signal.bigwig $chr $start $end $l | awk -vchr=$chr -vstart=$start -vend=$end '{OFS="\t"; for(i=1;i<=NF;i++) if($i!="n/a" && $i>max) {imax=i;max=$i}}END{print chr, start, end, chr"_"start"_"end, 0, ".", max, -1, -1, imax-1}'
 done > eRNA.overlapped.with.mergedDNasePeak.narrowPeak
 
 wc -l eRNA.overlapped.with.mergedDNasePeak.narrowPeak
 
-intersectBed -a eRNA.bed -b externalData/DNase/regions_enh_merged.brain.bed -v | while read chr start end rest
+intersectBed -a eRNA.bed -b ../externalData/DNase/regions_enh_merged.brain.bed -v | while read chr start end rest
 do
   l=$(expr $end - $start)
-  bigWigSummary externalData/DNase/merged.DNase.pval.signal.bigwig $chr $start $end $l | awk -vchr=$chr -vstart=$start -vend=$end '{OFS="\t"; for(i=1;i<=NF;i++) if($i!="n/a" && $i>max) {imax=i;max=$i}}END{print chr, start, end, chr"_"start"_"end, 0, ".", max, -1, -1, imax-1}'
+  bigWigSummary ../externalData/DNase/merged.DNase.pval.signal.bigwig $chr $start $end $l | awk -vchr=$chr -vstart=$start -vend=$end '{OFS="\t"; for(i=1;i<=NF;i++) if($i!="n/a" && $i>max) {imax=i;max=$i}}END{print chr, start, end, chr"_"start"_"end, 0, ".", max, -1, -1, imax-1}'
 done > eRNA.notoverlapped.with.mergedDNasePeak.narrowPeak
-
-## script to generate data to draw aggregation plot for HITNE
 
 #============================================================
 # get bin signal
 #============================================================
-cd ~/eRNAseq
+cd ~/eRNAseq/HCILB_SNDA
 
-# eRNA overlapped with DNase peak (N=15351)
+# eRNA overlapped with DNase peak (N=14997)
 # ------------------------------------
 #intersectBed -a externalData/DNase/merged.DNase.pval.signal.peaks -b eRNA.bed -u | awk '{OFS="\t"; mid=$2+$10; print $1,mid-1000,mid+1000, $4}' > eRNA.with.mergedDNase.peak.summit.1kbp.bed
 awk '{OFS="\t"; mid=$2+$10; print $1,mid-1000,mid+1000, $4}' eRNA.overlapped.with.mergedDNasePeak.narrowPeak > eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.bed
@@ -49,11 +74,11 @@ awk '{OFS="\t"; mid=$2+$10; print $1,mid-1000,mid+1000, $4}' eRNA.overlapped.wit
 # ------------------------------------
 intersectBed -a eRNA.bed -b externalData/DNase/regions_enh_merged.brain.bed -v | awk '{OFS="\t"; mid=int(($2+$3)/2); print $1,mid-1000,mid+1000, $4}' > eRNA.notoverlapped.with.mergedDNasePeak.middle.1kbp.bed
 
-for i in externalData/*/*.bigwig;
+for i in ../externalData/*/*.bigwig;
 do
-  #toBinRegionsOnBigwig.sh $i eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.bed 100 > $i.eRNA.with.mergedDNase.peak.summit.1kbp.100bins &
+  toBinRegionsOnBigwig.sh $i eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.bed 100 > $i.eRNA.with.mergedDNase.peak.summit.1kbp.100bins &
   toBinRegionsOnBigwig.sh $i eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.bed 100 > $i.eRNA.overlapped.with.mergedDNasePeak.narrowPeak.summit.1kbp.100bins &
-  toBinRegionsOnBigwig.sh $i eRNA.notoverlapped.with.mergedDNasePeak.middle.1kbp.bed 100 > $i.eRNA.notoverlapped.with.mergedDNasePeak.middle.1kbp.100bins &
+  #toBinRegionsOnBigwig.sh $i eRNA.notoverlapped.with.mergedDNasePeak.middle.1kbp.bed 100 > $i.eRNA.notoverlapped.with.mergedDNasePeak.middle.1kbp.100bins &
 done
 
 #============================================================
@@ -61,6 +86,7 @@ done
 #============================================================
 Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.aggPlot.R
 
+exit
 
 ## script to analysis enhancer regions
 

@@ -5,8 +5,8 @@
 # Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls ~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls mRNA
 # Rscript $pipeline_path/modules/_eQTL_RTC_manhanttenPlot.R ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.filtered.annotated.xls all
 # Author: Xianjun Dong
-# Version: 0.0
-# Date: 2016-Apr-25
+# Version: 0.1
+# Date: 2017-Mar-08
 ###########################################
 args<-commandArgs(TRUE)
 
@@ -82,13 +82,13 @@ colnames(rtc)=c("eQTL_SNP", "assocaitedRNA", "pvalue_eQTL", "FDR_eQTL", "GWAS_SN
 rtc$chr=sub("_.*","",rtc$assocaitedRNA_coord)
 rtc$Complex_Trait=sub("\\(.*","",as.character(rtc$Complex_Trait))
 
-## save simplied table
-rtc0=unique(subset(rtc, RTC>=0.85, select=c(eQTL_SNP,chr,hostgene_eQTL_SNP,assocaitedRNA_hostgene,pvalue_eQTL,Complex_Trait,RTC)))
-rtc0[is.na(rtc0)]="(intergenic)"
-rtc0=merge(aggregate(pvalue_eQTL~eQTL_SNP+hostgene_eQTL_SNP+chr+assocaitedRNA_hostgene+Complex_Trait,data=rtc0,FUN=min),rtc0)
-rtc0=subset(rtc0, select=c(eQTL_SNP,chr,hostgene_eQTL_SNP,assocaitedRNA_hostgene,pvalue_eQTL,Complex_Trait,RTC))
-rtc0=rtc0[with(rtc0,order(chr,hostgene_eQTL_SNP,Complex_Trait, pvalue_eQTL)),]
-write.table(rtc0,file=paste(rtc_file_name,"simplified.xls",sep="."),sep="\t", row.names = F, col.names = T, na="", quote=F)
+# ## save simplied table
+# rtc0=unique(subset(rtc, RTC>=0.85, select=c(eQTL_SNP,chr,hostgene_eQTL_SNP,assocaitedRNA_hostgene,pvalue_eQTL,Complex_Trait,RTC)))
+# rtc0[is.na(rtc0)]="(intergenic)"
+# rtc0=merge(aggregate(pvalue_eQTL~eQTL_SNP+hostgene_eQTL_SNP+chr+assocaitedRNA_hostgene+Complex_Trait,data=rtc0,FUN=min),rtc0)
+# rtc0=subset(rtc0, select=c(eQTL_SNP,chr,hostgene_eQTL_SNP,assocaitedRNA_hostgene,pvalue_eQTL,Complex_Trait,RTC))
+# rtc0=rtc0[with(rtc0,order(chr,hostgene_eQTL_SNP,Complex_Trait, pvalue_eQTL)),]
+# write.table(rtc0,file=paste(rtc_file_name,"simplified.xls",sep="."),sep="\t", row.names = F, col.names = T, na="", quote=F)
 
 # only those eQTL pairs in df (for cases that mRNA and ncRNA separately)
 rtc=rtc[paste(rtc$chr,rtc$pos_eQTL_SNP,rtc$assocaitedRNA,sep="_") %in% paste(df$chr,df$SNP.pos,df$gene,sep="_"),]
@@ -119,11 +119,11 @@ message("# plotting ... ")
 library(ggplot2)
 library(grid)
 p=ggplot() +
-  geom_point(data=rcMpPvals, aes(x=SNP.pos, y=p.value, colour=as.factor(as.numeric(sub("chr","",chr)) %% 2)),size=1, alpha=1) +
+  geom_point(data=rcMpPvals, aes(x=SNP.pos, y=p.value, colour=as.factor(as.numeric(sub("chr","",chr)) %% 2)),size=0.5, alpha=1) +
   scale_y_continuous(breaks=seq(3,12,3), limits=c(3,12)) + 
   scale_color_manual(values=c("0"='#888888',"1"='#222222',traits), name = "") +  
   theme_bw(base_size=15) + 
-  theme(legend.position='bottom', legend.key.size = unit(5, "points"), legend.text = element_text(size = 8)) + 
+  theme(aspect.ratio = 0.18, legend.position='bottom', legend.key.size = unit(5, "points"), legend.text = element_text(size = 8)) + 
   guides(col = guide_legend(nrow = 6)) + 
   scale_x_continuous(expand = c(0.01, 0.01), labels=labels, breaks=bpMidVec) +
   geom_hline(yintercept=-log10(max(df$p.value[df$FDR<=0.05])), linetype=2, col='red', lwd=.4) +

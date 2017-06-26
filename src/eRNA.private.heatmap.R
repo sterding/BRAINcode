@@ -65,35 +65,38 @@ nn=subset(exp_group, private_HTNE=='NNonly');
 topN=100
 exp_group_top = rbind(head(sn[order(-sn$SNDA),],topN), head(py[order(-py$PY),],topN), head(nn[order(-nn$NN),],topN))
 
-# Option2: take the private genes with fc>=30
-# sort by fc in each group
-#exp_group = exp_group[with(exp_group, order(private_HTNE, -fc)),]
-#exp_group_top=subset(exp_group, fc>=30) # N=2978
-#table(exp_group_top$private_HTNE)
-
-# # Option3: take the top 10% of private genes with the most FC
+# # Option2: take the private genes with fc>=30
+# # sort by fc in each group
+# exp_group = exp_group[with(exp_group, order(private_HTNE, -fc)),]
+# exp_group_top=subset(exp_group, fc>=30) # N=2978
+# table(exp_group_top$private_HTNE)
+# 
+# # # Option3: take the top 10% of private genes with the most FC
 # library(dplyr)
 # exp_group_top = cbind(name=rownames(exp_group), exp_group) %>%   # add rownames as a column as dplyr::filter discard rownames
 #     group_by(private_HTNE) %>%
 #     arrange(private_HTNE, desc(fc)) %>%
-#     filter(fc > quantile(fc, .95))
+#     filter(fc > quantile(fc, .95))  # or top_n(100)
 # exp_group_top=as.data.frame(exp_group_top)
 # rownames(exp_group_top)=exp_group_top[,1]; exp_group_top=exp_group_top[,-1]
+# 
+# dim(exp_group_top)
+# table(exp_group_top$private_HTNE)
+# tapply(exp_group_top$fc, exp_group_top$private_HTNE, summary)
+# # $SNDAonly
+# # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# # 457.3   574.7   718.1   867.4   993.9  5286.0 
+# # 
+# # $PYonly
+# # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# # 1360    1546    1828    2062    2288   11620 
+# # 
+# # $NNonly
+# # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# # 192.0   620.0   857.1   972.4  1179.0  5195.0 
 
-dim(exp_group_top)
-table(exp_group_top$private_HTNE)
-tapply(exp_group_top$fc, exp_group_top$private_HTNE, summary)
-# $SNDAonly
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 457.3   574.7   718.1   867.4   993.9  5286.0 
-# 
-# $PYonly
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 1360    1546    1828    2062    2288   11620 
-# 
-# $NNonly
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 192.0   620.0   857.1   972.4  1179.0  5195.0 
+write.table(exp_group_top, paste0("private.eRNAs.top",topN,".xls"), quote=F, sep="\t", col.names = NA)
+
 
 exp_selected = exp[rownames(exp_group_top),] 
 
@@ -162,15 +165,15 @@ hm.parameters <- list(as.matrix(exp_selected_scaled),
                       cellheight=.02
 )
 
-png(file=paste("private.eRNAs.cluster","png", sep="."), width=600, height=400, res=400)
+png(file=paste0("private.eRNAs.top",topN,".scaled.cluster.png"), width=600, height=400, res=400)
 par(mar=c(0,0,0,0))
 rotate <- function(x) t(apply(x, 2, rev)) # function to rotate a matrix with 90 degree clock-wise (ref: http://stackoverflow.com/questions/16496210/rotate-a-matrix-in-r)
 image(rotate(as.matrix(exp_selected_scaled)), col=hmcols, breaks=bk, useRaster=F, axes =F)
 dev.off()
 
 # To draw to file 
-do.call("pheatmap", c(hm.parameters, filename=paste("private.eRNAs.cluster","pdf", sep=".")))
-#do.call("pheatmap", c(hm.parameters, filename=paste("private.eRNAs.cluster","png", sep=".")))
+do.call("pheatmap", c(hm.parameters, filename=paste0("private.eRNAs.top",topN,".scaled.cluster.pdf")))
+#do.call("pheatmap", c(hm.parameters, filename=paste0("private.eRNAs.top",topN,".scaled.cluster.png")))
 ## To draw the heat map on screen 
 #do.call("pheatmap", hm.parameters)
 

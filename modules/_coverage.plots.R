@@ -23,6 +23,10 @@ df$sum=rowSums(df[,grep("RPM",colnames(df))])
 df = df[with(df, order(celltype, -sum)), ]
 df$sample <- factor(df$sample, unique(as.character(df$sample)))
 
+# mean and sd per samples for RPM>=0.05
+library(dplyr)
+df %>% group_by(celltype) %>% mutate(RPM0.05 = RPMgt0.05 + RPMgt0.1 + RPMgt0.5 + RPMgt1) %>% summarise(mean=mean(RPM0.05*100/genomesize), median=median(RPM0.05*100/genomesize), sd=sd(RPM0.05*100/genomesize))
+
 library(reshape2)
 dflong=melt(df[,1:7], variable.name = "cutoff",value.name ="coverage")
 #levels(dflong$cutoff)=rev(levels(dflong$cutoff))
@@ -101,6 +105,8 @@ axis(2, at=seq(10,30,5),labels=seq(10,30,5))
 t.test(df$percentage[df$type=='SNDA'], df$percentage[df$type=='NN'])
 t.test(df$percentage[df$type=='PY'], df$percentage[df$type=='NN'])
 t.test(df$percentage[df$type=='SNDA'], df$percentage[df$type=='PY'])
+library('dplyr')
+df %>% group_by(type) %>% summarise(mean=mean(percentage), median=median(percentage), sd=sd(percentage))
 
 # coverage with same number of samples (N=7)
 a=read.table("covered.0.05RPM.HCILB_SNDA.random7.txt", header=F)

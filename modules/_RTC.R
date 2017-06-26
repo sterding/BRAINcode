@@ -8,6 +8,9 @@
 # Version: 1.0
 # Date: 2017-Mar-03
 # Reference: http://biorxiv.org/content/biorxiv/suppl/2016/09/11/074682.DC1/074682-1.pdf
+# Note: there are specifal cases including
+# 1. GWAS SNP is same as eQTL SNP, so its RTC score is also 1
+# 2. GWAS SNP is not eQTL SNP, but they have same genotypes, so its RTC score is also 1. In that case, we report both
 ###########################################
 args<-commandArgs(TRUE)
 
@@ -16,26 +19,25 @@ expr_file_name = args[2]  # in format of http://www.bios.unc.edu/research/genomi
 eqtl_file_name = args[3]  # a tab-delimited file with columns of "SNP     gene    beta    t-stat  p-value FDR", but no header line
 gene_or_HTNE   = args[4]  # <gene|HTNE>
 
-ld_file_name="/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed"
+ld_file_name="~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed"
 # a file to tell SNPs in LD interval, in format of "chr17	43714849	43714850 hg38_chr17_45637484_rs2942168 	1	.	Parkinson's_disease	rs113155081;rs62055661;rs558738552;|43752078;43752039;43751598;|0.997467;0.997467;0.99", where the 4th column has GWAS SNP id at the end.
 
 # # HTNEs
-# snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
-# expr_file_name="~/eRNAseq/HCILB_SNDA/expression.postSVA.xls"
-# eqtl_file_name="~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls"
+snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
+expr_file_name="~/eRNAseq/HCILB_SNDA/expression.postSVA.xls"
+eqtl_file_name="~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls"
 # 
 # # Genes
 # snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
 # expr_file_name="~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/expression.postSVA.xls"
 # eqtl_file_name="~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls"
-# ld_file_name="/data/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.SNAP.LD_w250.r2_0.8.bed"
 
 # Note: make sure all SNP id are dbSNP based. So, convert SNP id based on Illumina chip to dbSNP v144, for both eQTL and SNP genotype
 # cat ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.xls | awk '$6<=0.05' > ~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls
 
 # assuming the All.Matrix.SNP.ID and All.Matrix.txt are sorted already and have the same order
 #awk '{OFS="\t"; if(NR>1) print $2,$3-1,$3,$1,$4}' ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID | LC_ALL=C sort --parallel=8 --buffer-size=5G -k1,1 -k2,2n | intersectBed -a - -b $GENOME/Annotation/Variation/dbSNP144.hg19.bed.groupped.SNP.unstranded -wo -sorted | cut -f1-5,9 > ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.dbSNP144
-snpid_file_name="/data/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.dbSNP144"
+snpid_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID.dbSNP144"
 
 # ---------------
 # snps is a data frame for SNPs in a LD, with each row a SNP and each column a sample
@@ -50,14 +52,12 @@ get_RTC_score <- function(SNPS, EXPR, id_GWAS, id_eQTL)
     
     eQTL_SNP = SNPS[id_eQTL, ]
     
-    # SNP set except the eQTL: put the GWAS SNP at the first
-    SNPS2 = rbind(SNPS[id_GWAS, ], SNPS[!(rownames(SNPS) %in% c(id_GWAS, id_eQTL)), ])
-    
-    # get pvalue for each SNP in SNPS2
+    # get pvalues for all SNPs in SNPS
     pvalues=c()
+    gwas_pvalue = 0;
     
-    for(i in 1:nrow(SNPS2)){
-        df=data.frame(y=as.numeric(EXPR), x=as.numeric(SNPS2[i,]), x0=as.numeric(eQTL_SNP))
+    for(i in 1:nrow(SNPS)){
+        df=data.frame(y=as.numeric(EXPR), x=as.numeric(SNPS[i,]), x0=as.numeric(eQTL_SNP))
         df=na.exclude(df);
         if(nrow(df)<5) next;
         res=resid(lm(y~x, df));
@@ -65,6 +65,8 @@ get_RTC_score <- function(SNPS, EXPR, id_GWAS, id_eQTL)
         pvalue = anova(lm(res~df$x0))$`Pr(>F)`[1]
         #pvalues=c(pvalues, cor.test(res, df$x0, method="spearman")$p.value);  # Spearman Rank Correlation
         pvalues=c(pvalues, pvalue)
+        
+        if(rownames(SNPS)[i] == id_GWAS) gwas_pvalue = pvalue
     }
     
     # Rank of GWAS SNP in all tested SNPs
@@ -73,10 +75,9 @@ get_RTC_score <- function(SNPS, EXPR, id_GWAS, id_eQTL)
     ## XD: code before 2017/03/03, where the sorting is in wrong order
     #Rank_GWAS = which(unique(sort(pvalues)) %in% pvalues[1])  # take the first hit in unique order if multiple SNPs have the same pvalue
     ## XD: bug fixed on 2017/03/03
-    Rank_GWAS = which(sort(pvalues, decreasing =T) %in% pvalues[1])[1] - 1  # take the first order if multiple SNPs have the same pvalue
+    Rank_GWAS = which(sort(pvalues, decreasing =T) %in% gwas_pvalue)[1] - 1  # take the first order if multiple SNPs have the same pvalue
     
     RTC = (N-Rank_GWAS)/N
-    
     return(RTC);
 }
 

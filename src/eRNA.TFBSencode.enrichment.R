@@ -40,7 +40,7 @@ results$pvalue = results$pvalue + min(results$pvalue[results$pvalue>0])
 results$pvalue[results$pvalue<1e-50]=1e-50
 results$OR[results$OR>20]=20
 
-# filter result with p>=0.01/N (Bonferroni correction FDR < 0.01)
+# filter result with p>=0.01/N (Bonferroni correction p < 0.01)
 results=subset(results, pvalue<=0.01/N)
     
 results = results[with(results, order(type, pvalue)), ]

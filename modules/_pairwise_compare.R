@@ -5,6 +5,8 @@
 # Version: 0.0
 # Date: 2015-Apr-12
 ###########################################
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(ggplot2, ggExtra)
 
 args<-commandArgs(TRUE)
 sample1=args[1]  
@@ -12,12 +14,16 @@ sample2=args[2]
 FPKMfile = ifelse(is.na(args[3]), "~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cufflinks.allSamples.uniq.xls", args[3])
 
 addmarkers=0
-PSEUDOCOUNT=1 #1e-2 
+filter=0; 
+PSEUDOCOUNT=1e-2
+
+# test:
+# sample1='HC_UWA616_SN_6_rep1.amplified'; sample2='HC_UWA616_SN_6_rep1.unamplified'; FPKMfile ="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cufflinks.allSamples.uniq.xls"; addmarkers=0; PSEUDOCOUNT=1e-5;filter=0.001
 
 if(grepl("_SN_",sample1) & grepl("_SNDA_",sample2)) addmarkers=1
 
 # setwd("~/neurogen/rnaseq_PD/results/merged/"); sample1="HC_UWA616_SN_6_rep1.amplified"; sample2="HC_UWA616_SNDA_2_rep1"; FPKMfile="~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cufflinks.allSamples.uniq.xls";PSEUDOCOUNT=1e-2
-print(paste(sample1, sample2, FPKMfile, addmarkers))
+print(paste(sample1, sample2, FPKMfile, "PSEUDO:",PSEUDOCOUNT,"FILTER:",filter, "ADDMARKER:",addmarkers))
 message("loading data...")
 
 fpkm=read.table(FPKMfile, header=T, check.names =F, stringsAsFactors =F);  # table with header (1st row) and ID (1st column)
@@ -29,6 +35,11 @@ if(sample1 %in% colnames(fpkm)) x=fpkm[,sample1] else {message(paste("cannot fin
 if(sample2 %in% colnames(fpkm)) y=fpkm[,sample2] else {message(paste("cannot find the sample", sample2, "in the input expression file")); quit('no');}
 
 isna=is.na(x) | is.na(y); x=x[!isna]; y=y[!isna]; 
+
+if(filter>0){
+  to_keep = x>=filter & y>=filter
+  x=x[to_keep]; y=y[to_keep];
+}
 
 # marker genes
 if(addmarkers==1){
@@ -46,7 +57,7 @@ message("ploting data...")
 
 x=log10(x + PSEUDOCOUNT); y=log10(y + PSEUDOCOUNT);
 
-pdf(paste("xyplot", sample1, "vs", sample2, PSEUDOCOUNT, "pdf", sep="."), width=5, height=5, paper='us', useDingbats=FALSE)
+pdf(paste("xyplot", sample1, "vs", sample2, "PSEUDO",PSEUDOCOUNT,"FILTER",filter, "pdf", sep="."), width=5, height=5, paper='us', useDingbats=FALSE)
 par(pty="s"); # to make sure the frame is a square (width=height)
 plot(unique(round(cbind(x,y),3)), pch='.', cex=0.6, main=basename(FPKMfile), xlab=paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")"), ylab=paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"), xlim=range(x,y), ylim=range(x,y), xaxs="r", yaxs="r")
 if(addmarkers==1){
@@ -55,13 +66,23 @@ if(addmarkers==1){
 }
 abline(a=0, b=1, col='red', lty=2, lwd=1)
 legend("topleft", paste("Pearson's r =", round(cor(x,y), 3)), bty='n')
-dev.off()
 
-library("ggExtra"); library("ggplot2");
+# heatmap
+smoothScatter(x,y,xlab=paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")"), ylab=paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"), xlim=range(x,y), ylim=range(x,y), xaxs="r", yaxs="r")
+if(addmarkers==1){
+  points(x=x[selected_markers], y=y[selected_markers], col=cols, pch=19, cex=1)
+  text(x=x[selected_markers],y=y[selected_markers],labels = fpkm$gene_short_name[selected_markers], adj=c(0,1), col=cols)
+}
+abline(a=0, b=1, col='red', lty=2, lwd=1)
+legend("topleft", paste("Pearson's r =", round(cor(x,y), 3)), bty='n')
+
+# add density curve
 df=data.frame(x=x,y=y)
 p=ggplot(df, aes(x,y))+ geom_point(size=.6, alpha=0.6) + xlab(paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")")) + ylab(paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"))
 p=ggMarginal(p)
-ggsave(paste("xyplot+density", sample1, "vs", sample2, PSEUDOCOUNT, "pdf", sep="."), plot=p, useDingbats=FALSE)
+print(p)
+
+dev.off()
 
 quit('no')
 

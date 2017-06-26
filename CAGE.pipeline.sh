@@ -100,6 +100,14 @@ bedGraphToBigWig ../results/trimmedmean.minus.normalized.bg $GENOME/Annotation/G
 for i in */*bw; do scp $i xd010@panda.dipr.partners.org:~/public_html/cage/version3/${i/\//.}; done
 for i in ../results/*bw; do scp $i xd010@panda.dipr.partners.org:~/public_html/cage/version3/; done
 
+## combine 6 HCILB samples into one file (to increse signal strength)
+bsub -q big-multi -n 4 samtools merge -1 -h HC_MD5247_SN_1_rep1/accepted_hits.bam HCILB_merged_accepted_hits.bam `ls [HI]*/accepted_hits.bam`
+bsub -J _bam2bigwig -oo _bam2bw.log -eo _bam2bw.log -q big-multi -n 4 -M 10000 -R rusage[mem=10000] _CAGE_bam2bigwig.sh HCILB_merged_accepted_hits.bam
+chmod 644 HCILB_merged_accepted_hits*bw
+scp HCILB_merged_accepted_hits*bw xd010@panda.dipr.partners.org:~/public_html/cage/version3
+
+
+
 ########################
 # 4. call bidirectional loci accoroding to Andersson et al 2014 Nature (https://github.com/anderssonrobin/enhancers)
 ########################

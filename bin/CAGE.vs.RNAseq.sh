@@ -1,15 +1,6 @@
 # CAGE vs. RNAseq
 #!/bin/bash
 
-if [ $# -lt 1 ]
-then
-  echo "Script to generate bigwig files for CAGE bam input"
-  echo "=================================================="
-  echo "Usage: $0 input.bam"
-  echo "Output: input.plus.bw and input.minus.bw"
-  exit
-fi
-
 cd ~/neurogen/CAGE_PDBrainMap/results
 
 CAGEfwd=~/neurogen/CAGE_PDBrainMap/output_dir/HC_UWA616_SN_1_rep1/accepted_hits.plus.normalized.bw
