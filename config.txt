@@ -43,8 +43,6 @@ module load R/3.1.0  # default version of R
 module load fastqc/default 
 
 module load htseq/0.6.1
-mapsplice_path=~/neurogen/MapSplice-v2.1.8
-prinseq_path=~/neurogen/pipeline/prinseq-web-0.20.1/cgi-bin
 pipeline_path=~/neurogen/pipeline/RNAseq
 export PATH=$pipeline_path/modules:$pipeline_path/bin:/PHShome/xd010/bin/x86_64:$PATH
 

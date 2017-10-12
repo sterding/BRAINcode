@@ -264,6 +264,7 @@ cd $outputdir/$samplename/uniq
 samtools view -H $outputdir/$samplename/accepted_hits.bam > accepted_hits.sam && \
 samtools view $outputdir/$samplename/accepted_hits.bam | fgrep -w NH:i:1 >> accepted_hits.sam && \
 samtools view -Sbut $BOWTIE2_INDEXES/genome.fai accepted_hits.sam | samtools sort - accepted_hits.sorted && \
+rm accepted_hits.sam && \
 mv accepted_hits.sorted.bam accepted_hits.bam && \
 samtools index accepted_hits.bam && \
 cufflinks --no-update-check $strandoption -o ./ -p $CPU -G $ANNOTATION_GTF -M $MASK_GTF --compatible-hits-norm accepted_hits.bam && \
@@ -339,6 +340,7 @@ touch $outputdir/$samplename/.status.$modulename.uniq.metaintron
 #touch $outputdir/$samplename/.status.$modulename.uniq.rpm_vs_coverage
 
 #rm accepted_hits.bed accepted_hits.*bedGraph
+
 
 ############################################
 echo "["`date`"] STEP 9. prepare for tracks files to display on UCSC / IGV"

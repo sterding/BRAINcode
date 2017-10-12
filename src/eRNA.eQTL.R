@@ -21,6 +21,9 @@ setwd(paste0("~/eRNAseq/",SAMPLE_GROUP))
 if(file.exists("data.RData")) load("data.RData") else{
   
   covarianceTableURL="https://docs.google.com/spreadsheets/d/1I8nRImE9eJCCuZwpjfrrj-Uwx9bLebnO6o-ph7u6n8s/pub?gid=195725118&single=true&output=tsv"  # for all 140 samples
+  
+  snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt";  # 91 unique subjects (after removing the two mess up samples: BN07-37, BN97-17)
+  snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.SNP.ID"
   if(grepl("PD", SAMPLE_GROUP)) {
     snps_file="~/neurogen/genotyping_PDBrainMap/eQTLMatrixPD/PD.Matrix.txt";  # 20 unique subjects after QC
     snpsloc="~/neurogen/genotyping_PDBrainMap/eQTLMatrixPD/PD.Matrix.SNP.ID";

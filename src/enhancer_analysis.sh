@@ -146,6 +146,9 @@ for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; Rscript $pipeline_path/src/e
 Rscript $pipeline_path/src/_eRNA.SNP.enrichment.merge.R eRNA.SNP.full.SNAP HCILB_SNDA HC_PY HC_nonNeuron
 Rscript $pipeline_path/src/_eRNA.SNP.enrichment.merge.R eRNA.SNP.enrichments.SNAP HCILB_SNDA HC_PY HC_nonNeuron
 
+# class I+II only (Re Clemens's email on 08/23/2017)
+Rscript $pipeline_path/src/eRNA.SNP.enrichment.R SNAP HCILB_SNDA eRNA.SNP.enrichment.SNAP.TNE123
+
 # private only
 echo "all" `wc -l $GENOME/Annotation/Variation/snp137.bed.groupped.SNP | cut -f1 -d' '` > SNP.private.major.counts.summary
 echo "HCILB_SNDA" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b HCILB_SNDA/eRNA.private.bed -u | wc -l | cut -f1 -d' '` >> SNP.private.major.counts.summary
@@ -182,7 +185,16 @@ cd HCILB_SNDA;
 bsub -q big -n 2 -R 'rusage[mem=10000]' -eo eQTL.run.log -oo eQTL.run.log Rscript ~/neurogen/pipeline/RNAseq/src/eRNA.eQTL.R # for HCILB_SNDA only
 ln -fs final.cis.eQTL.xls final.cis.eQTL.d1e6.p1.xls
 cat final.cis.eQTL.xls | awk 'NR==1 || $5<=0.01' > final.cis.eQTL.d1e6.p1e-2.xls
-cat final.cis.eQTL.xls | awk '$5<=0.01 && $6<=0.05' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls  ## Note: The FDR based on p<=1 might be different from FDR based on p<=0.01
+cat final.cis.eQTL.xls | awk '$5<=0.01 && $6<=0.05' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls
+
+# only for HTNE class I+II
+awk '$5<3{print $4}' eRNA.class.bed | fgrep -f - final.cis.eQTL.d1e6.p1.xls > final.cis.eQTL.d1e6.p1.HTNE1n2.xls
+#Rscript
+df=read.table("~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1.HTNE1n2.xls", header=F,stringsAsFactors=F)
+df$V6=p.adjust(df$V5, method="fdr")
+df=df[df$V6<=0.05 & df$V5<=0.01,]
+write.table(df, "~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1.HTNE1n2.p1e-2.FDRpt5.xls", quote=F, row.names=F, col.names=F, sep="\t")
+
 
 ## group significant eQTLs by gene and annotate with OMIM (Table S12)
 Rscript $pipeline_path/modules/_eQTL_by_gene_annotation.R final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls TNE
@@ -191,6 +203,7 @@ Rscript $pipeline_path/modules/_eQTL_by_gene_annotation.R final.cis.eQTL.d1e6.p1
 bsub -q big-multi -n 4 -M 5000 -oo RTC.run.log -eo RTC.run.log Rscript $pipeline_path/modules/_RTC.R ~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt expression.postSVA.xls final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls HTNE
 ## annotate: add hostgene_GWAS_SNP and hostgene_eQTL_SNP
 sed 's/ /___/g' final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.xls | awk '{OFS="\t"; split($9,a,"_"); if(NR>1) print a[1],$10-1,$10,$0}'  | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-14,18 | sort | groupBy -g 1-11 -c 12 -o distinct | awk '{OFS="\t"; split($9,a,"_"); print a[1],$11-1,$11,$0}' | intersectBed -a - -b <(cat $GENOME/Annotation/Genes/genes.bed | awk '{OFS="\t"; print $1,$2,$3,$7,$5,$6}') -wao | cut -f4-15,19 | sort | groupBy -g 1-12 -c 13 -o distinct | sed 's/___/ /g' > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.RTC.annotated.xls
+
 
 ## filter rules (for display purpose only): 
 # 1. for each gene, take the eSNPs with the best RTC score (if there are multiple eSNPs in LD) per GWAS SNP. 

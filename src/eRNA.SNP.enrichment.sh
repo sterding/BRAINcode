@@ -47,6 +47,18 @@ echo "# all"
 cat $snps_in_LD.autosomal.associations.bed | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.all
 echo "# eRNA"
 intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.HTNE
+echo "# eRNA - class I"
+[ -e eRNA.classI.bed ] || awk 'NR>1{OFS="\t"; split($1,a,"_"); if($28==1) print a[1],a[2],a[3],$1}' eRNA.characterize.xls > eRNA.classI.bed
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.classI.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.HTNE1
+echo "# eRNA - class II"
+[ -e eRNA.classII.bed ] || awk 'NR>1{OFS="\t"; split($1,a,"_"); if($28==2) print a[1],a[2],a[3],$1}' eRNA.characterize.xls > eRNA.classII.bed
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.classII.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.HTNE2
+echo "# eRNA - class III"
+[ -e eRNA.classIII.bed ] || awk 'NR>1{OFS="\t"; split($1,a,"_"); if($28==3) print a[1],a[2],a[3],$1}' eRNA.characterize.xls > eRNA.classIII.bed
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.classIII.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.HTNE3
+echo "# eRNA - class I+II"
+[ -e eRNA.classInII.bed ] || awk 'NR>1{OFS="\t"; split($1,a,"_"); if($28<3) print a[1],a[2],a[3],$1}' eRNA.characterize.xls > eRNA.classInII.bed
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.classInII.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.HTNE1n2
 echo "# eRNA-private"
 [ -e eRNA.private.major.bed ] && intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.private.major.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.private.major.HTNE
 [ -e eRNA.private.minor.bed ] && intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.private.minor.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.private.minor.HTNE
@@ -63,6 +75,10 @@ echo "## total overlapped SNPs count with each dataset"
 ### ##################
 echo "all" `wc -l $GENOME/Annotation/Variation/snp137.bed.groupped.SNP | cut -f1 -d' '` > SNP.$type.counts.summary
 echo "HTNE" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "HTNE1n2" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.classInII.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "HTNE1" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.classI.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "HTNE2" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.classII.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "HTNE3" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.classIII.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "exon" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $GENOME/Annotation/Genes/mRNA.innner.exon.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "promoter" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "random" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.random.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary

@@ -23,9 +23,9 @@ ld_file_name="~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/GWASC
 # a file to tell SNPs in LD interval, in format of "chr17	43714849	43714850 hg38_chr17_45637484_rs2942168 	1	.	Parkinson's_disease	rs113155081;rs62055661;rs558738552;|43752078;43752039;43751598;|0.997467;0.997467;0.99", where the 4th column has GWAS SNP id at the end.
 
 # # HTNEs
-snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
-expr_file_name="~/eRNAseq/HCILB_SNDA/expression.postSVA.xls"
-eqtl_file_name="~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls"
+# snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
+# expr_file_name="~/eRNAseq/HCILB_SNDA/expression.postSVA.xls"
+# eqtl_file_name="~/eRNAseq/HCILB_SNDA/final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls"
 # 
 # # Genes
 # snps_file_name="~/neurogen/genotyping_PDBrainMap/eQTLMatrixBatch123/All.Matrix.txt"
