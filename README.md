@@ -1,5 +1,8 @@
-RNA-seq Analysis Pipeline
+BRAINcode Pipeline
 =========================
+Overview
+---------------
+![RBAINcode overview](BRAINcode.overview.png)
 
 File naming convention
 ---------------
