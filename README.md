@@ -18,21 +18,21 @@ Folder structure
 ----------------
 For each project (e.g. PDMap), it should have a folder named with project short name and followed by the type of data, such as PDMap_RNAseq, HDPredict_smallRNA etc. 
 - rawfiles
- - raw fastq files from sequencing;
- - use soft links for external location or unformated file name
- - log file (readme.txt or Excel)
+  - raw fastq files from sequencing;
+  - use soft links for external location or unformated file name
+  - log file (readme.txt or Excel)
 - filtered
- - filtered files (e.g. adaptor removal/clip)
+  - filtered files (e.g. adaptor removal/clip)
 - run_output 
- - sub-folder per sample (e.g. sample1, sample2 etc.)
+  - sub-folder per sample (e.g. sample1, sample2 etc.)
     - output of Tophat/Cufflinks/htseq-count runs
     - uniq subfolder for the runs for unique reads only
     - status indication file (.status*) for tracking the progress
 - for_display
- - files used for display on UCSC / IGV, such as *.bam, *.bam.bai, *.bw, *.gtf etc.
- - use soft links to the output files
+  - files used for display on UCSC / IGV, such as *.bam, *.bam.bai, *.bw, *.gtf etc.
+  - use soft links to the output files
 - results
- - result files for integrative analysis, e.g. differential analysis by combining all samples. 
+  - result files for integrative analysis, e.g. differential analysis by combining all samples. 
  
 Pipeline requirement
 --------------------
