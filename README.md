@@ -43,7 +43,6 @@ Pipeline requirement
 
 Pipeline structure
 ------------------
-![flowchart_rnaseq] (./src/flowchart_rnaseq.png "Flowchart of RNAseq pipeline")
 
 Each sub-module has its own status hidden file (e.g. .status.$modulename.adaptorremoval). To check if any sample not completed at any step, use script below:
 ```
