@@ -19,6 +19,7 @@ module use /apps/modulefiles/test
 module load jre7.7
 module load zlib-1.2.7
 module load python/2.7.3
+module load pysam/0.9.1.4
 module load numpy/1.9
 module load kpal/2.1.2 # for kmer profiling
 
@@ -33,7 +34,6 @@ module load bowtie2-2.1.0
 module load tophat/2.0.10
 module load bedtools/2.26.0
 module load samtools-0.1.18
-module load RSeQC/2.4
 module load prinseq
 module load perl
 

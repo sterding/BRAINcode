@@ -53,7 +53,7 @@ result_dir=$input_dir/../results
 ########################
 cd $input_dir
 
-for i in *_9_*.R1.fastq.gz;
+for i in *.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};

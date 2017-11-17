@@ -38,9 +38,10 @@ region=$4 # in the following format: ‘chr2’ (the whole chr2), ‘chr2:100000
 [ "$2" != "" -a -e "$1" ] || {
 	echo "
 # Script convert BAM to bigwig and bedgraph
-# Usage: bam2bigwig <in.bam|sam|bed> <-split|-nosplit> [chr4|chr4:232,2323-343,5454]
+# Usage: bam2bigwig <in.bam|sam|bed> <-split|-nosplit> <normalizationFactor> [chr4|chr4:232,2323-343,5454]
 # -split is to split input file in +/- strand (Default)
 # -nosplit is to not split input file by strand
+# If normalizationFactor==0, then no normalization; otherwise, use it as the M (in RPM) for normalization
 "; exit 0;}
 
 ext=${inputfile##*.}

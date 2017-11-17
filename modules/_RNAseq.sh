@@ -113,6 +113,7 @@ touch $outputdir/$samplename/.status.$modulename.mapping
 ############################################
 echo "["`date`"] STEP 4.1. mapping & calling circRNA"
 ############################################
+cd $outputdir/$samplename
 
 mindist=200
 
@@ -121,11 +122,19 @@ mindist=200
 ## the following option is added by Rebeca:
 ## --fusion-min-dist default is 10,000,000 changed to --fusion-min-dist 200
 ## --fusion-ignore-chromosomes added mitochondria
-[ ! -f $outputdir/$samplename/.status.$modulename.circRNA ] && \
-bamToFastq -i $outputdir/$samplename/unmapped.bam -fq $outputdir/$samplename/unmapped.fastq &&
-tophat -o $outputdir/$samplename/tophat_fusion -p $CPU --fusion-search --fusion-min-dist $mindist --fusion-ignore-chromosomes chrM --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome $outputdir/$samplename/unmapped.fastq &&
-CIRCexplorer.py -f $outputdir/$samplename/tophat_fusion/accepted_hits.bam -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -r $GENOME/Annotation/Genes/refFlat.txt -o $outputdir/$samplename/circ.txt && \
-touch $outputdir/$samplename/.status.$modulename.circRNA
+[ ! -f .status.$modulename.circRNA ] && \
+bamToFastq -i unmapped.bam -fq unmapped.fastq &&
+tophat -o tophat_fusion -p $CPU --fusion-search --fusion-min-dist $mindist --fusion-ignore-chromosomes chrM --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome unmapped.fastq &&
+CIRCexplorer.py -f tophat_fusion/accepted_hits.bam -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -r $GENOME/Annotation/Genes/refFlat.txt -o circ.txt && \
+touch .status.$modulename.circRNA
+
+
+## update to CIRCExplore2 to include CDR1as (see email with Xiao-Ou Zhou) - 10/23/2017
+## extract CDR1as gtf from UCSC and converted to genePred then manually added to refFlat.txt
+[ ! -f .status.$modulename.circRNA.circexplore2 ] && \
+CIRCexplorer2 parse -t TopHat-Fusion tophat_fusion/accepted_hits.bam -b back_spliced_junction.bed > .CIRCexplorer2_parse.log && \
+CIRCexplorer2 annotate -r $GENOME/Annotation/Genes/refFlat_plus_CDR1as.txt -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -b back_spliced_junction.bed -o circularRNA_known.txt --low-confidence > .CIRCexplorer2_annotate.log && \
+touch .status.$modulename.circRNA.circexplore2
 
 # ## calling cirRNA using Mapsplice
 # [ ! -f $outputdir/$samplename/.status.$modulename.circRNA_Mapsplice ] && \
