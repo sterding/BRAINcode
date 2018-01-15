@@ -13,17 +13,20 @@ type=args[1]
 samplegroup=args[2]
 output_prefix=args[3]
 
-if(output_prefix=="") output_prefix=paste0("eRNA.SNP.enrichments.",type)
+if(length(args)==2) output_prefix=paste0("eRNA.SNP.enrichments.",type)
 
 require(ggplot2)
 
 setwd(paste0("~/eRNAseq/",samplegroup));
 
-# setwd("~/eRNAseq/HCILB_SNDA"); type="SNAP"
+# setwd("~/eRNAseq/HCILB_SNDA"); type="SNAP"; output_prefix=paste0("eRNA.SNP.enrichments.",type)
+# setwd("~/eRNAseq/HC_PY"); type="SNAP"; output_prefix=paste0("eRNA.SNP.enrichments.",type)
+# setwd("~/eRNAseq/HC_nonNeuron"); type="SNAP"; output_prefix=paste0("eRNA.SNP.enrichments.",type)
 
 s=read.table(paste0("SNP.",type,".counts.summary"), header=F,row.names=1); 
 results=data.frame();
-for(i in c('HTNE','HTNE1n2','HTNE1','HTNE2','HTNE3','exon','promoter','random')){
+for(i in c('HTNE','HTNE1','HTNE2','HTNE3','HTNE-private','exon','promoter','random','chromHMM','DNase','CAGE','TFhotspot','P300','HCNE')){
+  if(!file.exists(paste0("SNP.",type,".count.",i))) next;
   n1=s[i,1]; n2=s['all',1];
   all=read.table(paste0("SNP.",type,".count.all")); rownames(all)=all[,1]
   x=read.table(paste0("SNP.",type,".count.",i)); rownames(x)=x[,1]
@@ -44,11 +47,18 @@ results = results[with(results, order(type, -OR)), ]
 # save all result
 write.table(results, paste0(output_prefix,".full.xls"), sep="\t", col.names = T, row.names = F)
 
-results=subset(results, OR>1 & pvalue<0.01 & observed>3)
+results=subset(results, OR>1 & pvalue<0.01/1037 & observed>3)
 table(results$type)
-#   HTNE    exons promoter   random 
-#     82       12       70       2 
-write.table(results, paste0(output_prefix,".xls"), sep="\t", col.names = T, row.names = F)
+# HTNE   HTNE1n2     HTNE1     HTNE2     HTNE3      exon  promoter    random  chromHMM     DNase      CAGE TFhotspot      P300      HCNE 
+# 61        35        26        20        49        11        43         0       151       115        36       201        65         0 
+write.table(results, paste0(output_prefix,".qvalue0.01.xls"), sep="\t", col.names = T, row.names = F)
+
+## plot barplot of total traits per category
+pdf(paste0(output_prefix,".barplot.pdf"), paper = 'us')
+#results = read.table(paste0(output_prefix,".sign.xls"), header = T, sep="\t")
+#barplot(table(results$type)[c('HTNE','exon','promoter','random','CAGE')])
+barplot(table(results$type)[c('HTNE','exon','promoter','random','chromHMM','DNase','CAGE','TFhotspot', 'P300','HCNE')])
+dev.off()
 
 pdf(paste0(output_prefix,".pdf"), width=20, height=12); 
 # Note: Don't use ggsave() with Rscript, which will generate another Rplot.pdf unnecessarily. See http://stackoverflow.com/questions/19382384/ggplot2-overwrite-one-another-in-rplots-pdf
@@ -80,13 +90,39 @@ p = p + ggtitle(paste0(basename(getwd()), " -- SNP enrichments (LD from ",type,"
 
 print(p);
 
+dev.off();
 
+## only HTNE, HTNE1, 2, and 3
+pdf(paste0(output_prefix,".HTNE123.pdf"), width=20, height=12); 
+results = subset(results, type %in% c('HTNE','HTNE1','HTNE2','HTNE3'))
+results = results[with(results, order(type, pvalue)), ]
+results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
+p = ggplot(results, aes(x=Disease_or_Trait2, y=-log10(pvalue), fill=type, ymax=max(-log10(pvalue))*1.1)) 
+p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
+p = p + geom_hline(yintercept=-log10(0.01/1037), size=.5,linetype = 2)  ## Bonferroni correction, where 1037 is the number of disease/traits in GWAS (wc -l SNP.$type.count.all)
+p = p + theme_bw() 
+p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) 
+p = p + geom_text(aes(label=paste0(observed," (",round(OR,1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 
+p = p + ggtitle(paste0(basename(getwd()), " -- SNP enrichments (LD from ",type,", sorted by pvalue)")) 
+
+print(p);
 
 dev.off();
 
-# results = results[with(results, order(type, pvalue)), ]
-# results = subset(results, type=='HTNE')
-# results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
-# p = ggplot(results, aes(x=Disease_or_Trait2, y=-log10(pvalue), ymax=max(-log10(pvalue))*1.2)) + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") + theme_bw() + theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + geom_text(aes(label=paste0(observed," (",round(OR,1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) + ggtitle(paste0("SNP enrichments (LD from ",type,", sorted by pvalue) - HTNE only")) 
-# 
-# pdf(paste0("eRNA.SNP.enrichments.",type,".pvalue.onlyHTNE.pdf"), width=10, height=12); print(p); dev.off();
+## private HTNE only
+pdf(paste0(output_prefix,".HTNE-private.pdf"), width=20, height=12); 
+results = subset(results, type=='HTNE-private')
+results = results[with(results, order(type, pvalue)), ]
+results$Disease_or_Trait2 <- factor(results$Disease_or_Trait, unique(as.character(results$Disease_or_Trait)))
+p = ggplot(results, aes(x=Disease_or_Trait2, y=-log10(pvalue), fill=type, ymax=max(-log10(pvalue))*1.1)) 
+p = p + geom_bar(width=.2, position = position_dodge(width=1), stat="identity") 
+p = p + geom_hline(yintercept=-log10(0.01/1037), size=.5,linetype = 2)  ## Bonferroni correction, where 1037 is the number of disease/traits in GWAS (wc -l SNP.$type.count.all)
+p = p + theme_bw() 
+p = p + theme(axis.title.x=element_blank(), axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1, size=8), legend.justification=c(1,1), legend.position=c(1,1)) 
+p = p + geom_text(aes(label=paste0(observed," (",round(OR,1),")")), position = position_dodge(width=1), hjust=0, vjust=.5, angle = 90, size=2.5) 
+p = p + ggtitle(paste0(basename(getwd()), " -- SNP enrichments (LD from ",type,", sorted by pvalue)")) 
+
+print(p);
+
+dev.off();
+

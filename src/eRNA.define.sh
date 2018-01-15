@@ -55,7 +55,7 @@ awk -vD=$Dsig '{OFS="\t"; if($4>=D) print $1,$2,$3,".",$4}' eRNA.tmp1 | mergeBed
 
 echo "# step3: located in non-generic regions (e.g. 500bp away from any annotated exons)"
 # =================
-intersectBed -a eRNA.tmp2 -b ../toExclude.bed -v > eRNA.tmp3
+intersectBed -a eRNA.tmp2 -b ../externalData/toExclude.bed -v > eRNA.tmp3
 
 echo "# step4: length > 100nt"
 # =================

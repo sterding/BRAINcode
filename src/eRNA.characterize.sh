@@ -88,6 +88,9 @@ $pipeline_path/bin/getNormalizedCpGscore.awk promoters.seq.txt | sort -k1,1 > pr
 # number of TF ChIP-seq peaks in the region (only if it occurs in at least one cell lines ## only TF peaks supported by >=5 cell lines are counted)
 awk '$6>=1' $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | intersectBed -a $inputbed -b stdin -c | sort -k4,4 | cut -f4,5 > eRNA.f06.TFBS.txt
 
+# Define TF hotspot (regions with >=5 different TFs bound)
+sort -k1,1 -k2,2n $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed | mergeBed -i stdin -c 4 -o count_distinct | awk '$4>=5' > $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.hotspot.bed 
+
 # ====================================
 # P300 binding
 # ====================================
@@ -121,8 +124,14 @@ intersectBed -a $inputbed -b $EXTERNAL_FEATURE/CAGE/human_permissive_enhancers_p
 #Fetal Brain Female
 #Fetal Brain Male
 #for i in E067 E068 E069 E070 E071 E072 E073 E074 E082 E081; do echo $i; curl -s http://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/${i}_15_coreMarks_segments.bed > ../Segment/${i}_15_coreMarks_segments.bed; done
+# E6, E7, and E12 for enhancer (http://egg2.wustl.edu/roadmap/web_portal/chr_state_learning.html#core_15state)
 # cat externalData/Segment/E*_15_coreMarks_segments.bed | awk '$4~/E6|E7|E12/' > externalData/Segment/15_coreMarks_segments.E6E7E12.bed
 intersectBed -a $inputbed -b $EXTERNAL_FEATURE/Segment/15_coreMarks_segments.E6E7E12.bed -c | sort -k4,4 | cut -f4,5 > eRNA.f09.chromHMM_brain.txt
+
+# strong enhancer (E7)
+# cat externalData/Segment/E*_15_coreMarks_segments.bed | awk '$4=="E7"' > externalData/Segment/15_coreMarks_segments.E7enhancer.bed
+# active promoter (E1)
+# cat externalData/Segment/E*_15_coreMarks_segments.bed | awk '$4=="E1"' > externalData/Segment/15_coreMarks_segments.E1promoter.bed
 
 # ====================================
 # overlap with VISTA enhancers

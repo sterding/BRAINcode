@@ -146,8 +146,9 @@ for i in HCILB_SNDA HC_PY HC_nonNeuron; do echo $i; Rscript $pipeline_path/src/e
 Rscript $pipeline_path/src/_eRNA.SNP.enrichment.merge.R eRNA.SNP.full.SNAP HCILB_SNDA HC_PY HC_nonNeuron
 Rscript $pipeline_path/src/_eRNA.SNP.enrichment.merge.R eRNA.SNP.enrichments.SNAP HCILB_SNDA HC_PY HC_nonNeuron
 
-# class I+II only (Re Clemens's email on 08/23/2017)
-Rscript $pipeline_path/src/eRNA.SNP.enrichment.R SNAP HCILB_SNDA eRNA.SNP.enrichment.SNAP.TNE123
+# class I+II , I, II, and III separately (Re Clemens's email on 08/23/2017)
+Rscript $pipeline_path/src/eRNA.SNP.enrichment.R SNAP HCILB_SNDA ## generate a eRNA.SNP.enrichment.SNAP.HTNE123.pdf file
+
 
 # private only
 echo "all" `wc -l $GENOME/Annotation/Variation/snp137.bed.groupped.SNP | cut -f1 -d' '` > SNP.private.major.counts.summary

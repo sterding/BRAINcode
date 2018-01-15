@@ -3,7 +3,7 @@
 # Version: 2.0
 # Date: Nov 15th, 2017
 # Usage: TNE_caller.sh -h
-# bsub -q big-multi -n 2 -R 'rusage[mem=4000]' -J MSBB TNE_caller.sh -G MSBB 
+# bsub -q long -n 2 -R 'rusage[mem=4000]' -J MSBB TNE_caller.sh -G MSBB 
 # preqisition: 
 #   TNE_caller.combine_bigwig.sh: generate trimmedmean.uniq.normalized.$SAMPLE_GROUP.bedGraph if it's not existed [optional]
 #   TNE_caller.fit.Tx.noise.R: calculate RNAseq density with p=0.05
@@ -24,15 +24,8 @@
 Options=$@
 Optnum=$#
 
-SAMPLE_GROUP=SKNSH
-toExclude=/data/neurogen/external_download/externalData/toExclude.bed
-length_min=100
-splicing_site=/data/neurogen/rnaseq_PD/results/merged/denovo_assembly/tophatjunctions.merged.splicingsites.flanking20nt.bed
-genome_size=$GENOME/Annotation/Genes/ChromInfo.txt
-inputBG=trimmedmean.uniq.normalized.$SAMPLE_GROUP.bedGraph
-list_bw_file=$SAMPLE_GROUP.bigwig.list
-
 ## to generate the bigwig list file
+## cd ~/eRNAseq
 ## ls ~/neurogen/ROSMAP/MSBB/rnaseq_runoutput/*.bw | awk '{OFS="\t"; match($1,/runoutput\/(.*).Aligned/,a); print a[1], $1;}' > MSBB.bigwig.list 
 ## ls ~/neurogen/rnaseq_CSF/run_output/CC_SK-N-SH-*/uniq/accepted_hits.normalized.bw | awk '{OFS="\t"; match($1,/run_output\/(.*)\/uniq/,a); print a[1], $1;}' > SKNSH.bigwig.list
 
@@ -96,8 +89,22 @@ while getopts ':G:B:g:x:L:s:l:-h' OPTION ; do
   esac
 done
 
+# SAMPLE_GROUP=MSBB
+[ -z "$SAMPLE_GROUP" ] && _usage ">>>>>>>> invalid options <<<<<<<<" && exit $? ;
+[ -z "$toExclude" ] && toExclude=/data/neurogen/external_download/externalData/toExclude.bed
+[ -z "$length_min" ] && length_min=100
+[ -z "$splicing_site" ] && splicing_site=/data/neurogen/rnaseq_PD/results/merged/denovo_assembly/tophatjunctions.merged.splicingsites.flanking20nt.bed
+[ -z "$genome_size" ] && genome_size=$GENOME/Annotation/Genes/ChromInfo.txt
+[ -z "$inputBG" ] && inputBG=trimmedmean.uniq.normalized.$SAMPLE_GROUP.bedGraph
+[ -z "$list_bw_file" ] && list_bw_file=$SAMPLE_GROUP.bigwig.list
+
 [ -d $SAMPLE_GROUP ] || mkdir $SAMPLE_GROUP
 cd $SAMPLE_GROUP
+
+## quit if eRNA.bed already exists
+[ -e eRNA.bed ] && echo "File eRNA.bed already exists. Quit!" && exit $?
+
+[[ $list_bw_file =~ ^\/ ]] || ln -fs ../$list_bw_file $list_bw_file  # if not absolute path, then create a soft link in the current folder
 
 echo "# step0: measure transcriptional noise in background genomic regions"
 # =================
@@ -160,13 +167,16 @@ awk '{OFS="\t"; split($1,a,"_"); if($1~/^chr/) {if($5<=0.05) print a[1],a[2],a[3
 echo "# Final output files: eRNA.bed, eRNA.loci.txt, eRNA.meanRPM.xls"
 # =================
 # use bonferroni for major cell types and FDR for minor cell types.
-ln -fs eRNA.bonferroni.bed eRNA.bed
+ln -fs eRNA.fdr.bed eRNA.bed
 # loci.txt required for fasteQTL
 awk 'BEGIN{OFS="\t"; print "id","chr","s1","s2";}{print $4,$1,$2,$3;}' eRNA.bed > eRNA.loci.txt  
 # meanRPM
 paste eRNA.tmp5.pvalues.adjusted.xls eRNA.tmp5.meanRPM.xls | awk 'NR ==1 || $5<=0.05' | cut -f6- > eRNA.meanRPM.xls
 
 echo "THE END!"
+
+
+
 
 
 # ## expression level of the defined eRNAs on ALL (except the stranded) samples, not just the $SAMPLE_GROUP

@@ -21,7 +21,7 @@ cd ~/eRNAseq/$samplegroup
 #[ "$type" == "PLINK" ] && snps_in_LD=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.snps_in_LD.PLINK.LD_w250.r2_0.8.bed
 
 ## extract all autosomal.associations
-awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$2,$3,$7; for(i=1;i<n;i++) print $1,b[i]-1,b[i],$7;}' $snps_in_LD | grep -v chrX | grep -v chrY | sort -u > $snps_in_LD.autosomal.associations.bed
+[ -e $snps_in_LD.autosomal.associations.bed ] || awk 'BEGIN{FS="\t"; OFS="\t";}{split($8,a,"|");  n=split(a[2],b,";"); print $1,$2,$3,$7; for(i=1;i<n;i++) print $1,b[i]-1,b[i],$7;}' $snps_in_LD | grep -v chrX | grep -v chrY | sort -u > $snps_in_LD.autosomal.associations.bed
 
 # number of gwas SNPs
 wc -l $snps_in_LD
@@ -60,14 +60,30 @@ echo "# eRNA - class I+II"
 [ -e eRNA.classInII.bed ] || awk 'NR>1{OFS="\t"; split($1,a,"_"); if($28<3) print a[1],a[2],a[3],$1}' eRNA.characterize.xls > eRNA.classInII.bed
 intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.classInII.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.HTNE1n2
 echo "# eRNA-private"
-[ -e eRNA.private.major.bed ] && intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.private.major.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.private.major.HTNE
-[ -e eRNA.private.minor.bed ] && intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.private.minor.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.private.minor.HTNE
+[ -e eRNA.private.major.bed ] && intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.private.major.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.HTNE-private
+#[ -e eRNA.private.minor.bed ] && intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.private.minor.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.private.minor.HTNE
 echo "# mRNA inner exons"
 intersectBed -a $snps_in_LD.autosomal.associations.bed -b $GENOME/Annotation/Genes/mRNA.innner.exon.bed  -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.exon
 echo "# promoter -- [-200,+200] of protein-coding GENCODE v19 TSS"
 intersectBed -a $snps_in_LD.autosomal.associations.bed -b $GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.promoter
 echo "# randomly sampling"
 intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.random.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.random
+
+## add enhancers defined by other features (12/08/2017)
+EXTERNAL_FEATURE=~/eRNAseq/externalData
+echo "# chromHMM"
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/Segment/15_coreMarks_segments.E7enhancer.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.chromHMM
+echo "# DNase"
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/DNase/regions_enh_merged.brain.narrowPeak -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.DNase
+echo "# CAGE"
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/CAGE/permissive_enhancers.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.CAGE
+echo "# TFBS hotspot"
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.hotspot.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.TFhotspot
+echo "# P300"
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b <(awk '$4=="EP300"' $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed) -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.P300
+echo "# Conservation"
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/Conservation/HCNE_hg19_danRer7_70pc_50col.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.HCNE
+
 
 #rm $snps_in_LD.autosomal.associations.bed
 
@@ -79,9 +95,17 @@ echo "HTNE1n2" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped
 echo "HTNE1" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.classI.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "HTNE2" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.classII.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "HTNE3" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.classIII.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "HTNE-private" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.private.major.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "exon" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $GENOME/Annotation/Genes/mRNA.innner.exon.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "promoter" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "random" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.random.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+## add enhancers defined by other features (12/08/2017)
+echo "chromHMM" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/Segment/15_coreMarks_segments.E7enhancer.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "DNase" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/DNase/regions_enh_merged.brain.narrowPeak -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "CAGE" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/CAGE/permissive_enhancers.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "TFhotspot" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.hotspot.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "P300" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b <(awk '$4=="EP300"' $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.bed) -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "HCNE" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/Conservation/HCNE_hg19_danRer7_70pc_50col.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 
 #echo "## Fisher test and make plot"  # move out of the script now
 ### ##################
