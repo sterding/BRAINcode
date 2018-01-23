@@ -28,8 +28,8 @@ R1=$1  # filename of R1
 R2=$2  # filename of R2 (for paired-end reads)
 samplename=${R1/[.|_]R1*/}
 
-pipeline_path=$HOME/neurogen/pipeline/RNAseq
-source $pipeline_path/config.txt
+#pipeline_path=$HOME/neurogen/pipeline/RNAseq  ## already export in main pipeline.sh
+#source $pipeline_path/config.txt
 
 strandoption="--library-type fr-unstranded"; split="-nosplit"; 
 [[ $samplename == *stranded* ]] && strandoption="--library-type fr-secondstrand"  # by default we use Illumina SMARTer stranded RNA-Seq kit

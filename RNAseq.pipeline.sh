@@ -11,7 +11,7 @@ modulename=`basename $0`
 set +o posix  #  enables the execution of process substitution e.g. http://www.linuxjournal.com/content/shell-process-redirection
 STEP=0
 
-if [ $# -ne 1 ]
+if [ $# -lt 1 ]
 then
   echo "Usage:
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles
@@ -23,11 +23,15 @@ fi
 ########################
 ## 0. setting
 ########################
-pipeline_path=$HOME/neurogen/pipeline/RNAseq
-source $pipeline_path/config.txt
-
 # project folders
 input_dir=$1  # input_dir=/data/neurogen/rnaseq_PD/rawfiles
+pipeline_path=$2
+[ -z "$pipeline_path" ] && pipeline_path=`dirname $0`
+
+export pipeline_path=$pipeline_path
+export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
+
+source $pipeline_path/config.txt
 
 # create the subfolders (e.g. filtered, run_output, for_display, results)
 filtered_dir=$input_dir/../filtered
