@@ -28,8 +28,8 @@ R1=$1  # filename of R1
 R2=$2  # filename of R2 (for paired-end reads)
 samplename=${R1/[.|_]R1*/}
 
-#pipeline_path=$HOME/neurogen/pipeline/RNAseq  ## already export in main pipeline.sh
-#source $pipeline_path/config.txt
+## $pipeline_path and $CONFIG_FILE already exported in the main pipeline.sh
+source $CONFIG_FILE
 
 strandoption="--library-type fr-unstranded"; split="-nosplit"; 
 [[ $samplename == *stranded* ]] && strandoption="--library-type fr-secondstrand"  # by default we use Illumina SMARTer stranded RNA-Seq kit
@@ -107,9 +107,6 @@ cd $inputdir/../filtered
 tophat -o $outputdir/$samplename --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strandoption --max-multihits $MAX_HIT --no-coverage-search $GENOME/Sequence/Bowtie2Index/genome $R1 $R2 && \
 touch $outputdir/$samplename/.status.$modulename.mapping
 
-## Using BWA-MEM to prepare alignment for calling cirRNA with CIRI
-#bwa mem $R1 $R2
-
 ############################################
 echo "["`date`"] STEP 4.1. mapping & calling circRNA"
 ############################################
@@ -118,7 +115,7 @@ cd $outputdir/$samplename
 mindist=200
 
 # circular RNA calling and quantification (see: https://github.com/YangLab/CIRCexplorer/blob/master/README.md)
-## using tophat-2.0.10 as suggested by CIRCexplorer
+## using tophat-2.0.10 as suggested by CIRCexplorer (e.g. tophat>=2.0.9)
 ## the following option is added by Rebeca:
 ## --fusion-min-dist default is 10,000,000 changed to --fusion-min-dist 200
 ## --fusion-ignore-chromosomes added mitochondria

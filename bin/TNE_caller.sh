@@ -4,6 +4,9 @@
 # Date: Nov 15th, 2017
 # Usage: TNE_caller.sh -h
 # bsub -q long -n 2 -R 'rusage[mem=4000]' -J MSBB TNE_caller.sh -G MSBB 
+# bsub -q long -n 2 -R 'rusage[mem=4000]' -J SKNSH TNE_caller.sh -G SKNSH
+# bsub -q long -n 2 -R 'rusage[mem=4000]' -J TCPY2 TNE_caller.sh -G TCPY2
+# bsub -q long -n 2 -R 'rusage[mem=4000]' -J BrainGVEX TNE_caller.sh -G BrainGVEX
 # preqisition: 
 #   TNE_caller.combine_bigwig.sh: generate trimmedmean.uniq.normalized.$SAMPLE_GROUP.bedGraph if it's not existed [optional]
 #   TNE_caller.fit.Tx.noise.R: calculate RNAseq density with p=0.05
@@ -26,8 +29,9 @@ Optnum=$#
 
 ## to generate the bigwig list file
 ## cd ~/eRNAseq
-## ls ~/neurogen/ROSMAP/MSBB/rnaseq_runoutput/*.bw | awk '{OFS="\t"; match($1,/runoutput\/(.*).Aligned/,a); print a[1], $1;}' > MSBB.bigwig.list 
-## ls ~/neurogen/rnaseq_CSF/run_output/CC_SK-N-SH-*/uniq/accepted_hits.normalized.bw | awk '{OFS="\t"; match($1,/run_output\/(.*)\/uniq/,a); print a[1], $1;}' > SKNSH.bigwig.list
+## mkdir MSBB; ls ~/neurogen/ROSMAP/MSBB/rnaseq_runoutput/*.bw | awk '{OFS="\t"; match($1,/runoutput\/(.*).Aligned/,a); print a[1], $1;}' > MSBB.bigwig.list 
+## ls ~/neurogen/rnaseq_PD/run_output/CC_SK-N-SH-*/uniq/accepted_hits.normalized.bw | awk '{OFS="\t"; match($1,/run_output\/(.*)\/uniq/,a); print a[1], $1;}' > SKNSH.bigwig.list
+## mkdir TCPY2; ls ~/neurogen/rnaseq_PD/run_output/*_TCPY_10_*/uniq/accepted_hits.normalized.bw | awk '{OFS="\t"; match($1,/run_output\/(.*)\/uniq/,a); print a[1], $1;}' > TCPY2/TCPY2.bigwig.list
 
 function _usage()
 {
@@ -104,7 +108,7 @@ cd $SAMPLE_GROUP
 ## quit if eRNA.bed already exists
 [ -e eRNA.bed ] && echo "File eRNA.bed already exists. Quit!" && exit $?
 
-[[ $list_bw_file =~ ^\/ ]] || ln -fs ../$list_bw_file $list_bw_file  # if not absolute path, then create a soft link in the current folder
+[ -e $list_bw_file ] || ln -fs ../$list_bw_file $list_bw_file  # if not exist, then create a soft link in the current folder
 
 echo "# step0: measure transcriptional noise in background genomic regions"
 # =================

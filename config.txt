@@ -5,8 +5,7 @@
 # ==============================
 
 CPU=4
-#EMAIL=xdong@rics.bwh.harvard.edu
-EMAIL=rborgesmonroy@partners.org
+EMAIL=xdong@rics.bwh.harvard.edu
 QUEUE=big-multi
 MEMORY=4000 # unit in megabase
 
@@ -25,22 +24,19 @@ module load kpal/2.1.2 # for kmer profiling
 
 module load vcftools_0.1.9
 module load gatk-2.2-4
-#module load cufflinks/cufflinks-2.1.1
 module load cufflinks/2.2.1
 module load bowtie1/1.0.1 
-#module load bowtie/1.0.0
 module load bowtie2-2.1.0
-#module load tophat-2.0.8
 module load tophat/2.0.10
 module load bedtools/2.26.0
 module load samtools-0.1.18
 module load prinseq
+module load fastqc/default 
 module load perl
 
 module load R/3.1.0  # default version of R
 #module load R/3.0.2  # only required by PEER --> will load when running PEER
 #module load peer/1.3
-module load fastqc/default 
 
 module load htseq/0.6.1
 

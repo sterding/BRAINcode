@@ -16,6 +16,7 @@ then
   echo "Usage:
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_CSF/rawfiles
+  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_MS/rawfiles
   "
   exit
 fi
@@ -25,13 +26,14 @@ fi
 ########################
 # project folders
 input_dir=$1  # input_dir=/data/neurogen/rnaseq_PD/rawfiles
-pipeline_path=$2
-[ -z "$pipeline_path" ] && pipeline_path=`dirname $0`
 
-export pipeline_path=$pipeline_path
+export pipeline_path=$HOME/neurogen/pipeline/RNAseq
 export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 
-source $pipeline_path/config.txt
+config_file=$input_dir/config.txt
+[ -e "$config_file" ] || config_file=$HOME/neurogen/pipeline/RNAseq/config.txt
+echo "Using configuration file at:" $config_file;
+source $config_file
 
 # create the subfolders (e.g. filtered, run_output, for_display, results)
 filtered_dir=$input_dir/../filtered
@@ -64,7 +66,7 @@ do
     samplename=${R1/.R1*/}
 
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -u $EMAIL -N _RNAseq.sh $R1 $R2;
+    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -u $EMAIL -N _RNAseq.lite.sh $R1 $R2;
 
 done
 
