@@ -71,8 +71,10 @@ intersectBed -a $snps_in_LD.autosomal.associations.bed -b eRNA.random.bed -u | c
 
 ## add enhancers defined by other features (12/08/2017)
 EXTERNAL_FEATURE=~/eRNAseq/externalData
-echo "# chromHMM"
-intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/Segment/15_coreMarks_segments.E7enhancer.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.chromHMM
+echo "# chromHMM-brain"
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/Segment/15_coreMarks_segments.E7enhancer.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.chromHMM_brain
+echo "# chromHMM-cellline"
+intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/Segment/wgEncodeBroadHmm.strongEnhancer.bed -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.chromHMM_cellline
 echo "# DNase"
 intersectBed -a $snps_in_LD.autosomal.associations.bed -b $EXTERNAL_FEATURE/DNase/regions_enh_merged.brain.narrowPeak -u | cut -f4 | sed 's/ (.*//g;s/;.*//g;s/ /_/g' | sort | uniq -c | sort -k1,1nr | awk '{OFS="\t"; print $2, $1}' > SNP.$type.count.DNase
 echo "# CAGE"
@@ -100,7 +102,8 @@ echo "exon" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SN
 echo "promoter" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $GENOME/Annotation/Genes/gencode.v19.annotation.pc.promoter.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "random" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b eRNA.random.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 ## add enhancers defined by other features (12/08/2017)
-echo "chromHMM" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/Segment/15_coreMarks_segments.E7enhancer.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "chromHMM_cellline" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/Segment/wgEncodeBroadHmm.strongEnhancer.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
+echo "chromHMM_brain" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/Segment/15_coreMarks_segments.E7enhancer.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "DNase" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/DNase/regions_enh_merged.brain.narrowPeak -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "CAGE" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/CAGE/permissive_enhancers.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary
 echo "TFhotspot" `intersectBed -a $GENOME/Annotation/Variation/snp137.bed.groupped.SNP -b $EXTERNAL_FEATURE/TFBS/wgEncodeRegTfbsClusteredWithCellsV3.hotspot.bed -u | wc -l | cut -f1 -d' '` >> SNP.$type.counts.summary

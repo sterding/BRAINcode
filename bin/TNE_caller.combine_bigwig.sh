@@ -11,6 +11,7 @@
 #!/bin/bash
 
 module load ucsc/2017
+export TMPDIR=/data/neurogen/
 
 list_bw_file=$1
 group_lable=$2
@@ -39,7 +40,7 @@ echo "["`date`"] computing trimmed mean of bedGraph (using up to 100 samples ran
 cut -f2 $list_bw_file | sort --random-sort --random-source=$list_bw_file | head -n100 > $list_bw_file.top100
 N=`cat $list_bw_file.top100 | wc -l`
 # merge, sort, and add the last line, and also convert sum to mean
-[ -e mean.uniq.normalized.$group_lable.bedGraph ] || bigWigMerge -inList $list_bw_file.top100 stdout | LC_ALL=C sort -S 1G -T /scratch/tmp/xd010/ -k1,1 -k2,2n | awk -v N=$N -v GENOME_SIZE=$GENOME_SIZE '{OFS="\t";$4=$4/N; S+=$4*($3-$2); if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id; TOTAL=GENOME_SIZE; bc=S/TOTAL;print "#basalCoverage="bc, "#"S"/"TOTAL;}' > mean.uniq.normalized.$group_lable.bedGraph
+[ -e mean.uniq.normalized.$group_lable.bedGraph ] || bigWigMerge -inList $list_bw_file.top100 stdout | LC_ALL=C sort -S 1G -T $TMPDIR -k1,1 -k2,2n | awk -v N=$N -v GENOME_SIZE=$GENOME_SIZE '{OFS="\t";$4=$4/N; S+=$4*($3-$2); if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id; TOTAL=GENOME_SIZE; bc=S/TOTAL;print "#basalCoverage="bc, "#"S"/"TOTAL;}' > mean.uniq.normalized.$group_lable.bedGraph
 ln -fs mean.uniq.normalized.$group_lable.bedGraph trimmedmean.uniq.normalized.$group_lable.bedGraph
 
 echo "["`date`"] bedgraph --> bigwig"

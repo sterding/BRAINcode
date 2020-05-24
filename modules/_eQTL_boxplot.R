@@ -12,7 +12,7 @@ GSfile=args[1]  # gene SNP table
 path=ifelse(is.na(args[2]),getwd(),args[2]) 
 setwd(path); 
 
-# setwd("~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/"); load("data.RData"); load("genes.RData"); G="ENSG00000186868.11"; S="rs17649553:43994648:C:T_C:T"; genesnp = read.table("final.cis.eQTL.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)
+# setwd("~/neurogen/rnaseq_PD/results/eQTL/HCILB_SNDA/"); load("data.RData"); load("genes.RData"); G="ENSG00000069275.12"; S="rs823116:205720483:G:A_G:A"; genesnp = read.table("final.cis.eQTL.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)
 # setwd("~/eRNAseq/HCILB_SNDA");load("data.RData"); load("genes.RData"); G="chr17_44218414_44219042"; S="rs17649553:43994648:C:T_C:T"; genesnp = read.table("final.cis.eQTL.d1e6.p1e-2.xls", header=T, stringsAsFactors =F)
 
 message("# load data...")
@@ -43,9 +43,12 @@ apply(GS, 1, function(gs) {
   p=signif(genesnp0$p.value, 3);
   
   df$SNP1=factor(df$SNP, levels=2:0)  ## in the current All.Matrix.txt, the number is number of REF allele (since we use REF in the --recode-allele) -- Ganqiang
-  if(is.na(p) || length(p)==0) {
-      test=aov(expression~SNP1, df)
-      p=signif(summary(test)[[1]][["Pr(>F)"]][[1]],3)  # in case SNP:eQTL pair is not in the final.cis.eQTL.d1e6.p1e-2.xls file (e.g. those not or less significant pairs)
+  if(is.na(p) || length(p)==0) { # in case SNP:eQTL pair is not in the final.cis.eQTL.d1e6.p1e-2.xls file (e.g. those not or less significant pairs)
+      # test=aov(expression~SNP1, df)
+      # p=signif(summary(test)[[1]][["Pr(>F)"]][[1]],3)  
+      # change to use lm(): 12/11/2018
+      test = lm(expression~SNP1, df)
+      p=signif(summary(test)[[1]][["Pr(>t)"]][[1]],3)  
   }
   pdf(file=paste("eQTLboxplot",G,gsub(":","..",S),"pdf",sep="."), width=6, height=4)
   par(mfrow=c(1,3), mar=c(4,4,2,1), oma = c(0, 0, 2, 0))

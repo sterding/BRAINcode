@@ -16,7 +16,10 @@ then
   echo "Usage:
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_PD/rawfiles
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_CSF/rawfiles
+  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_MJFF/rawfiles
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_MS/rawfiles
+  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_Rot/rawfiles
+  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_Bennett/rawfiles
   "
   exit
 fi
@@ -25,7 +28,7 @@ fi
 ## 0. setting
 ########################
 # project folders
-input_dir=$1  # input_dir=/data/neurogen/rnaseq_PD/rawfiles
+input_dir=$1  # input_dir=/data/neurogen/rnaseq_Bennett/rawfiles
 
 export pipeline_path=$HOME/neurogen/pipeline/RNAseq
 export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
@@ -59,15 +62,30 @@ result_dir=$input_dir/../results
 ########################
 cd $input_dir
 
-for i in *.R1.fastq.gz;
+for i in *_12_*.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
     samplename=${R1/.R1*/}
 
+    [ -e $i ] || continue
+    
     # run the QC/mapping/assembly/quantification for RNAseq
-    bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -u $EMAIL -N _RNAseq.lite.sh $R1 $R2;
-
+    case "$input_dir" in
+    *rnaseq_MS*)
+      bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -R "select[hname!=cmu066]" -u $EMAIL -N _RNAseq.lite.sh $R1 $R2;
+      ;;
+    *rnaseq_Rot*)
+      bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -R "select[hname!=cmu066]" -u $EMAIL -N ~/neurogen/rnaseq_Rot/src/_RNAseq.lite.sh $R1 $R2;
+      ;;
+    *rnaseq_Bennett*)
+      bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -R "select[hname!=cmu066]" -u $EMAIL -N ~/neurogen/rnaseq_Bennett/_RNAseq.sh $R1 $R2;
+      ;;
+    *)
+      bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -R "select[hname!=cmu066]" -u $EMAIL -N _RNAseq.sh $R1 $R2;
+      ;;
+    esac
+    
 done
 
 exit
@@ -109,8 +127,9 @@ echo -e "sample\tRPMgt0\tRPMgt0.01\tRPMgt0.05\tRPMgt0.1\tRPMgt0.5\tRPMgt1" > cov
 paste <(ls ../../run_output/*/uniq/accepted_hits.normalized.bedGraph.coverageWithRPM | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g') <(cat ../../run_output/*/uniq/accepted_hits.normalized.bedGraph.coverageWithRPM) | sed 's/ /\t/g' >> coverageWithRPM.txt
 
 ## body coverage
-module load RSeQC/2.4
-for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.non-rRNA-mt.bam; do bsub -J $i -q short -n 1 -M 3000 -R 'rusage[mem=3000]' geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i $i  -o $i; done
+## below code now integrated to _RNAseq.sh
+# module load RSeQC/2.4
+# for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.non-rRNA-mt.bam; do [ -f $i.geneBodyCoverage.txt ] || bsub -J $i -q short -n 1 -M 3000 -R 'rusage[mem=3000]' geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i $i  -o $i; done
 cat `ls ~/neurogen/rnaseq_PD/run_output/*/uniq/accepted_hits.bam.non-rRNA-mt.bam.geneBodyCoverage.txt | grep -f ../merged/samplelist.HCILB_SNDA` | grep accepted_hits > geneBodyCoverage.HCILB_SNDA.txt
 
 ## cumulative coverage
@@ -194,14 +213,24 @@ Rscript $HOME/neurogen/pipeline/RNAseq/modules/_bam2annotation.r HC_nonNeuron.un
 cd $result_dir/merged
 
 # uniq mapper
-Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.cufflinks.allSamples.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.cufflinks.allSamples.uniq.xls
-Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.cufflinks.allSamples.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.cufflinks.allSamples.BCv2.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.cufflinks.allSamples.BCv2.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.cufflinks.allSamples.BCv2.uniq.xls
+
+# CSF
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*_CSF*/uniq/rpkm/genes.fpkm_tracking` genes.fpkm.cufflinks.CSF.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*_CSF*/uniq/rpkm/isoforms.fpkm_tracking` isoforms.fpkm.cufflinks.CSF.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*_CSF*/uniq/hgseqcount.by.gene.tab` genes.htseqcount.cufflinks.CSF.uniq.xls
 
 # HC/ILB only
 Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/genes.fpkm_tracking | grep -v PD_` genes.fpkm.cufflinks.HCILB.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/isoforms.fpkm_tracking | grep -v PD_` isoforms.fpkm.cufflinks.HCILB.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*/uniq/hgseqcount.by.gene.tab | grep -v PD_` genes.htseqcount.cufflinks.HCILB.uniq.xls
+
+# TCPY only (for Clemens's R01 grant)
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/genes.fpkm_tracking | grep _TCPY_` genes.fpkm.cufflinks.TCPY.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/isoforms.fpkm_tracking | grep _TCPY_` isoforms.fpkm.cufflinks.TCPY.uniq.xls
+Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*/uniq/hgseqcount.by.gene.tab | grep _TCPY_` genes.htseqcount.cufflinks.TCPY.uniq.xls
 
 # intronic FPKM
 cut -f1 ../../run_output/PD_UWA734_SNDA_6_rep2/uniq/meanRPM.of.metaintron.by.gene.tab | grep ENSG | sort > metaIntron.meanRPM.allSamples.xls
@@ -214,12 +243,15 @@ done
 echo "locus" `ls ../../run_output/*/uniq/meanRPM.of.metaintron.by.gene.tab | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' | rowsToCols stdin stdout` | sed 's/ /\t/g' | cat - /tmp/metaIntron.meanRPM.allSamples.xls > metaIntron.meanRPM.allSamples.xls
 
 ## UPdate: use cuffquant --> cuffnorm to calculate normalized expression FPKM
+module load cufflinks/2.2.1
 bsub -J cuffnorm -oo _cuffnorm.log -eo _cuffnorm.log -q big-multi -n 8 -M 10000 -R rusage[mem=10000] cuffnorm -o ./cuffnorm --no-update-check -L `ls ../../run_output/*/uniq/rpkm/abundances.cxb | sed 's/.*run_output\/\(.*\)\/uniq.*/\1/g' | tr '\n' ','` -p 8 -total-hits-norm -library-norm-method quartile $ANNOTATION_GTF `ls ../../run_output/*/uniq/rpkm/abundances.cxb`
 for i in cuffnorm/*.count_table cuffnorm/*.fpkm_table; do echo $i; sed 's/_0//g' $i > $i.tmp; mv $i.tmp $i; done
-ln -fs cuffnorm/genes.fpkm_table genes.fpkm.cuffnorm.allSamples.uniq.xls
-ln -fs cuffnorm/genes.count_table genes.count.cuffnorm.allSamples.uniq.xls
-ln -fs cuffnorm/isoforms.fpkm_table isoforms.fpkm.cuffnorm.allSamples.uniq.xls
-ln -fs cuffnorm/isoforms.count_table isoforms.count.cuffnorm.allSamples.uniq.xls
+ln -fs cuffnorm/genes.fpkm_table genes.fpkm.cuffnorm.allSamples.BCv2.uniq.xls
+ln -fs cuffnorm/genes.count_table genes.count.cuffnorm.allSamples.BCv2.uniq.xls
+ln -fs cuffnorm/isoforms.fpkm_table isoforms.fpkm.cuffnorm.allSamples.BCv2.uniq.xls
+ln -fs cuffnorm/isoforms.count_table isoforms.count.cuffnorm.allSamples.BCv2.uniq.xls
+
+## FPKM --> TPM
 
 #--------------------------
 # 2.2 combined bigwig into
@@ -251,17 +283,24 @@ ls *.bw | parallel -v -j8 rsync -avzL {} xd010@panda.dipr.partners.org:~/public_
 grep -w -P "tracking_id|SNCA" isoforms.fpkm.cufflinks.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.tx.pdf
 grep -w -P "tracking_id|SNCA|GBA|LRRK2" genes.fpkm.cufflinks.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin SNCA.pdf
 
+grep -w -P "tracking_id|NUCKS1|RAB7L1" genes.fpkm.cufflinks.allSamples.uniq.xls | Rscript $pipeline_path/modules/_plotTrend.R stdin NUCKS1.RAB7L1.pdf
 
 #########################
 ### 3. detect outlier
 #########################
 cd $result_dir/merged
 ## k-mer distance
-kpal cat $output_dir/[!PD]*/k9 mergedHCILB_k9 # not the controls (e.g. stranded, amplified)
+module load kpal/2.1.2
+kpal cat ../../run_output/[!PD]*/k9 mergedHCILB_k9 # not the controls (e.g. stranded, amplified)
 kpal matrix mergedHCILB_k9 mergedHCILB_k9.matrix.txt
 
 Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cufflinks.HCILB.uniq.xls mergedHCILB_k9.matrix.txt QC.genes.fpkm.cufflinks.HCILB.uniq.pdf
 Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cuffnorm.HCILB.uniq.xls mergedHCILB_k9.matrix.txt QC.genes.fpkm.cuffnorm.HCILB.uniq.pdf
+
+# TCPY samples
+kpal cat ../../run_output/*TCPY*/k9 mergedTCPY_k9 
+kpal matrix mergedTCPY_k9 mergedTCPY_k9.matrix.txt 
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cufflinks.TCPY.uniq.xls mergedTCPY_k9.matrix.txt QC.genes.fpkm.cufflinks.TCPY.uniq.pdf
 
 #########################
 ### 3. check consistency of replicates

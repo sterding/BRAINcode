@@ -5,8 +5,10 @@
 # Version: 0.0
 # Date: 2015-Apr-12
 ###########################################
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(ggplot2, ggExtra)
+#if (!require("pacman")) install.packages("pacman")
+#pacman::p_load(ggplot2, ggExtra)
+library(ggplot2)
+library(ggExtra) # install.packages('ggExtra')
 
 args<-commandArgs(TRUE)
 sample1=args[1]  
@@ -26,8 +28,9 @@ if(grepl("_SN_",sample1) & grepl("_SNDA_",sample2)) addmarkers=1
 print(paste(sample1, sample2, FPKMfile, "PSEUDO:",PSEUDOCOUNT,"FILTER:",filter, "ADDMARKER:",addmarkers))
 message("loading data...")
 
-fpkm=read.table(FPKMfile, header=T, check.names =F, stringsAsFactors =F);  # table with header (1st row) and ID (1st column)
-rownames(fpkm)=fpkm[,1]; fpkm=fpkm[,-1]; 
+if(tools::file_ext(FPKMfile)=='rds') fpkm=readRDS(FPKMfile) else {
+  fpkm=read.table(FPKMfile, header=T, row.names = 1, check.names =F, stringsAsFactors =F);  # table with header (1st row) and ID (1st column)
+}
 #fpkm=fpkm[,grep("FPKM",colnames(fpkm))]; 
 colnames(fpkm)=gsub("FPKM.","",colnames(fpkm))
 
@@ -59,7 +62,7 @@ x=log10(x + PSEUDOCOUNT); y=log10(y + PSEUDOCOUNT);
 
 pdf(paste("xyplot", sample1, "vs", sample2, "PSEUDO",PSEUDOCOUNT,"FILTER",filter, "pdf", sep="."), width=5, height=5, paper='us', useDingbats=FALSE)
 par(pty="s"); # to make sure the frame is a square (width=height)
-plot(unique(round(cbind(x,y),3)), pch='.', cex=0.6, main=basename(FPKMfile), xlab=paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")"), ylab=paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"), xlim=range(x,y), ylim=range(x,y), xaxs="r", yaxs="r")
+plot(unique(round(cbind(x,y),3)), pch='.', cex=1, main=basename(FPKMfile), xlab=paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")"), ylab=paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"), xlim=range(x,y), ylim=range(x,y), xaxs="r", yaxs="r")
 if(addmarkers==1){
     points(x=x[selected_markers], y=y[selected_markers], col=cols, pch=19, cex=1)
     text(x=x[selected_markers],y=y[selected_markers],labels = fpkm$gene_short_name[selected_markers], adj=c(0,1), col=cols)

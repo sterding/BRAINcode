@@ -20,7 +20,7 @@ cd ~/eRNAseq/$samplegroup
 
 ## 8 ND diseases: AD, FTD, MSA, myasthenia gravis (MG), Charcot Marie Tooth (CMT), PSP, ALS, and PD. (from NeuroX paper)
 # awk '{FS="\t";OFS="\t"; print $7,$0;}' gwas_catalog_v1.0-downloaded.hg19.bed  | grep -iE "^Alzheimer's disease|^amyotrophic lateral sclerosis|^multiple sclerosis|^Parkinson|^frontotemporal dementia|^multiple system atrophy|^myasthenia gravis|^Charcot Marie Tooth|^progressive supranuclear palsy" | cut -f2-8 > gwas_catalog_v1.0-downloaded.hg19.ND.bed
-## 11 AD diseases/traits: response to antipsychotic treatment|sleep quality, insomnia, sleep-related phenotypes, schizophrenia, PD, ADHD, response to methylphenidate treatment, addiction, bipolar disorder, Response to iloperidone treatment
+## 11 DA (dopamine) diseases/traits: response to antipsychotic treatment|sleep quality, insomnia, sleep-related phenotypes, schizophrenia, PD, ADHD, response to methylphenidate treatment, addiction, bipolar disorder, Response to iloperidone treatment
 # awk '{FS="\t";OFS="\t"; print $7,$0;}' gwas_catalog_v1.0-downloaded.hg19.bed  | grep -iE "response to antipsychotic treatment|sleep quality|insomnia|sleep-related phenotypes|schizophrenia|Parkinson|attention deficit hyperactivity disorder|response to methylphenidate treatment|addiction|bipolar disorder|^Response to iloperidone treatment" | cut -f2-8 > gwas_catalog_v1.0-downloaded.hg19.DA.bed
 
 [ "$type" == "GWAS" ] && snps=$GENOME/Annotation/GWASCatalog/gwas_catalog_v1.0-downloaded.hg19.pruned.bed 

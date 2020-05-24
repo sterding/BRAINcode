@@ -31,21 +31,21 @@ for i in ~/neurogen/rnaseq_PD/run_output/*/uniq/*non-rRNA-mt.bam.eRNA.rawcount; 
 # define shared and private eRNA
 ################################################################################################
 # ven diagram for overlap of 3 major groups (a: SNDA; b:PY; c:NN)
-# echo a `intersectBed -a HCILB_SNDA/eRNA.bed -b <(cat HC_PY/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l` > venn.diagram.fdr.txt
-# echo b `intersectBed -a HC_PY/eRNA.bed -b <(cat HCILB_SNDA/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l` >> venn.diagram.fdr.txt
-# echo c `intersectBed -a HC_nonNeuron/eRNA.bed -b <(cat HC_PY/eRNA.bed HCILB_SNDA/eRNA.bed) -v | wc -l` >> venn.diagram.fdr.txt
-# echo ab `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_PY/eRNA.bed -u | intersectBed -a stdin -b HC_nonNeuron/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
-# echo ac `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
-# echo bc `intersectBed -a HC_PY/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bed -v | wc -l` >> venn.diagram.fdr.txt
-# echo abc `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -u | wc -l` >> venn.diagram.fdr.txt
+# echo a `intersectBed -a HCILB_SNDA/eRNA.fdr.bed -b <(cat HC_PY/eRNA.fdr.bed HC_nonNeuron/eRNA.fdr.bed) -v | wc -l` > venn.diagram.fdr.txt
+# echo b `intersectBed -a HC_PY/eRNA.fdr.bed -b <(cat HCILB_SNDA/eRNA.fdr.bed HC_nonNeuron/eRNA.fdr.bed) -v | wc -l` >> venn.diagram.fdr.txt
+# echo c `intersectBed -a HC_nonNeuron/eRNA.fdr.bed -b <(cat HC_PY/eRNA.fdr.bed HCILB_SNDA/eRNA.fdr.bed) -v | wc -l` >> venn.diagram.fdr.txt
+# echo ab `intersectBed -a HCILB_SNDA/eRNA.fdr.bed -b HC_PY/eRNA.fdr.bed -u | intersectBed -a stdin -b HC_nonNeuron/eRNA.fdr.bed -v | wc -l` >> venn.diagram.fdr.txt
+# echo ac `intersectBed -a HCILB_SNDA/eRNA.fdr.bed -b HC_nonNeuron/eRNA.fdr.bed -u | intersectBed -a stdin -b HC_PY/eRNA.fdr.bed -v | wc -l` >> venn.diagram.fdr.txt
+# echo bc `intersectBed -a HC_PY/eRNA.fdr.bed -b HC_nonNeuron/eRNA.fdr.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.fdr.bed -v | wc -l` >> venn.diagram.fdr.txt
+# echo abc `intersectBed -a HCILB_SNDA/eRNA.fdr.bed -b HC_nonNeuron/eRNA.fdr.bed -u | intersectBed -a stdin -b HC_PY/eRNA.fdr.bed -u | wc -l` >> venn.diagram.fdr.txt
 
-echo a `intersectBed -a HCILB_SNDA/eRNA.bonferroni.bed -b <(cat HC_PY/eRNA.bonferroni.bed HC_nonNeuron/eRNA.bonferroni.bed) -v | wc -l` > venn.diagram.bonferroni.txt
-echo b `intersectBed -a HC_PY/eRNA.bonferroni.bed -b <(cat HCILB_SNDA/eRNA.bonferroni.bed HC_nonNeuron/eRNA.bonferroni.bed) -v | wc -l` >> venn.diagram.bonferroni.txt
-echo c `intersectBed -a HC_nonNeuron/eRNA.bonferroni.bed -b <(cat HC_PY/eRNA.bonferroni.bed HCILB_SNDA/eRNA.bonferroni.bed) -v | wc -l` >> venn.diagram.bonferroni.txt
-echo ab `intersectBed -a HCILB_SNDA/eRNA.bonferroni.bed -b HC_PY/eRNA.bonferroni.bed -u | intersectBed -a stdin -b HC_nonNeuron/eRNA.bonferroni.bed -v | wc -l` >> venn.diagram.bonferroni.txt
-echo ac `intersectBed -a HCILB_SNDA/eRNA.bonferroni.bed -b HC_nonNeuron/eRNA.bonferroni.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bonferroni.bed -v | wc -l` >> venn.diagram.bonferroni.txt
-echo bc `intersectBed -a HC_PY/eRNA.bonferroni.bed -b HC_nonNeuron/eRNA.bonferroni.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bonferroni.bed -v | wc -l` >> venn.diagram.bonferroni.txt
-echo abc `intersectBed -a HCILB_SNDA/eRNA.bonferroni.bed -b HC_nonNeuron/eRNA.bonferroni.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bonferroni.bed -u | wc -l` >> venn.diagram.bonferroni.txt
+echo a `intersectBed -a HCILB_SNDA/eRNA.bed -b <(cat HC_PY/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l` > venn.diagram.bonferroni.txt
+echo b `intersectBed -a HC_PY/eRNA.bed -b <(cat HCILB_SNDA/eRNA.bed HC_nonNeuron/eRNA.bed) -v | wc -l` >> venn.diagram.bonferroni.txt
+echo c `intersectBed -a HC_nonNeuron/eRNA.bed -b <(cat HC_PY/eRNA.bed HCILB_SNDA/eRNA.bed) -v | wc -l` >> venn.diagram.bonferroni.txt
+echo ab `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_PY/eRNA.bed -u | intersectBed -a stdin -b HC_nonNeuron/eRNA.bed -v | wc -l` >> venn.diagram.bonferroni.txt
+echo ac `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -v | wc -l` >> venn.diagram.bonferroni.txt
+echo bc `intersectBed -a HC_PY/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HCILB_SNDA/eRNA.bed -v | wc -l` >> venn.diagram.bonferroni.txt
+echo abc `intersectBed -a HCILB_SNDA/eRNA.bed -b HC_nonNeuron/eRNA.bed -u | intersectBed -a stdin -b HC_PY/eRNA.bed -u | wc -l` >> venn.diagram.bonferroni.txt
 # run eulerAPE_3 client and make the figure there (http://www.eulerdiagrams.org/eulerAPE/)
 
 # celltype-private ones
@@ -96,9 +96,9 @@ bsub -q short -n 1 Rscript $pipeline_path/src/eRNA.private.stat.R ~/eRNAseq/HC_n
 cut -f4 eRNA.private.major.bed | fgrep -f - eRNA.meanRPM.allSamples.ttest.txt | sort -k1,1 | join -1 1 -2 1 -a 1 - <(grep SNDAonly eRNA.characterize2.xls | sort -k1,1) | sed 's/ /\t/g' > eRNA.private.major.foldchange.characterize.xls
 
 cut -f4 eRNA.private.major.bed | fgrep -f - eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=2 && $3<0.01 && $4>=2 && $5<0.01' | cut -f1 | fgrep -f - eRNA.characterize.xls | awk '$28==1 && $6>=10 && $7>0 && $8>0' 
-chr1_66277655_66278270	19766	90.8832	0.133147	0.0339962	36	1	1	1	2	NA	0.622140.185885	NA	0	0	0	PDE4B___ENSG00000184588.13___protein_coding	223	582063	573422	1	1	1
-chr18_13566745_13567739	349746	93.3733	0.170893	0.305512	50	2	2	2	10	NA	1.23605-0.0844749	NA	0	0	0	LDLRAD4___ENSG00000168675.14___protein_coding	144	435258	418499	2	1
-chr8_41570144_41570663	183877	65.0584	0.0954287	0.505082	32	2	1	0	9	NA	40.64260.390697	NA	0	0	0	ANK1___ENSG00000029534.15___protein_coding	63	243542	232743	0	0	1
+# chr1_66277655_66278270	19766	90.8832	0.133147	0.0339962	36	1	1	1	2	NA	0.622140.185885	NA	0	0	0	PDE4B___ENSG00000184588.13___protein_coding	223	582063	573422	1	1	1
+# chr18_13566745_13567739	349746	93.3733	0.170893	0.305512	50	2	2	2	10	NA	1.23605-0.0844749	NA	0	0	0	LDLRAD4___ENSG00000168675.14___protein_coding	144	435258	418499	2	1
+# chr8_41570144_41570663	183877	65.0584	0.0954287	0.505082	32	2	1	0	9	NA	40.64260.390697	NA	0	0	0	ANK1___ENSG00000029534.15___protein_coding	63	243542	232743	0	0	1
 cat eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=2 && $3<0.01 && $4>=2 && $5<0.01' | cut -f1 | fgrep -f - eRNA.characterize.xls | awk '$28==1 && $6>=10 && $7>0 && $8>0'  # n=4
 cat eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=1 && $3<0.01 && $4>=1 && $5<0.01' | wc -l  # n=10295
 cut -f4 eRNA.private.major.bed | fgrep -f - eRNA.meanRPM.allSamples.ttest.txt | awk '$2>=1 && $3<0.01 && $4>=1 && $5<0.01' | wc -l  # n=9777 (95%)
@@ -275,8 +275,8 @@ fgrep -v -f <(cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls | cut -f2 | sort -u) eRNA
 # Fisher' test in R
 fisher.test(matrix(c(37,23588,114,47283),nrow=2,byrow=T),alternative='greater')  # p-value = 0.9924
 
-## GO analysis for the genes harboring eQTL HTNEs
-cat final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls | cut -f2 | sort | uniq -c | sort -k2,2 |awk '{OFS="\t"; print $2,$1}' | join -a 1 -1 1 -2 1 -o "0,1.2,2.6,2.20,2.28" - <(sort eRNA.characterize.xls) | sed 's/\s/\t/g' | cut -f4 | sort -u | sed 's/___/\t/g' | cut -f1
+## GO analysis for the 102 genes harboring eQTL HTNEs
+cut -f2 final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls | sort -u | grep -f - eRNA.characterize2.xls | cut -f28 | grep ___ |  sed 's/___/\t/g' | cut -f1 > final.cis.eQTL.d1e6.p1e-2.FDRpt5.xls.eTNE_hostgene.txt
 # then go to GSEA (http://software.broadinstitute.org/gsea/msigdb/annotate.jsp, C5 collection, top50, FDR 0.05)
 
 ## eQTL filters:
@@ -429,10 +429,16 @@ for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC HC_MCPY HC_TCPY ILB_SNDA PD
 
 for i in HCILB_SNDA HC_nonNeuron HC_PY HC_FB HC_PBMC HC_MCPY HC_TCPY ILB_SNDA PD_SNDA; do cd $i; Rscript $pipeline_path/src/eRNA.characterize.merge.R `ls eRNA.f*.txt`; cd -; done
 
-cd HCILB_SNDA
 
+################################################################################################
 ## if the overlap of HTNE with various enhancer features is significant or not?
-## -------------------------------------------------------
+################################################################################################
+
+## ++++++++++
+## SNDA 
+## ++++++++++
+
+cd ~/eRNAseq/HCILB_SNDA
 
 # run the overlapping for 1000 times
 rm randomoverlap.*.txt
@@ -497,14 +503,66 @@ dev.off()
 # # pvalue for class I only is 0.06
 
 
+## ++++++++++
+## SKNSH
+## ++++++++++
+
+cd ~/eRNAseq/SKNSH
+## Question: The overlap of SKNSH TNE with regulatory marks from ENCODE was significantly higher than expected by chance alone with P < XXX by permutation test?
+
+# run the overlapping for 1000 times with ENCODE defined enhancers in SK-N-SH
+> randomoverlap.sknsh_ENCODE.txt
+bsub -J "SKNSH_random_overlap[1-1000]" -oo _random_overlap.log -eo _random_overlap.log -q normal -n 1 -M 500 $pipeline_path/src/overlap.with.random.sknsh_ENCODE.sh 
+zcat ~/eRNAseq/externalData/sknsh_ENCODE/sknsh.*gz | cut -f1-3 | sortBed | mergeBed |  intersectBed -a eRNA.bed -b - -u | wc -l > eRNA.overlap.txt
+
+# R
+setwd("~/eRNAseq/SKNSH")
+features=c("sknsh_ENCODE")
+nHiTNE=read.table("eRNA.overlap.txt")[,1] 
+for(i in 1){
+    df=read.table(paste0("randomoverlap.",features[i],".txt"))$V1
+    cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/71022,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i])$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t")
+}
+
+## ++++++++++
+## PFC @ BrainGVEX
+## ++++++++++
+
+cd ~/eRNAseq/BrainGVEX
+## overlap of BrainGVEX TNE with ATAC-seq peaks
+# if peaks called in at least 1 sample
+awk '$4>=1' ~/neurogen/psychENCODE/BrainGVEX/ATAC-seq/merged.Peaks.bedGraph | intersectBed -a eRNA.bed -b - -u | wc -l
+# if peaks called in at least 5 sample
+awk '$4>=5' ~/neurogen/psychENCODE/BrainGVEX/ATAC-seq/merged.Peaks.bedGraph | intersectBed -a eRNA.bed -b - -u | wc -l
+
+## Question: The overlap of BrainGVEX TNE with ATAC-seq peaks from BrainGVEX was significantly higher than expected by chance alone with P < XXX by permutation test?
+
+# run the overlapping for 1000 times with ATAC-seq peaks in BrainGVEX
+> randomoverlap.BrainGVEX_ATACseq.txt
+bsub -J "BrainGVEX_ATACseq[1-1000]" -oo _random_overlap.log -eo _random_overlap.log -q short -n 1 -M 500 $pipeline_path/src/overlap.with.random.BrainGVEX_ATACseq.sh 
+awk '$4>=5' ~/neurogen/psychENCODE/BrainGVEX/ATAC-seq/merged.Peaks.bedGraph | intersectBed -a eRNA.bed -b - -u | wc -l > eRNA.overlap.txt
+
+# R
+setwd("~/eRNAseq/BrainGVEX")
+features=c("BrainGVEX_ATACseq")
+nHiTNE=read.table("eRNA.overlap.txt")[,1] 
+for(i in 1){
+    df=read.table(paste0("randomoverlap.",features[i],".txt"))$V1
+    cat(features[i], paste0(nHiTNE[i]," (",round(100*nHiTNE[i]/71022,1),"%)"), paste0(round(mean(df))," (", round(t.test(df, mu=nHiTNE[i])$conf.int[1]),",",round(t.test(df, mu=nHiTNE[i])$conf.int[2]),")"), t.test(df, mu=nHiTNE[i])$p.value, "\n", sep = "\t")
+}
+
 ################################################################################################
 # TFBS enrichment of TNE
 ################################################################################################
 for i in HCILB_SNDA HC_nonNeuron HC_PY; do 
   cd $i; 
   # JASPAR
-  bsub -q normal -n 1 bash $pipeline_path/src/eRNA.TFBSjaspar.enrichment.sh ~/eRNAseq/externalData/TFBS/JASPARmotifscan.hg19.bed eRNA.JASPARmotifscan.txt;
-  Rscript $pipeline_path/src/eRNA.TFBSencode.enrichment.R eRNA.JASPARmotifscan.txt
+  #bsub -q normal -n 1 bash $pipeline_path/src/eRNA.TFBSjaspar.enrichment.v0.sh eRNA.JASPARmotifscan.txt;  ## incomplete version (fig 2d)
+  #bsub -q normal -n 1 bash $pipeline_path/src/eRNA.TFBSjaspar.enrichment.v0.sh eRNA.JASPARmotifscan.2017.txt;  ## incomplete version (fig 2d)
+  ## or
+  cat ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme/JASPARmotifsID.TFsymbol.txt | while read JASPARID TF; do bsub -q normal -n 1 -J $TF bash $pipeline_path/src/eRNA.TFBSjaspar.enrichment.core.sh $JASPARID $TF eRNA.JASPARmotifscan.2018.txt; done
+  cat eRNA.JASPARmotifscan.2018.txt.MA* > eRNA.JASPARmotifscan.2018.txt; rm eRNA.JASPARmotifscan.2018.txt.MA*;
+  Rscript $pipeline_path/src/eRNA.TFBSencode.enrichment.R eRNA.JASPARmotifscan.2018.txt
   
   # ENCODE
   #bash $pipeline_path/src/eRNA.TFBSencode.enrichment.sh ~/eRNAseq/externalData/TFBS/wgEncodeRegTfbsClusteredV3.bed12 eRNA.wgEncodeRegTfbsClusteredV3.txt;
@@ -512,6 +570,109 @@ for i in HCILB_SNDA HC_nonNeuron HC_PY; do
   
   cd -
 done
+
+### Using MEME-AME and random genomic regions with GC- and length- matched
+# see https://docs.google.com/document/d/1-j7bE38Qy56ztce8zey1xH2o5sM1E2smEHb0BqrbZ9E/edit#
+cd ~/neurogen/TF_scan/scan_SNDA_TNE
+  
+bsub -q normal -J ame-all -n 1 ame --verbose 1 --oc ame2 --control Matching_backgroundg_GC_compo.fa --bgformat 1 ~/eRNAseq/HCILB_SNDA/eRNA.seq.fa ../JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt
+bsub -q normal -J ame-all -n 1 ame --verbose 1 --oc ame --control Matching_backgroundg_GC_compo.fa --bgformat 1 --scoring avg --method ranksum --pvalue-report-threshold 0.05 ~/eRNAseq/HCILB_SNDA/eRNA.seq.fa ../JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt
+bsub -q normal -J ame-private -n 1 ame --verbose 1 --oc ame-private --control Matching_backgroundg_GC_compo.private.fa --bgformat 1 --scoring avg --method ranksum --pvalue-report-threshold 0.05 ~/eRNAseq/HCILB_SNDA/eRNA.private.major.fa ../JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt
+bsub -q normal -J ame-classI -n 1 ame --verbose 1 --oc ame-classI --control Matching_backgroundg_GC_compo.classI.fa --bgformat 1 --scoring avg --method ranksum --pvalue-report-threshold 0.05 ~/eRNAseq/HCILB_SNDA/eRNA.classI.fa ../JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt
+
+# R script 
+pdf("~/eRNAseq/HCILB_SNDA/AME.pdf", width=25, height = 4)
+#df=read.table(pipe("grep Ranksum ~/neurogen/TF_scan/scan_SNDA_TNE/ame/ame.txt"), sep=" ")[,c(6,7,8,14,21)]  # Ranksum test
+df=read.table(pipe("grep motif ~/neurogen/TF_scan/scan_SNDA_TNE/ame2/ame.txt"), sep=" ", quote = "")[,c(8,9,10,14,17)]  # default Fisher's test
+colnames(df)=c("Id","Symbol","Motif","pvalue","qvalue")
+df$qvalue=as.numeric(sub(")","",df$qvalue))
+df=subset(df, qvalue<=0.01)
+write.table(df, "~/eRNAseq/HCILB_SNDA/eRNA.vs.random.JASPAR.AME.xls", sep="\t", col.names = T, row.names = F)
+df1=read.table("~/eRNAseq/HCILB_SNDA/eRNA.JASPARmotifscan.2018.txt.qvalue0.01.xls", header = T)
+library(tidyverse); df1 = subset(df1, type=='eRNA') %>% arrange(pvalue) %>% head(50)
+sum(df1$ID %in% df$Symbol)
+df1[!(df1$ID %in% df$Symbol),]
+
+
+
+df$pvalue = df$pvalue + min(df$pvalue[df$pvalue>0])
+df$qvalue = df$qvalue + min(df$qvalue[df$qvalue>0])
+barplot(-log10(df$pvalue), names.arg =df$Symbol, main = "eRNA.fa", las=2, cex.names =0.4, ylab="-log10(p-value)", width = .5, space = 2)
+
+df=read.table(pipe("grep Ranksum ~/neurogen/TF_scan/scan_SNDA_TNE/ame-private/ame.txt"), sep=" ")[,c(6,7,8,14,21)]
+colnames(df)=c("ID","Symbol","Motif","pvalue","qvalue")
+df$pvalue = df$pvalue + min(df$pvalue[df$pvalue>0])
+df$qvalue = df$qvalue + min(df$qvalue[df$qvalue>0])
+barplot(-log10(df$pvalue), names.arg =df$Symbol, main = "eRNA.private.major.fa", las=2, cex.names =0.5, ylab="-log10(p-value)", width = .5, space = 2)
+abline(h = -log10(max(df$pvalue[df$qvalue<=0.01])), col="red")
+
+df=read.table(pipe("grep Ranksum ~/neurogen/TF_scan/scan_SNDA_TNE/ame-classI/ame.txt"), sep=" ")[,c(6,7,8,14,21)]
+colnames(df)=c("ID","Symbol","Motif","pvalue","qvalue")
+df$pvalue = df$pvalue + min(df$pvalue[df$pvalue>0])
+df$qvalue = df$qvalue + min(df$qvalue[df$qvalue>0])
+barplot(-log10(df$pvalue), names.arg =df$Symbol, main = "eRNA.classI.fa", las=2, cex.names =0.4, ylab="-log10(p-value)", width = .5, space = 2)
+abline(h = -log10(max(df$pvalue[df$qvalue<=0.01])), col="red")
+
+dev.off()
+
+# output: ~/eRNAseq/HCILB_SNDA/AME.pdf
+  
+### Update: using permutation 
+mkdir ~/neurogen/TF_scan/scan_SNDA_TNE
+cd ~/neurogen/TF_scan/scan_SNDA_TNE
+# make a random background with GC and length matched, by shuffling the TNE sequences
+bsub -q short -J "shuffle[1-1000]" "python ~/BiasAway/BiasAway.py m -f ~/eRNAseq/HCILB_SNDA/eRNA.seq.fa | sed 's/background_seq_.* Background sequence for //g' > eRNA.seq.shuffled.fa.\$LSB_JOBINDEX"
+# scan motif for hit
+#cat ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme/JASPARmotifsID.TFsymbol.txt | while read JASPARID TF; do bsub -q vshort -n 1 -J "$JASPARID[1-1000]" scan_motif.sh ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme/$JASPARID.meme eRNA.seq.shuffled.fa.\$LSB_JOBINDEX; done
+bsub -q normal -n 1 -J "scanmotif[1-1000]" scan_motif.sh ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt eRNA.seq.shuffled.fa.\$LSB_JOBINDEX
+bsub -q normal -n 1 -J "scan" scan_motif.sh ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt eRNA.seq.fa
+# merge result
+> JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_eRNA.seq.shuffled.fa.txt
+for i in JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_eRNA.seq.shuffled.fa.*.bed; do echo $i; cut -f4 $i|sort|uniq -c >> JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_eRNA.seq.shuffled.fa.txt; done
+# eRNA.seq.fa
+bsub -q normal -n 1 -J "scanmotif" scan_motif.sh ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt eRNA.seq.fa
+cut -f4 JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_eRNA.seq.fa.bed | sort | uniq -c > JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_eRNA.seq.fa.txt
+### compare to random genomic background that are GC- and length-matched (from http://opossum.cisreg.ca/GC_compo/)
+# upload eRNA.seq.fa to http://opossum.cisreg.ca/GC_compo/ and return Matching_backgroundg_GC_compo.fa
+bsub -q normal -n 1 -J "scanmotif" scan_motif.sh ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt Matching_backgroundg_GC_compo.fa
+cut -f4 JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_Matching_backgroundg_GC_compo.fa.bed | sort | uniq -c > JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_Matching_backgroundg_GC_compo.fa.txt
+
+bsub -q normal -n 1 -J "scanmotif" scan_motif.sh ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt Matching_backgroundg_GC_compo.classI.fa
+cut -f4 JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_Matching_backgroundg_GC_compo.classI.fa.bed | sort | uniq -c > JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_Matching_backgroundg_GC_compo.classI.fa.txt
+
+bsub -q normal -n 1 -J "scanmotif" scan_motif.sh ~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt Matching_backgroundg_GC_compo.private.fa
+cut -f4 JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_Matching_backgroundg_GC_compo.private.fa.bed | sort | uniq -c > JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_Matching_backgroundg_GC_compo.private.fa.txt
+
+# statistics
+R
+setwd("~/neurogen/TF_scan/scan_SNDA_TNE")
+tfs=read.table("~/neurogen/TF_scan/JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme/JASPARmotifsID.TFsymbol.txt", col.names = c('TF','symbol'), header = F, stringsAsFactors = F)
+df1=read.table("JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_eRNA.seq.fa.txt", col.names = c('count','TF'), header = F, stringsAsFactors = F)
+df2=read.table("JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_eRNA.seq.shuffled.fa.txt", col.names = c('count','TF'), header = F, stringsAsFactors = F)
+df=data.frame(do.call("rbind", apply(tfs,1,function(x) {
+  tf=as.character(x[1]); sym=as.character(x[2]);
+  if(tf %in% df1$TF & tf %in% df2$TF) {
+    tt=t.test(x=df2$count[df2$TF==tf], mu=df1$count[df1$TF==tf], var.equal = T);
+    c(tf, sym, round(tt$statistic,1), tt$p.value, tt$null.value, tt$estimate, round(tt$conf.int[1],3), round(tt$conf.int[2],3))
+  }
+})), stringsAsFactors=F)
+colnames(df)=c("tf", "sym", "t", "p", "obs", "est", "conf_l", "conf_r")
+write.table(df, "JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_eRNA.seq.shuffled.fa.txt.statistics.xls", quote = F, sep="\t", row.names = F)
+
+df3=read.table("JASPAR2018_CORE_vertebrates_non-redundant_pfms_meme.txt_in_Matching_backgroundg_GC_compo.fa.txt", col.names = c('count','TF'), header = F, stringsAsFactors = F)
+df=data.frame(do.call("rbind", apply(tfs,1,function(x) {
+  tf=as.character(x[1]); sym=as.character(x[2]);
+  if(tf %in% df1$TF & tf %in% df2$TF) {
+    x=matrix(c(df1$count[df1$TF==tf], sum(df1$count[df1$TF!=tf]), df3$count[df3$TF==tf], sum(df3$count[df3$TF!=tf])),nrow = 2, dimnames = list(c("TF","No TF"), c("TNE","background")));
+    tt=fisher.test(x, alternative='greater');
+    c(tf, sym, c(df1$count[df1$TF==tf], sum(df1$count[df1$TF!=tf]), df3$count[df3$TF==tf], sum(df3$count[df3$TF!=tf])), tt$p.value, tt$estimate)
+  }
+})), stringsAsFactors=F)
+colnames(df)=c("tf", "sym", 'AB','AnB', 'nAB', 'nAnB', "p", "OR")
+library(tidyverse)
+df = df %>% mutate(p=as.numeric(p),OR=as.numeric(OR)) %>%
+  filter(p<0.01/nrow(df), OR>1) %>% arrange(p)
+dim(df)
 
 ################################################################################################
 # for in vitro/vivo test
@@ -810,6 +971,16 @@ awk '{OFS="\t"; if(($3-$2)>=200) print $1, $2, $3, $1"_"$2"_"$3, $4}' HC_SNDA.tr
 # Total counts of CAGE reads
 toBinRegionsOnBigwig.sh ../CAGE/ctssTotalCounts.fwd.bw eRNA.bed 1 max > eRNA.CAGE.fwd.bed &
 toBinRegionsOnBigwig.sh ../CAGE/ctssTotalCounts.rev.bw eRNA.bed 1 max > eRNA.CAGE.rev.bed &
+
+## BRAINcode GAGE data
+bigWigAverageOverBed ~/neurogen/CAGE_PDBrainMap/output_dir/HCILB_merged_accepted_hits.plus.bw eRNA.bed stdout -minMax > eRNA.bed.CAGE_HCILB_merged_accepted_hits.plus.bw.tab
+bigWigAverageOverBed ~/neurogen/CAGE_PDBrainMap/output_dir/HCILB_merged_accepted_hits.minus.bw eRNA.bed stdout -minMax > eRNA.bed.CAGE_HCILB_merged_accepted_hits.minus.bw.tab
+# merge to see how many TNEs having CAGE reads in both plus and minus strand
+paste eRNA.bed.CAGE_HCILB_merged_accepted_hits.minus.bw.tab eRNA.bed.CAGE_HCILB_merged_accepted_hits.plus.bw.tab | cut -f1-8,11-16 | awk '$4<0 && $10>0' | wc -l
+43100
+paste eRNA.bed.CAGE_HCILB_merged_accepted_hits.minus.bw.tab eRNA.bed.CAGE_HCILB_merged_accepted_hits.plus.bw.tab | cut -f1-8,11-16 | awk '$4<-10 && $10>10' | wc -l
+4840
+
 
 # TF count
 toBinRegionsOnBigwig.sh ../TFBS/TFBS.bigwig eRNA.bed 1 max > eRNA.TFBS.bed &

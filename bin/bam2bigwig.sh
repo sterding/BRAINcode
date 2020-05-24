@@ -26,13 +26,14 @@
  
 species=hg19
 
-ANNOTATION=/pub/genome_references/UCSC/Homo_sapiens/UCSC/hg19/Annotation/Genes
+ANNOTATION=$GENOME/Annotation/Genes # $GENOME already in config.txt
 export TMPDIR=/data/neurogen/
 
 inputfile=$1
 split=$2
 normalizationFactor=$3
 region=$4 # in the following format: ‘chr2’ (the whole chr2), ‘chr2:1000000’ (region starting from 1,000,000bp) or ‘chr2:1,000,000-2,000,000’ (region between 1,000,000 and 2,000,000bp including the end points). The coordinate is 1-based.
+
 
 #[[ -e "$1" ] && 
 [ "$2" != "" -a -e "$1" ] || {

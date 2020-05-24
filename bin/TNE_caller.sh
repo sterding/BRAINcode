@@ -114,7 +114,7 @@ echo "# step0: measure transcriptional noise in background genomic regions"
 # =================
 
 # make merged signal if not existed
-[ -e $inputBG ] || TNE_caller.combine_bigwig.sh $list_bw_file $SAMPLE_GROUP && inputBG=trimmedmean.uniq.normalized.$SAMPLE_GROUP.bedGraph
+[ -e $inputBG ] || bsub -q big -n 4 -J bams2combinedbg TNE_caller.combine_bigwig.v2.sh $list_bw_file $SAMPLE_GROUP && inputBG=trimmedmean.uniq.normalized.$SAMPLE_GROUP.bedGraph
 
 # RNAseq signal distribution in the background region
 [ -e transcriptional.noise.rpm.txt ] || bedtools random -seed 3 -g $genome_size -l 1 -n 1000000 | sortBed | intersectBed -a - -b $toExclude -v -sorted | intersectBed -a $inputBG -b - -sorted -u | cut -f4 > transcriptional.noise.rpm.txt
@@ -152,11 +152,21 @@ echo "# step6: calculate the significance of eRNA"
 # =================
 
 #1: create random background regions (same number and same length distribution as TNEs) and calculate their signals
-while read sample bigwig
+while read sample filename
 do
     echo " - sample:" $sample;
-    bedtools shuffle -seed 123 -excl $toExclude -noOverlapping -i eRNA.tmp5 -g $genome_size | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $bigwig stdin stdout | cut -f1,5 > $bigwig.$SAMPLE_GROUP.rdbg
-    bigWigAverageOverBed $bigwig eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 > $bigwig.$SAMPLE_GROUP.eRNA.meanRPM
+    format=${filename##*.} # get extension
+    
+    if [[ $format =~ "bigwig|BIGWIG|bw|BW" ]];
+    then
+      bedtools shuffle -seed 123 -excl $toExclude -noOverlapping -i eRNA.tmp5 -g $genome_size | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bigWigAverageOverBed $filename stdin stdout | cut -f1,5 > $filename.$SAMPLE_GROUP.rdbg &
+      bsub -q vshort -n 1 -J $sample "bigWigAverageOverBed $filename eRNA.tmp5 stdout | cut -f1,5 | sort -k1,1 -o $filename.$SAMPLE_GROUP.eRNA.meanRPM"
+    elif [[ $format =~ "bam|BAM|cram|CRAM" ]]; 
+    then
+      bedtools shuffle -seed 123 -excl $toExclude -noOverlapping -i eRNA.tmp5 -g $genome_size | awk -vOFS="\t" '$4=$1"_"$2"_"$3;' | bedtools coverage -a stdin -b $filename -d | groupBy -g 4 -c 6 -o mean > $filename.$SAMPLE_GROUP.rdbg &
+      bsub -q vshort -n 1 -J $sample "bedtools coverage -a eRNA.tmp5 -b $filename -d | groupBy -g 4 -c 6 -o mean | sort -k1,1 -o $filename.$SAMPLE_GROUP.eRNA.meanRPM"
+    fi
+    
 done < $list_bw_file
 
 #2. compute p-value for each TNE candidate in each sample's random background, then test the number of samples with p<0.05 with the binomial test, adjust p-value from binomial test with HB correction

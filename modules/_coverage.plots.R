@@ -161,8 +161,8 @@ dev.off()
 
 # GENCODE meta-exons (v19)
 EXON=system("cut -f1-3 $GENOME/Annotation/Genes/exons.bed | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}'",intern = T) # 122000567  (3.89%)  -- all exons
-CDS=system("cut -f1-3 $GENOME/Annotation/Genes/cds.bed | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}'",intern = T) # 34966072 (1.11%)  -- all CDS (protein-coding exon)
-PC_EXON=system("fgrep protein_coding___protein_coding $GENOME/Annotation/Genes/exons.bed | cut -f1-3 | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}'",intern = T) # 75255917  (2.40%)  -- all protein-coding exons
+CDS=system("cut -f1-3 $GENOME/Annotation/Genes/cds.bed | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}'",intern = T) # 34966072 (1.11%)  -- all CDS (e.g. coding part of protein-coding genes)
+PC_EXON=system("fgrep protein_coding___protein_coding $GENOME/Annotation/Genes/exons.bed | cut -f1-3 | sortBed | mergeBed -i - | awk '{s+=($3-$2)}END{print s}'",intern = T) # 75255917  (2.40%)  -- all exons (incl. CDS and UTR) of protein-coding genes 
 # intergenic
 intergenic=system("intersectBed -a covered.0.05RPM.HCILB_SNDA.bed -b $GENOME/Annotation/Genes/intergenic.bed | awk '{s+=($3-$2)}END{print s}'",intern = T)  # 650101182
 # EXONs

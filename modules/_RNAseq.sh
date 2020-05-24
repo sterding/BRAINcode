@@ -28,8 +28,10 @@ R1=$1  # filename of R1
 R2=$2  # filename of R2 (for paired-end reads)
 samplename=${R1/[.|_]R1*/}
 
-## $pipeline_path and $CONFIG_FILE already exported in the main pipeline.sh
-source $CONFIG_FILE
+config_file=./config.txt
+[ -e "$config_file" ] || config_file=$HOME/neurogen/pipeline/RNAseq/config.txt
+echo "Using configuration file at:" $config_file;
+source $config_file
 
 strandoption="--library-type fr-unstranded"; split="-nosplit"; 
 [[ $samplename == *stranded* ]] && strandoption="--library-type fr-secondstrand"  # by default we use Illumina SMARTer stranded RNA-Seq kit
@@ -84,9 +86,10 @@ touch $outputdir/$samplename/.status.$modulename.fastqc
 echo "["`date`"] STEP 3.1 k-mer for outlier detection"
 ############################################
 # require to install kpal: http://kpal.readthedocs.org/en/latest/install.html
+module load kpal/2.1.2
 [ ! -f $outputdir/$samplename/.status.$modulename.kmers ] && \
 fqHEAD=`zcat $R1 | head -n1 | sed 's/@//g'| cut -f1 -d":"` && \
-rm $outputdir/$samplename/*k9 && \
+([ ! -e $outputdir/$samplename/*k9 ] || rm $outputdir/$samplename/*k9) && \
 fastqToFa -nameVerify=$fqHEAD $R1 stdout | kpal count -p ${samplename//./_} -k 9 - $outputdir/$samplename/R1.k9 && \
 fastqToFa -nameVerify=$fqHEAD $R2 stdout | kpal count -p ${samplename//./_} -k 9 - $outputdir/$samplename/R2.k9 && \
 kpal merge $outputdir/$samplename/R1.k9 $outputdir/$samplename/R2.k9 $outputdir/$samplename/k9 && \
@@ -133,6 +136,21 @@ CIRCexplorer2 parse -t TopHat-Fusion tophat_fusion/accepted_hits.bam -b back_spl
 CIRCexplorer2 annotate -r $GENOME/Annotation/Genes/refFlat_plus_CDR1as.txt -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -b back_spliced_junction.bed -o circularRNA_known.txt --low-confidence > .CIRCexplorer2_annotate.log && \
 touch .status.$modulename.circRNA.circexplore2
 
+## update to CIRCExplore2 (v2.3.2) to include CDR1as (see email with Xiao-Ou Zhou) - 10/23/2017
+## switch to use GENCODE-based refFlat as annotation (see README.txt in ../Annotation/Genes/) - 8/12/2019
+## add de novo  - 8/12/2019
+[ ! -f .status.$modulename.circRNA.circexplore3 ] && \
+([ -f unmapped.fastq ] || bamToFastq -i unmapped.bam -fq unmapped.fastq) && \
+([ -f tophat_fusion/accepted_hits.bam ] || tophat -o tophat_fusion -p $CPU --fusion-search --fusion-min-dist $mindist --fusion-ignore-chromosomes chrM --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome unmapped.fastq) && \
+([ -f back_spliced_junction.bed ] || CIRCexplorer2 parse -t TopHat-Fusion tophat_fusion/accepted_hits.bam -b back_spliced_junction.bed) && \
+CIRCexplorer2 annotate -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -b back_spliced_junction.bed -o circularRNA_known3.txt --low-confidence > .CIRCexplorer3_annotate.log && \
+touch .status.$modulename.circRNA.circexplore3
+
+[ ! -f .status.$modulename.circRNA.circexplore.denovo ] && \
+CIRCexplorer2 assemble -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat -m . -o assemble -p $CPU --remove-rRNA > .CIRCexplorer_assemble.log && \
+CIRCexplorer2 denovo -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat --as=AS --abs=ABS -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -b back_spliced_junction.bed -d assemble -m . -o denovo_circ > .CIRCexplorer_denovo.log && \
+touch .status.$modulename.circRNA.circexplore.denovo
+
 # ## calling cirRNA using Mapsplice
 # [ ! -f $outputdir/$samplename/.status.$modulename.circRNA_Mapsplice ] && \
 # mkdir $outputdir/$samplename/mapsplice_out && \
@@ -174,7 +192,7 @@ samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
 touch .status.$modulename.bam2stat
 
 [ ! -f $outputdir/$samplename/.status.$modulename.bam2annotation ] && \
-_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
+([ -f accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation) && \
 Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
 touch $outputdir/$samplename/.status.$modulename.bam2annotation
 
@@ -287,7 +305,7 @@ cufflinks --no-update-check --no-faux-reads $strandoption -o ./denovo -p $CPU -g
 touch $outputdir/$samplename/.status.$modulename.cufflinks.denovo
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
-_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
+([ -f accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation) && \
 Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
 touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
 
@@ -305,6 +323,12 @@ touch $outputdir/$samplename/.status.$modulename.uniq.sam2bw
 # awk -v tmr=$total_mapped_reads2 'BEGIN{OFS="\t"; print "# total-rRNA-chrM="tmr;}{$4=$4*1e6/tmr; print}' accepted_hits.bedGraph > accepted_hits.normalized2.bedGraph && \
 # bedGraphToBigWig accepted_hits.normalized2.bedGraph $ANNOTATION/ChromInfo.txt accepted_hits.normalized2.bw && \
 # touch $outputdir/$samplename/.status.$modulename.uniq.normalize
+
+echo "## calcualte covergage using RSeQC" # require to load RSeQC ahead
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.RSeQC ] && \
+module load RSeQC/2.4 && \
+geneBody_coverage.py -r $GENOME/Annotation/Genes/gencode.v19.annotation.bed12 -i accepted_hits.bam.non-rRNA-mt.bam  -o accepted_hits.bam.non-rRNA-mt.bam && \
+touch $outputdir/$samplename/.status.$modulename.uniq.RSeQC
 
 echo "## calcualte RPKM (based on TOTAL reads mapped to nuclear genome)"
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.cufflinks.rpkm ] && \

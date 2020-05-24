@@ -42,7 +42,7 @@ export PATH=$pipeline_path/modules:$pipeline_path/bin:$PATH
 # ==============================
 
 index=hg19
-GENOME=/groups/shared_databases/igenome/Homo_sapiens/UCSC/$index
+export GENOME=/groups/shared_databases/igenome/Homo_sapiens/UCSC/$index
 ANNOTATION=$GENOME/Annotation/Genes
 FASTAGENOME=$GENOME/Sequence/Chromosomes
 CRHOME_SIZE=$ANNOTATION/ChromInfo.txt

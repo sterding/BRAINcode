@@ -118,7 +118,7 @@ if(file.exists("data.RData")) load("data.RData") else{
   na  = unlist(na.list)
   cat('SNPs before filtering:',nrow(snps), "\n")  # 6109238
   snps$RowReorder(!na & maf>0.05);  # remove rows including NA
-  cat('SNPs after filtering:',nrow(snps), "\n")  # 4320519
+  cat('SNPs after filtering:',nrow(snps), "\n")  # 4283750
   
   rm(maf, na, maf.list, na.list)
   

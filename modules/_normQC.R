@@ -22,34 +22,39 @@ outputfile=args[3]
 if(is.na(outputfile)) outputfile="samples.QC.plot.pdf"
 
 # FPKMfile="genes.fpkm.cuffnorm.allSamples.uniq.xls"; outputfile="genes.fpkm.HCILB.uniq.QC.pdf" 
+# FPKMfile="genes.fpkm.cufflinks.TCPY.uniq.xls"; outputfile="QC.genes.fpkm.cufflinks.TCPY.uniq.pdf" 
 
 message("loading data...")
 
 fpkm=read.table(file(FPKMfile), header=T, check.names =F);  # table with header (1st row) and ID (1st column)
 rownames(fpkm)=fpkm[,1]; fpkm=fpkm[,-1]; 
-if(grepl("cufflinks",FPKMfile)) fpkm=fpkm[,grep("FPKM",colnames(fpkm))]; 
+if(grepl("cufflinks",FPKMfile)) fpkm=fpkm[,grep("_rep",colnames(fpkm))]; ## using *_rep* to filter sample names. This might be buggy for samples not named in this way.
 colnames(fpkm)=gsub("FPKM.","",colnames(fpkm))
 colnames(fpkm)=gsub("_0$","",colnames(fpkm))
 
 # filter out stranded, unamplified, _SN_
 fpkm=fpkm[, grep("PD_|stranded|unamplified|_SN_", colnames(fpkm), invert = T)]
 
+message(paste("# data dim:", dim(fpkm)))
+
 pdf(outputfile, width=4, height=4)
 
-message("generating kmer distance plot...")
-
-N=read.table(matrix, header=F,nrows=1)$V1
-nms=as.character(read.table(matrix, header=F, skip=1, nrows=N)$V1)
-df=data.matrix(read.table(matrix,  fill = TRUE, skip=N+1, col.names = 1:(N-1)))
-upper=rbind(cbind(0,t(df)),0); upper[is.na(upper)]=0
-lower=rbind(0,cbind(df,0)); lower[is.na(lower)]=0
-df=lower+upper; diag(df)=NA; 
-kmer=apply(df,1,function(x) median(x,na.rm=T))
-names(kmer)=nms
-
-hist(kmer, breaks=50, xlab="Median k-mer distance", ylab="Number of samples")
-legend("topright", paste(names(kmer[kmer>=0.0009]), round(kmer[kmer>=0.0009],4), sep=": "), bty='n', cex=0.5)
-
+if(file.exists(matrix)){
+  message("generating kmer distance plot...")
+  
+  N=read.table(matrix, header=F,nrows=1)$V1
+  nms=as.character(read.table(matrix, header=F, skip=1, nrows=N)$V1)
+  df=data.matrix(read.table(matrix,  fill = TRUE, skip=N+1, col.names = 1:(N-1)))
+  upper=rbind(cbind(0,t(df)),0); upper[is.na(upper)]=0
+  lower=rbind(0,cbind(df,0)); lower[is.na(lower)]=0
+  df=lower+upper; diag(df)=NA; 
+  kmer=apply(df,1,function(x) median(x,na.rm=T))
+  names(kmer)=nms
+  
+  hist(kmer, breaks=50, xlab="Median k-mer distance", ylab="Number of samples")
+  legend("topright", paste(names(kmer[kmer>=0.0009]), round(kmer[kmer>=0.0009],4), sep=": "), bty='n', cex=0.5)
+  
+}
 
 message("generating RLE plot...")
 
@@ -79,8 +84,8 @@ celltype=gsub("(.*)_.*_(.*)_.*_.*","\\1_\\2",hc$labels)
 # [optional] merge HC_SNDA and ILB_SNDA into HCILB_SNDA 
 celltype[celltype=='HC_SNDA']='HCILB_SNDA'; celltype[celltype=='ILB_SNDA']='HCILB_SNDA'
 
-batch=gsub(".*_.*_.*_([0-9])_.*","\\1",hc$labels)
-hc$labels=gsub(".*_(.*)_.*_.*_.*","\\1",hc$labels)
+batch=gsub(".*_.*_.*_(\\d+)_.*","\\1",hc$labels)
+subject=gsub(".*_(.*)_.*_.*_.*","\\1",hc$labels)
 
 gsurl='https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs/pub?gid=1995457670&output=tsv'
 library(RCurl)
@@ -88,9 +93,26 @@ colorcode=read.delim(textConnection(getURL(gsurl)))
 cols = subset(colorcode,GROUP=="cell type")
 celltype.colors=paste0("#",cols$HEX[match(celltype, cols$ITEM)])
 
+hc$labels=subject
+tree=as.phylo(hc)
+
+## Update: fix edge.color bug. See https://stackoverflow.com/a/22102420/951718
+myLabels <- c('node', sort(unique(batch)))
+myColors <- c("black", gray.colors(length(unique(batch)),start=0))
+## match colors and labels (nomatch == node => select idx 1)
+## (myLabels are reordered by edge ordering
+batchColors <- myColors[match(batch[tree$edge[,2]], myLabels, nomatch=1)]
+
 par(mar=c(1,1,1,1))
-plot(as.phylo(hc),type = "unrooted", cex=.5, lab4ut='axial',underscore = T, tip.color=celltype.colors, edge.color= gray.colors(length(unique(batch)),start=0)[length(unique(batch))+1-as.numeric(batch)], main="Clustering of samples based on Spearman correlation")
-legend("bottomleft", c("-- cell type --",unique(celltype),"-- batch --",paste("batch",1:length(unique(batch)))),text.col=c('black',paste0("#",cols$HEX[match(unique(celltype), cols$ITEM)]),'black',rev(gray.colors(length(unique(batch)),start=0))), bty='n', cex=.5)
+plot(tree, type = "unrooted", 
+     cex=.5, lab4ut='axial',underscore = T, 
+     tip.color=celltype.colors, 
+     edge.color= batchColors, 
+     main="Clustering of samples based on Spearman correlation")
+legend("bottomleft", 
+       c("-- cell type --",unique(celltype),"-- batch --",paste("batch",sort(unique(batch)))),
+       text.col=c('black',paste0("#",cols$HEX[match(unique(celltype), cols$ITEM)]), myColors), 
+       bty='n', cex=.5)
 
 message("generating D-statistic plot...")
 
@@ -98,7 +120,8 @@ message("generating D-statistic plot...")
 par(op)
 D=apply(1-sampleDists, 1, median)
 hist(D, breaks=100, ylab="Number of samples", xlab="D-statistic", main="Histogram of D-statistic")
-legend("topleft", paste(names(sort(D[which(D<0.7)])), round(sort(D[which(D<0.7)]),2)), bty='n', cex=.5)
+cutoffD=quantile(D, probs = 0.05) # 5% quantitle
+if(sum(D<cutoffD)) legend("topleft", paste(names(sort(D[which(D<cutoffD)])), round(sort(D[which(D<cutoffD)]),2)), bty='n', cex=.5)
 
 message("generating gender-match plot...")
 
@@ -112,12 +135,16 @@ message("generating gender-match plot...")
 #chrX=logfpkm[chrX,]
 chrX='ENSG00000229807.5'  # XIST
 chrY='ENSG00000129824.11'  # RPS4Y1
-covariate=read.table("~/neurogen/rnaseq_PD/rawfiles/covariances.tab", header=T)
-rownames(covariate)=covariate[,1]
+
+gsurl='https://docs.google.com/spreadsheets/d/e/2PACX-1vQFQ4aQj0sD9oxIqaZ-cEgo7kWcCmNYGBH9emLw8iNu0f6TTjKE5Lte7IBfoMMy57cLjA4pXE0YlPY2/pub?gid=28&output=tsv'
+covariate=read.delim(textConnection(getURL(gsurl)))
+#head(covariate)
+sex=covariate$SEX[match(subject, covariate$SOURCE_SUBJECT_ID)]
+
 d=as.data.frame(t(logfpkm[c(chrX,chrY),])); colnames(d)=c("chrX","chrY")
-plot(d, xlab="Expression of XIST", ylab="Expression of RPS4Y1", col= 'white', bg=ifelse(covariate[colnames(fpkm),'sex']=="F",'red','blue'), pch=21, bty="n", main="Gender-specific expression")
-text(subset(d, chrX>0 & chrX<1.5 & chrY<0.2), rownames(subset(d, chrX>0 & chrX<1.5 & chrY<0.2)),pos=2, cex=0.5)
-legend('bottomleft',pch=21,c("Female","Male"), col='white',pt.bg=c("red","blue"), bty='n', cex=.5)
+plot(d, xlab="Expression of XIST", ylab="Expression of RPS4Y1", col= 'white', bg=ifelse(sex=="F",'red','blue'), pch=21, bty="n", main="Gender-specific expression")
+if(nrow(subset(d, chrX>0 & chrX<1.5 & chrY<0.2))>0) text(subset(d, chrX>0 & chrX<1.5 & chrY<0.2), rownames(subset(d, chrX>0 & chrX<1.5 & chrY<0.2)),pos=2, cex=0.5)
+legend('bottomleft',pch=21,c("Female","Male"), col='white',pt.bg=c("red","blue"), bty='n', cex=1)
 
 dev.off()
 
