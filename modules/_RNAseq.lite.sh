@@ -45,6 +45,9 @@ inputdir=$PWD
 outputdir=$inputdir/../run_output
 [ -d $outputdiri/$samplename ] || mkdir -p $outputdir/$samplename
 
+# IMPORTANT: copy config.txt to the output file, in order to record the software/assembly/annotation version etc.
+cp $config_file $outputdir/$samplename
+
 ###########################################
 echo "["`date`"] STEP 2. quality filter: adaptor removal/clip"
 ###########################################
@@ -84,32 +87,32 @@ cd $inputdir/../filtered
 tophat -o $outputdir/$samplename --rg-id $samplename --rg-sample $samplename --rg-platform ILLUMINA --rg-library $samplename --rg-platform-unit $samplename --keep-fasta-order -p $CPU --read-mismatches $mm $tophat $PE_option $strandoption --max-multihits $MAX_HIT --no-coverage-search $GENOME/Sequence/Bowtie2Index/genome $R1 $R2 && \
 touch $outputdir/$samplename/.status.$modulename.mapping
 
-############################################
-echo "["`date`"] STEP 4.1. mapping & calling circRNA"
-############################################
-cd $outputdir/$samplename
-
-mindist=200
-
-# circular RNA calling and quantification (see: https://github.com/YangLab/CIRCexplorer/blob/master/README.md)
-## using tophat-2.0.10 as suggested by CIRCexplorer (e.g. tophat>=2.0.9)
-## the following option is added by Rebeca:
-## --fusion-min-dist default is 10,000,000 changed to --fusion-min-dist 200
-## --fusion-ignore-chromosomes added mitochondria
-## update to CIRCExplore2 (v2.3.2) to include CDR1as (see email with Xiao-Ou Zhou) - 10/23/2017
-## switch to use GENCODE-based refFlat as annotation (see README.txt in ../Annotation/Genes/) - 8/12/2019
-## add de novo  - 8/12/2019
-[ ! -f .status.$modulename.circRNA.circexplore3 ] && \
-([ -f unmapped.fastq ] || bamToFastq -i unmapped.bam -fq unmapped.fastq) && \
-([ -f tophat_fusion/accepted_hits.bam ] || tophat -o tophat_fusion -p $CPU --fusion-search --fusion-min-dist $mindist --fusion-ignore-chromosomes chrM --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome unmapped.fastq) && \
-([ -f back_spliced_junction.bed ] || CIRCexplorer2 parse -t TopHat-Fusion tophat_fusion/accepted_hits.bam -b back_spliced_junction.bed) && \
-CIRCexplorer2 annotate -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -b back_spliced_junction.bed -o circularRNA_known3.txt --low-confidence > .CIRCexplorer3_annotate.log && \
-touch .status.$modulename.circRNA.circexplore3
-
-[ ! -f .status.$modulename.circRNA.circexplore.denovo ] && \
-CIRCexplorer2 assemble -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat -m . -o assemble -p $CPU --remove-rRNA > .CIRCexplorer_assemble.log && \
-CIRCexplorer2 denovo -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat --as=AS --abs=ABS -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -b back_spliced_junction.bed -d assemble -m . -o denovo_circ > .CIRCexplorer_denovo.log && \
-touch .status.$modulename.circRNA.circexplore.denovo
+# ############################################
+# echo "["`date`"] STEP 4.1. mapping & calling circRNA"
+# ############################################
+# cd $outputdir/$samplename
+# 
+# mindist=200
+# 
+# # circular RNA calling and quantification (see: https://github.com/YangLab/CIRCexplorer/blob/master/README.md)
+# ## using tophat-2.0.10 as suggested by CIRCexplorer (e.g. tophat>=2.0.9)
+# ## the following option is added by Rebeca:
+# ## --fusion-min-dist default is 10,000,000 changed to --fusion-min-dist 200
+# ## --fusion-ignore-chromosomes added mitochondria
+# ## update to CIRCExplore2 (v2.3.2) to include CDR1as (see email with Xiao-Ou Zhou) - 10/23/2017
+# ## switch to use GENCODE-based refFlat as annotation (see README.txt in ../Annotation/Genes/) - 8/12/2019
+# ## add de novo  - 8/12/2019
+# [ ! -f .status.$modulename.circRNA.circexplore3 ] && \
+# ([ -f unmapped.fastq ] || bamToFastq -i unmapped.bam -fq unmapped.fastq) && \
+# ([ -f tophat_fusion/accepted_hits.bam ] || tophat -o tophat_fusion -p $CPU --fusion-search --fusion-min-dist $mindist --fusion-ignore-chromosomes chrM --keep-fasta-order --bowtie1 --no-coverage-search $BOWTIE_INDEXES/genome unmapped.fastq) && \
+# ([ -f back_spliced_junction.bed ] || CIRCexplorer2 parse -t TopHat-Fusion tophat_fusion/accepted_hits.bam -b back_spliced_junction.bed) && \
+# CIRCexplorer2 annotate -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -b back_spliced_junction.bed -o circularRNA_known3.txt --low-confidence > .CIRCexplorer3_annotate.log && \
+# touch .status.$modulename.circRNA.circexplore3
+# 
+# [ ! -f .status.$modulename.circRNA.circexplore.denovo ] && \
+# CIRCexplorer2 assemble -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat -m . -o assemble -p $CPU --remove-rRNA > .CIRCexplorer_assemble.log && \
+# CIRCexplorer2 denovo -r $GENOME/Annotation/Genes/gencode.v19.annotation.refFlat --as=AS --abs=ABS -g $GENOME/Sequence/WholeGenomeFasta/genome.fa -b back_spliced_junction.bed -d assemble -m . -o denovo_circ > .CIRCexplorer_denovo.log && \
+# touch .status.$modulename.circRNA.circexplore.denovo
 
 ###########################################
 echo "["`date`"] STEP 5. post-processing, format converting"
@@ -187,11 +190,10 @@ samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
 touch $outputdir/$samplename/.status.$modulename.uniq.bam2stat
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
-_bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation && \
+([ -f accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation) && \
 Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
 touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
 
-[ -f accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
 echo "## normalizing: instead of using total reads, use reads only mapped to non-rRNA-mtRNA for normalization" && \
 total_mapped_reads2=`grep -w total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \

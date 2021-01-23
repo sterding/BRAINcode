@@ -28,9 +28,9 @@ module load gatk-2.2-4
 module load cufflinks/2.2.1
 module load bowtie1/1.0.1 
 module load bowtie2-2.1.0
-module load tophat/2.0.13
+module load tophat/2.0.10
 module load bedtools/2.26.0
-module load samtools/1.10
+module load samtools/0.1.19
 module load prinseq
 module load fastqc/default 
 module load perl

@@ -8,6 +8,8 @@ fi
 
 inputbam=$1
 
+test -e $inputbam || exit 
+
 # annotation files (using export because of parallel 'xxx')
 export ANNOTATION=$GENOME/Annotation/Genes
 export inputbam=$1 

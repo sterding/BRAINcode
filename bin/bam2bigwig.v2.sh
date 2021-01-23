@@ -24,10 +24,12 @@
 #4. 11/21/14: also generate RPM normalized bigwig
 #5. 12/16/15: add normalizationFactor. If ==0, then no normalization; otherwise, use it as the M (in RPM) for normalization
  
-species=hg19
-
-ANNOTATION=$GENOME/Annotation/Genes # $GENOME already in config.txt
 export TMPDIR=/data/neurogen/
+
+config_file=config.txt
+[ -e "$config_file" ] || config_file=$HOME/neurogen/pipeline/RNAseq/config.txt
+echo "Using configuration file at:" $config_file;
+source $config_file
 
 inputfile=$1  # bam or cram
 split=$2
@@ -40,16 +42,18 @@ split=$2
 # -nosplit is to not split input file by strand
 "; exit 0;}
 
-[ "$2" == "" ] || split="-nosplit"
+[[ $# -eq 2 ]] || split="-nosplit"
 
 ext=${inputfile##*.}
 bname=${inputfile%.*}
 
-#echo $split;
+#echo "split=" $split "="$2"=";
 
 case $ext in
-    bam|BAM|Bam|cram|CRAM)
+    bam)
         echo "Input is a $ext file. Converting bam-->bedgraph-->bigwig ...";;
+    cram)
+        echo "Input is a $ext file. Converting cram--> bam --> bedgraph-->bigwig ...";;
     *)
         echo "Unsupported input format. Exit!"
         exit;;
@@ -60,16 +64,19 @@ RPMscale=$(bc <<< "scale=6;1000000/$(samtools view -F 0x100 -c $inputfile)") # r
 if [ "$split" == "-split" ]
 then
     echo "bam-->bw, by strand..."
-    bedtools genomecov -ibam $inputfile -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split -strand + > $bname.plus.normalized.bedGraph && \
+    [ "$ext" == "cram" ] && samtools view -b -T $GENOME/Sequence/WholeGenomeFasta/genome.fa $inputfile | bedtools genomecov -ibam stdin -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split -strand + | LC_COLLATE=C sort -k1,1 -k2,2n > $bname.plus.normalized.bedGraph
+    [ "$ext" == "bam" ] && bedtools genomecov -ibam $inputfile -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split -strand + | LC_COLLATE=C sort -k1,1 -k2,2n > $bname.plus.normalized.bedGraph
     bedGraphToBigWig $bname.plus.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.plus.normalized.bw
     
-    bedtools genomecov -ibam $inputfile -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split -strand - > $bname.minus.normalized.bedGraph && \
+    [ "$ext" == "cram" ] && samtools view -b -T $GENOME/Sequence/WholeGenomeFasta/genome.fa $inputfile | bedtools genomecov -ibam stdin -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split -strand - | LC_COLLATE=C sort -k1,1 -k2,2n > $bname.minus.normalized.bedGraph
+    [ "$ext" == "bam" ] && bedtools genomecov -ibam $inputfile -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split -strand - | LC_COLLATE=C sort -k1,1 -k2,2n > $bname.minus.normalized.bedGraph
     bedGraphToBigWig $bname.minus.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.minus.normalized.bw
 fi
 
 if [ "$split" == "-nosplit" ]
 then
     echo "bam-->bw, without spliting by strand..."
-    bedtools genomecov -ibam $inputfile -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split > $bname.normalized.bedGraph && \
+    [ "$ext" == "cram" ] && samtools view -b -T $GENOME/Sequence/WholeGenomeFasta/genome.fa $inputfile | bedtools genomecov -ibam stdin -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split | LC_COLLATE=C sort -k1,1 -k2,2n > $bname.normalized.bedGraph
+    [ "$ext" == "bam" ] && bedtools genomecov -ibam $inputfile -bg -scale $RPMscale -g $GENOME/Annotation/Genes/ChromInfo.txt -split | LC_COLLATE=C sort -k1,1 -k2,2n > $bname.normalized.bedGraph
     bedGraphToBigWig $bname.normalized.bedGraph $ANNOTATION/ChromInfo.txt $bname.normalized.bw
 fi

@@ -11,6 +11,8 @@ args<-commandArgs(TRUE)
 stat_file=args[1]  # for example: stat_file="/PHShome/xd010/neurogen/rnaseq_PD/run_output/PD_BN13-18_SNDA_5_rep1/uniq/accepted_hits.bam.bam2annotation"
 pdf_file=args[2]
 
+if(!file.exists(stat_file)) quit(save = 'no')
+
 df=read.table(stat_file)
 d=as.list(df[,2]); names(d)=gsub(":.*","", gsub("-","_",df[,1])); attach(d);
 

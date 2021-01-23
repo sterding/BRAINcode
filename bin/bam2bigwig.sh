@@ -34,6 +34,7 @@ split=$2
 normalizationFactor=$3
 region=$4 # in the following format: ‘chr2’ (the whole chr2), ‘chr2:1000000’ (region starting from 1,000,000bp) or ‘chr2:1,000,000-2,000,000’ (region between 1,000,000 and 2,000,000bp including the end points). The coordinate is 1-based.
 
+test -e $inputfile || exit 
 
 #[[ -e "$1" ] && 
 [ "$2" != "" -a -e "$1" ] || {

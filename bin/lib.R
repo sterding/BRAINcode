@@ -124,8 +124,8 @@ ORA <- function(inputGenes, allGenes, topN=20, nCutoff=3, pCutoff=0.01, output='
   allGenes=toupper(unique(na.omit(allGenes))) # remove NA (for the otholog cases)
   
   gt=data.frame();
-  #for(i in c("c5.bp","c5.cc", "c5.mf","c2.cp.kegg")){
-  for(i in c("c2.cp.biocarta","c2.cp.reactome","c2.cp.kegg")){
+  for(i in c("c5.bp","c5.cc", "c5.mf","c2.cp.kegg")){
+  #for(i in c("c2.cp.biocarta","c2.cp.reactome","c2.cp.kegg")){
     message(i);
     gmt.file = paste0("~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/msigdb_v6.2/msigdb_v6.2_GMTs/",i,".v6.2.symbols.gmt")
     pathwayLines <- strsplit(readLines(gmt.file), "\t")
@@ -156,7 +156,7 @@ ORA <- function(inputGenes, allGenes, topN=20, nCutoff=3, pCutoff=0.01, output='
   gt = gt %>% arrange(gene_set, -pvalue) %>% group_by(gene_set) %>% top_n(topN, -pvalue) %>% ungroup() 
   
   pdf(paste(output,"ORA.pdf",sep="."), width=9, height=nrow(gt)/5)
-  p = mutate(gt,Term=factor(V1, unique(as.character(V1)))) %>%  
+  p = filter(gt, grepl("c5",gene_set)) %>% mutate(Term=factor(V1, unique(as.character(V1)))) %>%  
     ggplot(aes(x = Term, y = -log10(pvalue), fill=gene_set)) + 
     geom_bar(stat = "identity") + 
     coord_flip() + 
@@ -164,6 +164,16 @@ ORA <- function(inputGenes, allGenes, topN=20, nCutoff=3, pCutoff=0.01, output='
     ylab("GO terms") + xlab("-log10(Fisher's test P value)") + 
     ggtitle(paste("Top",topN,"enriched GO terms (p <",pCutoff,") in"), subtitle=paste(output))
   print(p)
+  
+  p = filter(gt, grepl("c2",gene_set)) %>% mutate(Term=factor(V1, unique(as.character(V1)))) %>%  
+    ggplot(aes(x = Term, y = -log10(pvalue), fill=gene_set)) + 
+    geom_bar(stat = "identity") + 
+    coord_flip() + 
+    theme_bw() + theme_classic() +
+    ylab("pathway") + xlab("-log10(Fisher's test P value)") + 
+    ggtitle(paste("Top",topN,"enriched pathways (p <",pCutoff,") in"), subtitle=paste(output))
+  print(p)
+  
   dev.off() 
   
   return(gt)

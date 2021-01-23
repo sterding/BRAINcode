@@ -13,7 +13,7 @@ library(ggExtra) # install.packages('ggExtra')
 args<-commandArgs(TRUE)
 sample1=args[1]  
 sample2=args[2]
-FPKMfile = ifelse(is.na(args[3]), "~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cufflinks.allSamples.uniq.xls", args[3])
+FPKMfile = ifelse(is.na(args[3]), "~/neurogen/rnaseq_PD/results/merged/genes.fpkm.cufflinks.allSamples.BCv2.uniq.xls", args[3])
 
 addmarkers=0
 filter=0; 
@@ -62,12 +62,13 @@ x=log10(x + PSEUDOCOUNT); y=log10(y + PSEUDOCOUNT);
 
 pdf(paste("xyplot", sample1, "vs", sample2, "PSEUDO",PSEUDOCOUNT,"FILTER",filter, "pdf", sep="."), width=5, height=5, paper='us', useDingbats=FALSE)
 par(pty="s"); # to make sure the frame is a square (width=height)
-plot(unique(round(cbind(x,y),3)), pch='.', cex=1, main=basename(FPKMfile), xlab=paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")"), ylab=paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"), xlim=range(x,y), ylim=range(x,y), xaxs="r", yaxs="r")
+plot(unique(round(cbind(x,y),3)), pch=19, cex=.6, main=basename(FPKMfile), xlab=paste(sample1, "log10(FPKM +",PSEUDOCOUNT,")"), ylab=paste(sample2, "log10(FPKM +",PSEUDOCOUNT,")"), xlim=range(x,y), ylim=range(x,y), xaxs="r", yaxs="r")
 if(addmarkers==1){
     points(x=x[selected_markers], y=y[selected_markers], col=cols, pch=19, cex=1)
     text(x=x[selected_markers],y=y[selected_markers],labels = fpkm$gene_short_name[selected_markers], adj=c(0,1), col=cols)
 }
 abline(a=0, b=1, col='red', lty=2, lwd=1)
+#legend("topleft", paste("Spearman's rho =", round(cor(x,y,method="spearman"), 3)), bty='n')
 legend("topleft", paste("Pearson's r =", round(cor(x,y), 3)), bty='n')
 
 # heatmap

@@ -20,6 +20,7 @@ then
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_MS/rawfiles
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_Rot/rawfiles
   $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/neurogen/rnaseq_Bennett/rawfiles
+  $HOME/neurogen/pipeline/RNAseq/RNAseq.pipeline.sh /data/bioinformatics/projects/andrew2020/rawfiles
   "
   exit
 fi
@@ -51,7 +52,6 @@ fordisplay_dir=$input_dir/../for_display
 result_dir=$input_dir/../results
 [ -d $result_dir ] || mkdir $result_dir
 
-
 ## TODO: test the prerequisitions, incl.
 # kpal, fastqc, tophat, bowtie, CIRI, GATK, cufflinks, htseq-count, bedtools, samtools, R, fastq-mcf, python
 # Jim-Kent's utility: bigWigSummary ...
@@ -62,7 +62,8 @@ result_dir=$input_dir/../results
 ########################
 cd $input_dir
 
-for i in *_12_*.R1.fastq.gz;
+#for i in HC_BN04-52_TCPY_12_rep1.R1.fastq.gz HC_BN11-98_TCPY_12_rep1.R1.fastq.gz HC_BN05-10_TCPY_12_rep1.R1.fastq.gz AD_BN13-10_TCPY_12_rep1.R1.fastq.gz;
+for i in *.R1.fastq.gz;
 do
     R1=$i
     R2=${i/R1/R2};
@@ -72,7 +73,7 @@ do
     
     # run the QC/mapping/assembly/quantification for RNAseq
     case "$input_dir" in
-    *rnaseq_MS*)
+    *rnaseq_MS* | *andrew2020*)
       bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -R "select[hname!=cmu066]" -u $EMAIL -N _RNAseq.lite.sh $R1 $R2;
       ;;
     *rnaseq_Rot*)
@@ -232,6 +233,10 @@ Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/
 Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/uniq/rpkm/isoforms.fpkm_tracking | grep _TCPY_` isoforms.fpkm.cufflinks.TCPY.uniq.xls
 Rscript $pipeline_path/modules/_mergeSamples_htseq.R `ls ../../run_output/*/uniq/hgseqcount.by.gene.tab | grep _TCPY_` genes.htseqcount.cufflinks.TCPY.uniq.xls
 
+# TCPY, incl. the new batch 12 and 13 (1/5/2021)
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/genes.fpkm_tracking | grep _TCPY_` genes.fpkm.cufflinks.TCPY.v2.xls
+Rscript $pipeline_path/modules/_mergeSamples.R `ls ../../run_output/*/genes.fpkm_tracking | grep _TCPY_ | grep -v -f TCPY.low.depth.samples` genes.fpkm.cufflinks.TCPY.v2_filtered.xls
+  
 # intronic FPKM
 cut -f1 ../../run_output/PD_UWA734_SNDA_6_rep2/uniq/meanRPM.of.metaintron.by.gene.tab | grep ENSG | sort > metaIntron.meanRPM.allSamples.xls
 for i in ../../run_output/*/uniq/meanRPM.of.metaintron.by.gene.tab;
@@ -302,6 +307,16 @@ kpal cat ../../run_output/*TCPY*/k9 mergedTCPY_k9
 kpal matrix mergedTCPY_k9 mergedTCPY_k9.matrix.txt 
 Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cufflinks.TCPY.uniq.xls mergedTCPY_k9.matrix.txt QC.genes.fpkm.cufflinks.TCPY.uniq.pdf
 
+# TCPY samples v2
+kpal cat ../../run_output/*TCPY*/k9 mergedTCPYv2_k9 
+kpal matrix mergedTCPYv2_k9 mergedTCPYv2_k9.matrix.txt 
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cufflinks.TCPY.v2.xls mergedTCPYv2_k9.matrix.txt QC.genes.fpkm.cufflinks.TCPY.v2.pdf
+
+# TCPY samples v2 + remove the low mappability ones
+# list of samples with low mappability (<40%) ==> TCPY.low.depth.samples
+kpal cat `ls ../../run_output/*TCPY*/k9 | grep -v -f TCPY.low.depth.samples` mergedTCPYv2_filted_k9 
+kpal matrix mergedTCPYv2_filted_k9 mergedTCPYv2_filted_k9.matrix.txt 
+Rscript $pipeline_path/modules/_normQC.R genes.fpkm.cufflinks.TCPY.v2_filtered.xls mergedTCPYv2_filted_k9.matrix.txt QC.genes.fpkm.cufflinks.TCPY.v2_filtered.pdf
 #########################
 ### 3. check consistency of replicates
 #########################
@@ -324,6 +339,7 @@ Rscript $pipeline_path/modules/_pairwise_compare.R HC_BN05-10_SNDA_5_rep1 HC_BN0
 # Rscript $pipeline_path/modules/_pairwise_compare.R PD_MGH1288_SNDA_1_rep1 PD_MGH1288_SNDA_4_rep2
 # Rscript $pipeline_path/modules/_pairwise_compare.R PD_MGH1488_SNDA_1_rep1 PD_MGH1488_SNDA_4_rep2
 # Rscript $pipeline_path/modules/_pairwise_compare.R PD_UWA734_SNDA_2_rep1 PD_UWA734_SNDA_6_rep2
+Rscript $pipeline_path/modules/_pairwise_compare.R HC_BN05-12_TCPY_5_rep1 HC_BN05-12_TCPY_11_rep1 genes.fpkm.cufflinks.allSamples.BCv2.uniq.xls
 
 # brain vs. non-brain
 # SN vs. PBMC

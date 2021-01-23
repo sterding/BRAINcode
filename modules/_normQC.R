@@ -37,7 +37,7 @@ fpkm=fpkm[, grep("PD_|stranded|unamplified|_SN_", colnames(fpkm), invert = T)]
 
 message(paste("# data dim:", dim(fpkm)))
 
-pdf(outputfile, width=4, height=4)
+pdf(outputfile, width=7, height=7)
 
 if(file.exists(matrix)){
   message("generating kmer distance plot...")
@@ -70,7 +70,7 @@ rle=logfpkm-apply(logfpkm, 1, median) # change "/" to "-" so that we got log(fol
 rle=melt(cbind(ID=rownames(rle), rle), variable.name = "Sample",value.name ="FPKM", id="ID")
 bymedian <- with(rle, reorder(Sample, FPKM, IQR))  # sort by IQR
 op=par(mar=c(7,3,3,1))
-boxplot(FPKM ~ bymedian, data=rle, outline=F, las=2, boxwex=1, col='gray', cex.axis=0.3, main="Relative Log Expression", xlab="", ylab="RLE", frame=F)
+boxplot(FPKM ~ bymedian, data=rle, outline=F, las=2, boxwex=1, col='gray', cex.axis=0.2, main="Relative Log Expression", xlab="", ylab="RLE", frame=F)
 
 #The other graphical representation (NUSE) represents normalized standard error (SE) estimates from the PLM fit. The SE estimates are normalized such that for each probe set, the median standard error across all arrays is equal to 1. A box plot of NUSE values is drawn for each array. On the NUSE plot, arrays with lower quality will have boxes that are centered higher and/or have a larger spread than the other good quality arrays from the same experiment. Typically, boxes centered above 1.1 represent arrays that have quality problems which are often detected in several of the other QC measures presented in this chapter.
 
@@ -87,9 +87,14 @@ celltype[celltype=='HC_SNDA']='HCILB_SNDA'; celltype[celltype=='ILB_SNDA']='HCIL
 batch=gsub(".*_.*_.*_(\\d+)_.*","\\1",hc$labels)
 subject=gsub(".*_(.*)_.*_.*_.*","\\1",hc$labels)
 
-gsurl='https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs/pub?gid=1995457670&output=tsv'
-library(RCurl)
-colorcode=read.delim(textConnection(getURL(gsurl)))
+# gsurl='https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs/pub?gid=1995457670&output=tsv'
+# library(RCurl)
+# colorcode=read.delim(textConnection(getURL(gsurl)))
+
+library(googlesheets4)
+gsurl="https://docs.google.com/spreadsheets/d/1Sp_QLRjFPW6NhrjNDKu213keD_H9eCkE16o7Y1m35Rs/edit#gid=1995457670"
+gs4_deauth()
+colorcode = as.data.frame(read_sheet(gsurl, sheet = 'color code'))
 cols = subset(colorcode,GROUP=="cell type")
 celltype.colors=paste0("#",cols$HEX[match(celltype, cols$ITEM)])
 
@@ -98,14 +103,15 @@ tree=as.phylo(hc)
 
 ## Update: fix edge.color bug. See https://stackoverflow.com/a/22102420/951718
 myLabels <- c('node', sort(unique(batch)))
-myColors <- c("black", gray.colors(length(unique(batch)),start=0))
+#myColors <- c("black", gray.colors(length(unique(batch)),start=0))
+myColors <- c("black", rainbow(length(unique(batch))))
 ## match colors and labels (nomatch == node => select idx 1)
 ## (myLabels are reordered by edge ordering
 batchColors <- myColors[match(batch[tree$edge[,2]], myLabels, nomatch=1)]
 
 par(mar=c(1,1,1,1))
 plot(tree, type = "unrooted", 
-     cex=.5, lab4ut='axial',underscore = T, 
+     cex=.3, lab4ut='axial',underscore = T, 
      tip.color=celltype.colors, 
      edge.color= batchColors, 
      main="Clustering of samples based on Spearman correlation")
@@ -133,17 +139,25 @@ message("generating gender-match plot...")
 #chrY=logfpkm[chrY$V1,]
 #chrY=apply(chrY, 2, mean)
 #chrX=logfpkm[chrX,]
-chrX='ENSG00000229807.5'  # XIST
-chrY='ENSG00000129824.11'  # RPS4Y1
+chrX='ENSG00000229807'  # XIST
+chrY='ENSG00000129824'  # RPS4Y1
 
-gsurl='https://docs.google.com/spreadsheets/d/e/2PACX-1vQFQ4aQj0sD9oxIqaZ-cEgo7kWcCmNYGBH9emLw8iNu0f6TTjKE5Lte7IBfoMMy57cLjA4pXE0YlPY2/pub?gid=28&output=tsv'
-covariate=read.delim(textConnection(getURL(gsurl)))
-#head(covariate)
+#gsurl='https://docs.google.com/spreadsheets/d/e/2PACX-1vQFQ4aQj0sD9oxIqaZ-cEgo7kWcCmNYGBH9emLw8iNu0f6TTjKE5Lte7IBfoMMy57cLjA4pXE0YlPY2/pub?gid=28&output=tsv'
+#covariate=read.delim(textConnection(getURL(gsurl)))
+gsurl="https://docs.google.com/spreadsheets/d/1McWI4zAtC1qIS4wiYMXvToTKrDkFXaiAqhfDPDHyNIA/edit#gid=28"
+gs4_deauth()
+covariate = as.data.frame(read_sheet(gsurl, sheet = 'Subjects_info'))
+head(covariate)
 sex=covariate$SEX[match(subject, covariate$SOURCE_SUBJECT_ID)]
 
-d=as.data.frame(t(logfpkm[c(chrX,chrY),])); colnames(d)=c("chrX","chrY")
-plot(d, xlab="Expression of XIST", ylab="Expression of RPS4Y1", col= 'white', bg=ifelse(sex=="F",'red','blue'), pch=21, bty="n", main="Gender-specific expression")
-if(nrow(subset(d, chrX>0 & chrX<1.5 & chrY<0.2))>0) text(subset(d, chrX>0 & chrX<1.5 & chrY<0.2), rownames(subset(d, chrX>0 & chrX<1.5 & chrY<0.2)),pos=2, cex=0.5)
+ind=c(grep(chrX,rownames(logfpkm))[1], grep(chrY,rownames(logfpkm))[1])
+
+d=as.data.frame(t(logfpkm[ind,])); colnames(d)=c("chrX","chrY"); d$SEX=sex;
+with(d, plot(chrX, chrY, xlab="Expression of XIST", ylab="Expression of RPS4Y1", col= 'white', bg=ifelse(SEX=="F",'red','blue'), pch=21, bty="n", main="Gender-specific expression"))
+#if(nrow(subset(d, chrX>0 & chrX<1.5 & chrY<0.2))>0) text(subset(d, chrX>0 & chrX<1.5 & chrY<0.2), rownames(subset(d, chrX>0 & chrX<1.5 & chrY<0.2)),pos=2, cex=0.5)
+mean2sd_chrX=mean(d$chrX[sex=="F"])-sd(d$chrX[sex=="F"])
+mean2sd_chrY=mean(d$chrY[sex=="M"])-sd(d$chrY[sex=="M"])
+if(nrow(subset(d, (SEX=="F" & chrX<mean2sd_chrX) | (SEX=="M" & chrY<mean2sd_chrY)))>0) text(subset(d, (SEX=="F" & chrX<mean2sd_chrX) | (SEX=="M" & chrY<mean2sd_chrY)), rownames(subset(d, (SEX=="F" & chrX<mean2sd_chrX) | (SEX=="M" & chrY<mean2sd_chrY))),pos=2, cex=0.5)
 legend('bottomleft',pch=21,c("Female","Male"), col='white',pt.bg=c("red","blue"), bty='n', cex=1)
 
 dev.off()

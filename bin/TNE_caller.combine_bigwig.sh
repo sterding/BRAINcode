@@ -31,7 +31,7 @@ then
 fi
     
 echo "["`date`"] computing trimmed mean of bedGraph (using up to 100 samples randomly picked)"
-#-------------------
+## solution1: based on bedGraph and trimmed mean
 # unionBedGraphs -i `cut -f2 $list_bw_file | sort --random-sort --random-source=$list_bw_file | head -n100 | sed 's/bw/bedGraph/g'` \
 # | awk -v GENOME_SIZE=$GENOME_SIZE 'function trimmedMean(v, p) {c=asort(v,j); a=int(c*p); sum=0; for(i=a+1;i<=(c-a);i++) sum+=j[i];return sum/(c-2*a);} {OFS="\t"; n=1; for(i=4;i<=NF;i++) S[n++]=$i; tm=trimmedMean(S, 0.1); if(tm!=0) print $1,$2,$3,tm; s+=tm*($3-$2);}END{TOTAL=GENOME_SIZE; bc=s/TOTAL; print "#basalCoverage="bc, "#"s"/"TOTAL;}' \
 # | awk '{OFS="\t"; if(id!=$4 || e!=$2 || chr!=$1) {if(chr!="") print chr,s,e,id; chr=$1;s=$2;e=$3;id=$4;} else {e=$3;}}END{print chr,s,e,id}' > trimmedmean.uniq.normalized.$group_lable.bedGraph

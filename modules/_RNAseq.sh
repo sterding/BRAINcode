@@ -41,6 +41,9 @@ inputdir=$PWD
 outputdir=$inputdir/../run_output
 [ -d $outputdiri/$samplename ] || mkdir -p $outputdir/$samplename
 
+# IMPORTANT: copy config.txt to the output file, in order to record the software/assembly/annotation version etc.
+cp $config_file $outputdir/$samplename
+
 ###########################################
 echo "["`date`"] STEP 2. quality filter: adaptor removal/clip"
 ###########################################
@@ -300,16 +303,15 @@ samtools flagstat accepted_hits.bam >> accepted_hits.bam.stat && \
 touch $outputdir/$samplename/.status.$modulename.uniq.bam2stat
 
 echo "## run cufflinks for do de-novo discovery using uniq mapper only" 
-[ ! -f $outputdir/$samplename/.status.$modulename.cufflinks.denovo ] && \
+[ ! -f $outputdir/$samplename/.status.$modulename.uniq.cufflinks.denovo ] && \
 cufflinks --no-update-check --no-faux-reads $strandoption -o ./denovo -p $CPU -g $ANNOTATION_GTF -M $MASK_GTF accepted_hits.bam 2> cufflinks.denovo.log && \
-touch $outputdir/$samplename/.status.$modulename.cufflinks.denovo
+touch $outputdir/$samplename/.status.$modulename.uniq.cufflinks.denovo
 
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.bam2annotation ] && \
 ([ -f accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation) && \
 Rscript $pipeline_path/modules/_bam2annotation.r accepted_hits.bam.bam2annotation accepted_hits.bam.bam2annotation.pdf && \
 touch $outputdir/$samplename/.status.$modulename.uniq.bam2annotation
 
-[ -f accepted_hits.bam.bam2annotation ] || _bam2annotation.sh accepted_hits.bam > accepted_hits.bam.bam2annotation
 [ ! -f $outputdir/$samplename/.status.$modulename.uniq.sam2bw ] && \
 echo "## normalizing: instead of using total reads, use reads only mapped to non-rRNA-mtRNA for normalization" && \
 total_mapped_reads2=`grep -w total_non_rRNA_mt accepted_hits.bam.bam2annotation | cut -f2 -d' '` && \
