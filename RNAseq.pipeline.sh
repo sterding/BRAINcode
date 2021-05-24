@@ -73,8 +73,11 @@ do
     
     # run the QC/mapping/assembly/quantification for RNAseq
     case "$input_dir" in
-    *rnaseq_MS* | *andrew2020*)
+    *rnaseq_MS*)
       bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -R "select[hname!=cmu066]" -u $EMAIL -N _RNAseq.lite.sh $R1 $R2;
+      ;;
+    *andrew2020*)
+      bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -R "select[hname!=cmu066]" -u $EMAIL -N ~/projects/andrew2020/src/_RNAseq.lite.sh $R1 $R2;
       ;;
     *rnaseq_Rot*)
       bsub -J $samplename -oo $output_dir/$samplename/_RNAseq.log -eo $output_dir/$samplename/_RNAseq.log -q $QUEUE -n $CPU -M $MEMORY -R rusage[mem=$MEMORY] -R "select[hname!=cmu066]" -u $EMAIL -N ~/neurogen/rnaseq_Rot/src/_RNAseq.lite.sh $R1 $R2;

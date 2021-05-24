@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 ###########################################
 # R script for running pathway analysis
-# author: Xianjun Dong, Emily Tjon
+# author: Xianjun Dong
 # email: xdong@rics.bwh.harvard.edu
-# date: 5/21/2018
+# date: 2/21/2021
 # version: 1.0
 # Usage: Rscript $0 -i DEresult.all.CONDITION_treated_vs_control.xls.gz -F medium --genome rn6 -o pathway/FDR05
 # Input: input file should include columns: 
@@ -12,7 +12,7 @@
 # - log2FoldChange (for SPIA, GSEA)
 # - lfcSE (for strigent filter)
 # - stat (for GSEA)
-# Note: Upgrate to use msigdb_v6.2 (9/17/2018)
+# Note: Upgrate to use msigdb_v7.2 (2/20/2021)
 ###########################################
 # install packages
 require("optparse",quietly=T, warn.conflicts=F) || install.packages('optparse', repo='http://cran.revolutionanalytics.com');
@@ -42,13 +42,14 @@ if(is.null(opt$input)){
   stop("Input result file from DE analysis must be supplied", call.=FALSE)
 }
 
-suppressPackageStartupMessages(library('tidyverse',logical.return=T)) || {install.packages('tidyverse', repo='http://cran.revolutionanalytics.com'); suppressPackageStartupMessages(library('tidyverse',logical.return=T))}
+suppressPackageStartupMessages(library('tidyverse',logical.return=T)) || {install.packages('tidyverse'); suppressPackageStartupMessages(library('tidyverse',logical.return=T))}
 if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
 suppressPackageStartupMessages(library('SPIA',logical.return=T)) || {BiocManager::install('SPIA',ask=F); suppressPackageStartupMessages(library('SPIA',logical.return=T))}
 suppressPackageStartupMessages(library('org.Hs.eg.db',logical.return=T)) || {BiocManager::install("org.Hs.eg.db",ask=F); suppressPackageStartupMessages(library('org.Hs.eg.db',logical.return=T))}
 suppressPackageStartupMessages(library('biomaRt',logical.return=T)) || {BiocManager::install('biomaRt',ask=F); suppressPackageStartupMessages(library('biomaRt',logical.return=T))}
 suppressPackageStartupMessages(library("topGO",logical.return=T)) || {BiocManager::install("topGO",ask=F); suppressPackageStartupMessages(library("topGO",logical.return=T))}
 suppressPackageStartupMessages(library('fgsea',logical.return=T)) || {BiocManager::install('fgsea',ask=F); suppressPackageStartupMessages(library('fgsea',logical.return=T))}
+suppressPackageStartupMessages(library('pathview',logical.return=T)) || {BiocManager::install('pathview',ask=F); suppressPackageStartupMessages(library('pathview',logical.return=T))}
 
 input_DE_result=opt$input
 output_dir=opt$out
@@ -69,6 +70,8 @@ message(paste("-i", input_DE_result,"-o",output_dir,"-N",topN,"-q",Q_CUTOFF,"-g"
 # input_DE_result="DEresult.DE_SNDA.CONDITION2_PD_vs_HC.xls"; index='hg19'; topN=20; Q_CUTOFF=0.05;filters='no';  output_dir="~/projects/circRNA/results/DE_SNDA"
 # input_DE_result="DEresult.DE.rn6.RotClen_vs_RotVeh.all.CONDITION_RotClen_vs_RotVeh.xls.gz"; index='rn6'; topN=20;Q_CUTOFF=0.05; filters='medium'; output_dir="~/neurogen/rnaseq_Rot/results/merged/DE.rn6.RotClen_vs_RotVeh"
 # setwd("~/projects/circRNA/results/DE2gene_SNDA"); input_DE_result="DEresult.DE2gene_SNDA.CONDITION2_PD_vs_HC.xls"; index='hg19'; topN=20; Q_CUTOFF=0.05;filters='loose';  output_dir="pathway"
+# setwd("~/projects/andrew2020/results/DE"); input_DE_result="DEresult.padj05_log2FCgt1.CONDITION_media_vs_mock.xls"; index='hg19'; topN=20;Q_CUTOFF=0.05; filters='medium'; output_dir="pathway"； program="all"
+
 
 # check input
 if(!file.exists(input_DE_result)) {stop(paste(input_DE_result, "doesn't exist. Exit!"), call.=FALSE);}
@@ -189,10 +192,10 @@ if(all(c('symbol', 'stat') %in% colnames(DE_result0)) && (program=="all" || grep
   for(i in c("c2.cp","c2.cp.kegg", "c2.cgp","c3.tft", "c7.all")){
     message(i);
     
-    gmt.file = paste0("~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/msigdb_v6.2/msigdb_v6.2_GMTs/",i,".v6.2.symbols.gmt")
+    gmt.file = paste0("~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/msigdb_v7.2/msigdb_v7.2_GMTs/",i,".v7.2.symbols.gmt")
     
     pathways = gmtPathways(gmt.file)
-    fgseaRes = fgsea(pathways, stats=ranks, minSize=10, maxSize=500, nperm=100000, nproc = 4)
+    fgseaRes = fgsea(pathways, stats=ranks, minSize=10, maxSize=500, nPermSimple=10000)
     fgseaRes = fgseaRes[order(fgseaRes$padj),]  # default is BH-adjusted p-value, same as FDR
     
     # get FDR < 0.05 pathways
@@ -200,7 +203,7 @@ if(all(c('symbol', 'stat') %in% colnames(DE_result0)) && (program=="all" || grep
 
     if(nrow(fgseaRes)>0) {
       # plot
-      for(x in fgseaRes$pathway) plotEnrichment(pathways[[x]], stats=ranks) + labs(title=x)
+      for(x in fgseaRes$pathway) {p=plotEnrichment(pathways[[x]], stats=ranks) + labs(title=x); print(p);}
       
       # flatten the list of leadingEdge
       fgseaRes$leadingEdge = vapply(fgseaRes$leadingEdge, paste, collapse = ", ", character(1L))
@@ -220,7 +223,7 @@ if(all(c('symbol', 'log2FoldChange') %in% colnames(DE_result)) && (program=="all
   ###################################################
   ## Prerequisition
   # download all KEGG pathway and install in SPIA
-  # cd /Library/Frameworks/R.framework/Versions/3.6/Resources/library/SPIA
+  # cd /Library/Frameworks/R.framework/Versions/4.0/Resources/library/SPIA
   # curl -s http://rest.kegg.jp/list/pathway/hsa | awk '{split($1,a,":"); print "curl http://rest.kegg.jp/get/"a[2]"/kgml -o extdata/keggxml/hsa/"a[2]".xml"}' | bash
   # curl -s http://rest.kegg.jp/list/pathway/hsa | awk '{split($1,a,":"); print "curl http://rest.kegg.jp/get/"a[2]"/image -o extdata/keggxml/hsa/"a[2]".png"}' | bash
   #library(SPIA)
@@ -260,13 +263,14 @@ if(all(c('symbol', 'log2FoldChange') %in% colnames(DE_result)) && (program=="all
   # Status gives the direction in which the pathway is perturbed (activated or inhibited). 
   # KEGGLINK gives a web link to the KEGG website that displays the pathway image with the differentially expressed genes highlighted in red.
   
-  # add color code to the KEGGLINK based on fold-change of each DE gene, for DE.rn6.RotClen_vs_RotVeh, DE.rn6.VehClen_vs_VehVeh
+  # add color code to the KEGGLINK based on fold-change of each DE gene 
+  # Potential issue: some pathways are not in the Pathview web server and it will return an error (see https://support.bioconductor.org/p/90506/)
   library(pathview) # BiocManager::install("pathview",ask=F);
-  sapply(filter(res, pGFdr<Q_CUTOFF, !(ID %in% c("04723","04320")), file.exists(paste0("/Library/Frameworks/R.framework/Versions/3.6/Resources/library/SPIA/extdata/keggxml/hsa/hsa",ID,".xml")), !file.exists(paste0("hsa",ID,".",input_DE_result,".png"))) %>% dplyr::select(ID), 
+  sapply(filter(res, pGFdr<Q_CUTOFF, !(ID %in% c("04723","04320","04215","05206")), file.exists(paste0("/Library/Frameworks/R.framework/Versions/4.0/Resources/library/SPIA/extdata/keggxml/hsa/hsa",ID,".xml")), !file.exists(paste0("hsa",ID,".",input_DE_result,".png"))) %>% dplyr::select(ID), 
          function(pid) pathview(gene.data  = degGIs, 
                                 pathway.id = pid, 
                                 species = "hsa", 
-                                kegg.dir = "/Library/Frameworks/R.framework/Versions/3.6/Resources/library/SPIA/extdata/keggxml/hsa/",
+                                kegg.dir = "/Library/Frameworks/R.framework/Versions/4.0/Resources/library/SPIA/extdata/keggxml/hsa/",
                                 out.suffix = input_DE_result,
                                 limit  = list(gene=max(abs(degGIs)), cpd=1)))
   

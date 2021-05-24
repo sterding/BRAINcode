@@ -53,7 +53,7 @@ makeNewImages <- function(df,...){
 ## topGO: offer solution to the overlap problem in gene set collection that are DAGs, by testing the leaf gene sets first and if a gene set is significant, remove its genes from its ancestor sets before testing the upper level sets.
 
 # debug
-# list_of_gene_names=DE_result$human_orth_symbol; allGenes=gene_names; topN=topN; pCutoff=Q_CUTOFF; type='all'; output=file.path(output_dir, input_DE_result)
+# list_of_gene_names=DE_result$human_orth_symbol; allGenes=gene_names; topN=topN; pCutoff=Q_CUTOFF; type='all'; output=file.path(input_DE_result)
 topGOenrichment <- function(list_of_gene_names, allGenes, topN=100, pCutoff=0.001, type='all', output='input')
 {
   if(!require("biomaRt")) { source("http://www.bioconductor.org/biocLite.R"); biocLite("biomaRt",ask=F);}
@@ -109,7 +109,7 @@ topGOenrichment <- function(list_of_gene_names, allGenes, topN=100, pCutoff=0.00
     geom_bar(stat = "identity") + 
     coord_flip() + 
     theme_bw() + theme_classic() +
-    ylab("GO terms") + xlab("-log10(Fisher's test P value)") + 
+    xlab("GO terms") + ylab("-log10(Fisher's test P value)") + 
     ggtitle(paste("Top",topN,"enriched GO terms (p <",pCutoff,") in"), subtitle=paste(output,type))
   print(p)
   dev.off() 
@@ -124,10 +124,10 @@ ORA <- function(inputGenes, allGenes, topN=20, nCutoff=3, pCutoff=0.01, output='
   allGenes=toupper(unique(na.omit(allGenes))) # remove NA (for the otholog cases)
   
   gt=data.frame();
-  for(i in c("c5.bp","c5.cc", "c5.mf","c2.cp.kegg")){
+  for(i in c("c5.go.bp","c5.go.cc", "c5.go.mf","c2.cp.kegg")){
   #for(i in c("c2.cp.biocarta","c2.cp.reactome","c2.cp.kegg")){
     message(i);
-    gmt.file = paste0("~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/msigdb_v6.2/msigdb_v6.2_GMTs/",i,".v6.2.symbols.gmt")
+    gmt.file = paste0("~/neurogen/referenceGenome/Homo_sapiens/UCSC/hg19/Annotation/msigdb_v7.2/msigdb_v7.2_GMTs/",i,".v7.2.symbols.gmt")
     pathwayLines <- strsplit(readLines(gmt.file), "\t")
     pathways <- lapply(pathwayLines, utils::tail, -2)
     pathways = as.data.frame(cbind(do.call(rbind, lapply(pathwayLines,head,2)), geneset=pathways))
@@ -161,7 +161,7 @@ ORA <- function(inputGenes, allGenes, topN=20, nCutoff=3, pCutoff=0.01, output='
     geom_bar(stat = "identity") + 
     coord_flip() + 
     theme_bw() + theme_classic() +
-    ylab("GO terms") + xlab("-log10(Fisher's test P value)") + 
+    xlab("GO terms") + ylab("-log10(Fisher's test P value)") + 
     ggtitle(paste("Top",topN,"enriched GO terms (p <",pCutoff,") in"), subtitle=paste(output))
   print(p)
   
@@ -170,7 +170,7 @@ ORA <- function(inputGenes, allGenes, topN=20, nCutoff=3, pCutoff=0.01, output='
     geom_bar(stat = "identity") + 
     coord_flip() + 
     theme_bw() + theme_classic() +
-    ylab("pathway") + xlab("-log10(Fisher's test P value)") + 
+    xlab("pathway") + ylab("-log10(Fisher's test P value)") + 
     ggtitle(paste("Top",topN,"enriched pathways (p <",pCutoff,") in"), subtitle=paste(output))
   print(p)
   

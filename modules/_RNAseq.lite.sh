@@ -65,6 +65,16 @@ touch $outputdir/$samplename/.status.$modulename.adaptorremoval
 
 cd $inputdir/../filtered
 
+# for Andrew's lib (based on SMARTer v3), we also need to remove the first 8nt from R2. See fig2: https://www.takarabio.com/learning-centers/next-generation-sequencing/technical-notes/rna-seq/stranded-libraries-from-picogram-input-total-rna-(v3)
+[ ! -f $outputdir/$samplename/.status.$modulename.SMARTer.trimming ] && \
+[[ $inputdir =~ .*andrew20320.* ]] && \
+echo "trimming first 10nt..." && \
+zcat $R1 | awk '{if(NR%2==0) $1=substr($1,11); print}' | gzip > $R1.tmp && \
+mv $R1.tmp $R1 && \
+zcat $R2 | awk '{if(NR%2==0) $1=substr($1,11); print}' | gzip > $R2.tmp && \
+mv $R2.tmp $R2 && \
+touch $outputdir/$samplename/.status.$modulename.SMARTer.trimming
+
 #############################################
 echo "["`date`"] STEP 3. QC"
 ############################################
